@@ -18,6 +18,13 @@ export function normalizeQuotes(value){
    company:q.company,status:q.status,amount_ht:money(q.amount_ht),
    commission_amount:money(q.commission_amount),
    notes:text(q.source_payload?.notes,1200),products:text(q.source_payload?.products,450),
+   mode:q.source_payload?.mode==='automatic'?'automatic':'manual',
+   lines:Array.isArray(q.source_payload?.lines)?q.source_payload.lines.slice(0,20).map(l=>({
+    snapshot_id:text(l?.snapshot_id,40),row_index:Number(l?.row_index),sku:text(l?.sku,90),
+    product_name:text(l?.product_name,160),company:text(l?.company,5),tier:text(l?.tier,2),
+    cost_eur:Number(l?.cost_eur),quantity:Number(l?.quantity),unit_price:Number(l?.unit_price),
+    sales_ht:Number(l?.sales_ht),commission_estimate:Number(l?.commission_estimate)
+   })).filter(l=>Number.isInteger(l.row_index)&&l.sku&&['A','B'].includes(l.tier)):[],
    updated_at:q.updated_at,created_at:q.created_at};
  });
 }
