@@ -106,3 +106,18 @@
 .client-memory-entry{display:flex;flex-direction:column;gap:4px;padding:7px 0;border-bottom:1px solid #ebf1eb}
 .client-memory-entry strong{font-size:13px;overflow-wrap:anywhere}
 .client-memory-entry small{font-size:12px;line-height:1.55;color:#597465;overflow-wrap:anywhere}
+
+
+/* D16: verified WhatsApp archive, rendered only as text nodes */
+.whatsapp-overview,.whatsapp-group{border:1px solid #dfe9e1;background:#fff;border-radius:12px;padding:12px;margin:10px 0;}
+.whatsapp-overview>summary,.whatsapp-group>summary{cursor:pointer;color:#1b6444;font-weight:750;font-size:13px;line-height:1.5;}
+.whatsapp-overview-row{display:flex;flex-direction:column;align-items:stretch;gap:5px;width:100%;background:#fafcfa;border:1px solid #e8eee8;border-radius:10px;text-align:left;margin-top:9px;padding:12px;color:#193d2a;}
+.whatsapp-overview-row:hover{border-color:#81b494;}
+.whatsapp-overview-row strong{font-size:13px;}
+.whatsapp-overview-row small{font-size:11px;color:#61796b;}
+.whatsapp-overview-row span{font-size:12px;color:#384b3e;line-height:1.45;overflow-wrap:anywhere;}
+.whatsapp-entry{border-top:1px solid #eaf0eb;padding:12px 2px;}
+.whatsapp-entry strong{font-size:12px;color:#245e41;}
+.whatsapp-entry p{font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;margin:7px 0;}
+.whatsapp-entry small{font-size:10px;color:#6a8573;}
+.whatsapp-brief .client-provenance{font-size:11px;}
