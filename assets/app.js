@@ -1,6 +1,6 @@
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
-import {normalizeClientList,normalizeClientCard,validClientId} from './clients-model.mjs';
+import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions} from './reconciliation.mjs';
 import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
@@ -9,6 +9,8 @@ const state={access:null,refresh:null,exp:0,report:null,view:'home',period:prevC
 const STORE='weneed_v1_ephemeral_session';
 const reportRequests=createRequestGuard();
 const clientRequests=createRequestGuard();
+const dashboardRequests=createRequestGuard();
+const dashboard={data:null,loading:false,error:''};
 const clients={rows:null,query:'',selected:null,detail:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
@@ -19,7 +21,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -83,7 +85,7 @@ async function loadReport(){
 }
 function changeMonth(delta){reportRequests.invalidate();loading(false);const y=Number(state.period.from.slice(0,4)),m=Number(state.period.from.slice(5,7))-1;state.period=monthOf(new Date(y,m+delta,1));state.report=null;state.page=1;state.expanded.clear();updatePeriod();renderViews();setNotice('Période changée. Appuie sur ↻ pour consulter Odoo.');}
 function updatePeriod(){$('period-label').textContent=state.period.label}
-function navigate(view){if(!['home','orders','clients','commissions','settings'].includes(view))return;state.view=view;const names={home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['CRM PRIVÉ','Clients','Contacts, tâches et historique commercial en lecture seule.'],commissions:['RÉMUNÉRATION','Commissions','Préparation et réconciliation avant Kino.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='clients'&&clients.rows===null&&!clients.loading&&!clients.selected)loadClients()}
+function navigate(view){if(!['home','orders','clients','commissions','settings'].includes(view))return;state.view=view;const names={home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['CRM PRIVÉ','Clients','Contacts, tâches et historique commercial en lecture seule.'],commissions:['RÉMUNÉRATION','Commissions','Préparation et réconciliation avant Kino.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='clients'&&clients.rows===null&&!clients.loading&&!clients.selected)loadClients();if(view==='home'&&dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard()}
 function metric(label,value,sub,{dark=false,small=false}={}){const el=node('article','metric'+(dark?' dark':''));el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));return el}
 function renderStats(){const list=state.report?.orders||[],stats=deriveStats(list);const grid=$('metrics');clear(grid);grid.append(metric('Commandes GTA/TR',state.report?String(stats.visible):'—','Sur la période'),metric('Commandes confirmées',state.report?String(stats.confirmed):'—','Statuts sale et done'),metric('Montant HT confirmé',state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Chiffre d’affaires, pas commission',{small:true}),metric('Commissions', 'À vérifier','Attente des règles Kino',{dark:true,small:true}));
  const c=$('commission-facts');clear(c);c.append(metric('GTA • confirmées',state.report?String(list.filter(o=>o.company==='GTA'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('TR • confirmées',state.report?String(list.filter(o=>o.company==='TR'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('À exclure',state.report?String(stats.excluded):'—','Annulées, brouillons et autres'),metric('Commissions validées','—','Rapprochement Kino requis',{dark:true,small:true}));
@@ -119,6 +121,45 @@ function warningInFrench(v){return ({
  'Matched Kino products include zero catalogue prices or costs':'Des coûts ou prix du catalogue Kino sont à zéro'
  })[v]||'Contrôle supplémentaire nécessaire';}
 function renderCommissions(){renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber})}
+
+
+async function loadDashboard(){
+ if(!state.access)return;
+ const ticket=dashboardRequests.begin();
+ dashboard.loading=true;dashboard.error='';renderDashboard();
+ try{
+  const response=await companionGet('/dashboard?attention_limit=5&activity_limit=5');
+  if(!dashboardRequests.isCurrent(ticket))return;
+  dashboard.data=normalizeCrmDashboard(response);
+ }catch(error){
+  if(!dashboardRequests.isCurrent(ticket))return;
+  dashboard.data=null;dashboard.error='Résumé CRM indisponible. Les commandes Odoo restent accessibles séparément.';
+ }finally{if(dashboardRequests.isCurrent(ticket)){dashboard.loading=false;renderDashboard()}}
+}
+function renderDashboard(){
+ const stats=$('crm-stats'),attention=$('crm-attention');if(!stats||!attention)return;
+ clear(stats);clear(attention);
+ if(dashboard.loading){attention.append(empty('Chargement du suivi CRM…'));return}
+ if(dashboard.error){attention.append(empty(dashboard.error));return}
+ const d=dashboard.data;
+ if(!d){attention.append(empty('Résumé CRM non chargé.'));return}
+ stats.append(metric('Clients CRM',String(d.clients),'Fiches existantes'),
+  metric('À suivre',String(d.attentionCount),'Clients nécessitant une action'),
+  metric('Tâches actives',String(d.tasks),'Actions en cours'),
+  metric('En retard',String(d.overdue),'Actions à examiner',{dark:true}));
+ if(!d.attention.length&&!d.unassigned.length){attention.append(empty('Aucun élément prioritaire dans le CRM.'));return}
+ for(const client of d.attention.slice(0,5)){
+  const btn=node('button','client-row');btn.type='button';
+  btn.append(node('span','client-name',client.name),node('span','client-mini',`${client.openTasks} tâche(s) · ${client.overdueTasks} en retard`));
+  btn.addEventListener('click',()=>{clients.selected=client.id;navigate('clients');openClient(client.id)});
+  attention.append(btn);
+ }
+ for(const task of d.unassigned.slice(0,3)){
+  const item=node('div','review-item');
+  item.append(node('span','',task.title||'Tâche à examiner'),node('strong','',task.dueAt?shortDate(task.dueAt):'Sans échéance'));
+  attention.append(item);
+ }
+}
 
 async function companionGet(path){
  const jwt=await ensureToken();
@@ -207,7 +248,7 @@ function renderClients(){
  }
 }
 
-function renderViews(){renderStats();renderHome();renderOrders();renderCommissions();renderClients()}
+function renderViews(){renderStats();renderHome();renderOrders();renderCommissions();renderClients();renderDashboard()}
 async function boot(){
  updatePeriod();showLogin();
  const stored=getStored();if(!stored)return;
@@ -221,7 +262,7 @@ async function boot(){
 }
 $('login-form').addEventListener('submit',async ev=>{ev.preventDefault();const email=$('login-email').value.trim(),password=$('login-password').value;const btn=$('login-button');btn.disabled=true;$('login-error').classList.add('hidden');try{await login(email,password);$('login-password').value='';showApp();setNotice('Connexion propriétaire confirmée. Appuie sur ↻ pour charger les commandes.')}catch(err){forget();$('login-error').textContent=readableError(err.message);$('login-error').classList.remove('hidden')}finally{btn.disabled=false;password.length&&($('login-password').value='')}});
 $('logout-top').addEventListener('click',signOut);$('logout-bottom').addEventListener('click',signOut);
-$('reload').addEventListener('click',loadReport);$('prev-month').addEventListener('click',()=>changeMonth(-1));$('next-month').addEventListener('click',()=>changeMonth(1));
+$('reload').addEventListener('click',loadReport);$('reload-crm').addEventListener('click',loadDashboard);$('prev-month').addEventListener('click',()=>changeMonth(-1));$('next-month').addEventListener('click',()=>changeMonth(1));
 document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.nav)));
 document.querySelectorAll('[data-company]').forEach(b=>b.addEventListener('click',()=>{state.company=b.dataset.company;state.page=1;document.querySelectorAll('[data-company]').forEach(x=>x.classList.toggle('active',x===b));renderOrders()}));
 $('client-search').addEventListener('input',e=>{
