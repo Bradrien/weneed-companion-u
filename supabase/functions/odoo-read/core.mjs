@@ -146,8 +146,12 @@ export async function jsonRpc(cfg, service, method, args, fetchImpl = fetch) {
 
 export async function performRead(cfg, parsed, fetchImpl = fetch) {
   const uid = await jsonRpc(cfg, 'common', 'authenticate', [cfg.db, cfg.login, cfg.apiKey, {}], fetchImpl);
-  if (!Number.isSafeInteger(uid) || uid <= 0 || (cfg.uidPin && cfg.uidPin !== uid)) {
-    throw new OdooBridgeError('odoo_auth_failed', 502);
+  // Only owner-authenticated callers see a diagnostic category, never an Odoo ID.
+  if (!Number.isSafeInteger(uid) || uid <= 0) {
+    throw new OdooBridgeError('odoo_credentials_rejected', 502);
+  }
+  if (cfg.uidPin && cfg.uidPin !== uid) {
+    throw new OdooBridgeError('odoo_uid_pin_mismatch', 502);
   }
   if (parsed.resource === 'ping') return { connected: true, mode: 'read_only', persisted: false };
   if (parsed.resource === 'orders_probe') {
