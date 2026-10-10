@@ -246,7 +246,7 @@ async function review(from,to){
   if(items.some(x=>x.catalog_match.status==='matched'&&(x.catalog_match.cost_zero||x.catalog_match.price_zero)))
     warnings.push('catalog_zero_price_review');
   report.push({id:order.id,reference:txt(order.name),date:txt(order.date_order),
-    company,client:display(order.partner_id),salesperson:display(order.user_id),state,
+    company,client:display(order.partner_id),partner_odoo_id:id(order.partner_id),salesperson:display(order.user_id),state,
     currency:display(order.currency_id)||null,
     amount_ht:source,line_sum_ht:complete?round(sum):null,amount_difference:gap,
     issues:warnings,lines:items,commission_eur:null,commission_status:'kino_rules_pending'});
