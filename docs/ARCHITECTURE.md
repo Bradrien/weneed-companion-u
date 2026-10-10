@@ -167,3 +167,15 @@ La capture iPhone de la fiche Green Purple montre que la recherche CRM, les cont
 - Préversion privée : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D9`.
 
 **Suite nécessaire :** vérifier la relation d'identité CRM ↔ `res.partner.id` d'Odoo (et les entreprises filles) avant un historique multi-mois véritablement fiable ; relier le CRM aux commandes historiques et, ensuite, organiser les échanges en jalons commerciaux avec sources et validations.
+
+## D10 — audit de l'identité Odoo sur la fiche CRM
+
+La capture propriétaire D9 de Green Purple a validé la présence de trois commandes exactes sur septembre : S03515 (10 546 €), T01981 (0 €), S03591 (7 500 €, statut `cancel`). Les faits et références comptables issus de Gmail restent des **déclarations issues de messages** et non des encaissements attestés.
+
+- `commission-catalog-review` v7 expose seulement l'entier Odoo `res.partner.id` dans `orders[].partner_odoo_id`, en plus du nom déjà présent. Le filtre, l'autorisation JWT et la lecture seule restent inchangés.
+- `client-360-model.mjs` recopie cet entier uniquement s'il est valide et signale si plusieurs IDs distincts partagent le même nom, ou si une commande n'a pas d'ID utilisable. Il ne crée **aucune relation persistante**.
+- La fiche D10 montre cet ID et un avertissement sur les identités potentiellement distinctes. Le bouton dit « Voir la commande dans Companion » car il ouvre l'onglet local, pas directement Odoo.
+- La synthèse CRM existante est clairement identifiée comme « automatique non vérifiée, langue d'origine » et rappelle que les mentions « paid » ne prouvent pas un paiement.
+- Tests unitaires de conflits entre IDs, de non-fusion et d'absence d'ID ; préversion isolée `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D10`.
+
+**Prochaine étape** : vérifier manuellement que les identifiants Odoo de Green Purple désignent bien cette société (puis ses éventuelles boutiques), enregistrer un lien autorisé seulement après confirmation, et interroger les historiques sans limitations au mois courant. Les factures/avoirs doivent être recoupés séparément.
