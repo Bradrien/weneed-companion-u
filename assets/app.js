@@ -1,9 +1,11 @@
+import {createRequestGuard} from './request-guard.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions} from './reconciliation.mjs';
 import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
 const $=x=>document.getElementById(x);
 const state={access:null,refresh:null,exp:0,report:null,view:'home',period:prevCompleteMonth(),company:'ALL',orderState:'all',query:'',page:1,expanded:new Set(),loading:false,refreshTimer:null};
 const STORE='weneed_v1_ephemeral_session';
+const reportRequests=createRequestGuard();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
 const node=(tag,cls,textValue)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(textValue!==undefined)x.textContent=String(textValue);return x};
@@ -12,7 +14,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){reportRequests.invalidate();loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){if(!state.refresh)throw Error('no_session');const res=await authFetch('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:state.refresh})});if(!res.ok){forget();showLogin();throw Error('session_expired')}saveSession(await res.json())}
@@ -22,11 +24,12 @@ async function login(email,password){const res=await authFetch('/auth/v1/token?g
 async function signOut(){const jwt=state.access;forget();showLogin();if(jwt)try{await authFetch('/auth/v1/logout',{method:'POST',headers:{authorization:`Bearer ${jwt}`}})}catch{}}
 function showLogin(){$('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');$('bottom-nav').classList.add('hidden');$('logout-top').classList.add('hidden')}
 function showApp(){$('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');$('bottom-nav').classList.remove('hidden');$('logout-top').classList.remove('hidden');navigate(state.view)}
-function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',odoo_unreachable:'Odoo ne répond pas pour le moment.',odoo_auth_failed:'L’authentification serveur Odoo a échoué.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
+function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',odoo_unreachable:'Odoo ne répond pas pour le moment.',odoo_auth_failed:'Ta connexion Companion est valide, mais la connexion serveur à Odoo est refusée. Vérifie la configuration Odoo côté Supabase (compte, clé API et identité attendue). Changer le mot de passe Companion ne résoudra pas ce problème.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
 async function loadReport(){
  if(!state.access||state.loading)return;
  const {from,to}=state.period;
  if(!isDateRangeValid(from,to)){setNotice('Choisis une période de moins de 94 jours.','error');return}
+ const request=reportRequests.begin();
  loading(true);setNotice('Consultation et rapprochement des commandes Odoo en lecture seule…');
  try{
   const jwt=await ensureToken();
@@ -44,6 +47,7 @@ async function loadReport(){
    if(!['catalog_unavailable','catalog_incomplete','catalog_invalid','review_unavailable'].includes(error.message))throw error;
    report=await reportFrom('commission-review');usedFallback=true;
   }
+  if(!reportRequests.isCurrent(request))return;
   state.report=assertReport(report);
   state.page=1;state.expanded.clear();
   $('odoo-state').textContent='Lecture validée';
@@ -54,11 +58,12 @@ async function loadReport(){
    `${state.report.orders_count} commandes · ${k.matched}/${k.eligible} lignes éligibles retrouvées dans Kino. Aucun montant de commission calculé.`,usedFallback?'warn':'info');
   renderViews();
  }catch(error){
+  if(!reportRequests.isCurrent(request))return;
   state.report=null;$('odoo-state').textContent='Lecture non validée';$('kino-state').textContent='Non vérifié';
   setNotice(readableError(error.message),'error');renderViews();
- }finally{loading(false)}
+ }finally{if(reportRequests.isCurrent(request))loading(false)}
 }
-function changeMonth(delta){const y=Number(state.period.from.slice(0,4)),m=Number(state.period.from.slice(5,7))-1;state.period=monthOf(new Date(y,m+delta,1));state.report=null;state.page=1;state.expanded.clear();updatePeriod();renderViews();setNotice('Période changée. Appuie sur ↻ pour consulter Odoo.');}
+function changeMonth(delta){reportRequests.invalidate();loading(false);const y=Number(state.period.from.slice(0,4)),m=Number(state.period.from.slice(5,7))-1;state.period=monthOf(new Date(y,m+delta,1));state.report=null;state.page=1;state.expanded.clear();updatePeriod();renderViews();setNotice('Période changée. Appuie sur ↻ pour consulter Odoo.');}
 function updatePeriod(){$('period-label').textContent=state.period.label}
 function navigate(view){if(!['home','orders','commissions','settings'].includes(view))return;state.view=view;const names={home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],commissions:['RÉMUNÉRATION','Commissions','Préparation et réconciliation avant Kino.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews()}
 function metric(label,value,sub,{dark=false,small=false}={}){const el=node('article','metric'+(dark?' dark':''));el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));return el}
@@ -105,3 +110,4 @@ document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()
 document.querySelectorAll('[data-company]').forEach(b=>b.addEventListener('click',()=>{state.company=b.dataset.company;state.page=1;document.querySelectorAll('[data-company]').forEach(x=>x.classList.toggle('active',x===b));renderOrders()}));
 $('order-search').addEventListener('input',e=>{state.query=e.target.value;state.page=1;renderOrders()});$('status-select').addEventListener('change',e=>{state.orderState=e.target.value;state.page=1;renderOrders()});$('load-more').addEventListener('click',()=>{state.page++;renderOrders()});
 boot();
+

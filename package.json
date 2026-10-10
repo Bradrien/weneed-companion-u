@@ -1,0 +1,10 @@
+{
+  "name": "weneed-companion",
+  "private": true,
+  "version": "1.2.1",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check:bridge": "node --check kino-bridge/content.js && node --check kino-bridge/search-core.js && node --check kino-bridge/background.js && node --check kino-bridge/popup.js"
+  },
+  "engines": { "node": ">=20" }
+}

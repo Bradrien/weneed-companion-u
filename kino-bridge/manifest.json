@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "WeNeed Companion - Kino Bridge",
+  "version": "0.7.0",
+  "description": "Pont Chrome privé : catalogue et inspection, recherche SKU temporaire et réversible, aucune simulation de vente.",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://kinocommission.base44.app/*",
+    "https://gcirlrghjvumhkekrtmf.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kinocommission.base44.app/*"
+      ],
+      "js": [
+        "search-core.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Kino Bridge",
+    "default_popup": "popup.html"
+  }
+}

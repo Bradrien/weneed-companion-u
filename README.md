@@ -26,6 +26,21 @@ Adresse hébergée : https://bradrien.github.io/weneed-companion-u/
 - L'application conserve les jetons Supabase en `sessionStorage` et nettoie la session à la déconnexion. Ne pas utiliser sur un poste partagé.
 - `commission-catalog-review` et `commission-review` sont en lecture seule.
 
+## Développement et version candidate
+
+Node 20 ou plus récent, sans dépendances à installer :
+
+```sh
+npm test
+npm run check:bridge
+```
+
+Le dossier `kino-bridge/` contient une version **0.7.0 candidate**, dérivée de la version 0.5.0 installée. L'archive 0.6 n'a pas pu être récupérée ; aucune équivalence avec cette version n'est présumée. Voir `kino-bridge/INSTALLATION.txt` pour la validation et le retour arrière.
+
+La recherche filtre les suggestions par SKU et société, ignore les filtres du catalogue, protège une saisie utilisateur concurrente et permet de choisir le SKU testé. Les tests utilisent un DOM simulé : ils ne remplacent pas une validation Chrome/React. Le bridge n'automatise pas la sélection d'un produit ni les simulations de vente.
+
+L'interface invalide les réponses de rapports antérieurs lors d'un changement de mois ou d'une déconnexion. Les commissions restent non calculées.
+
 ## Vérifications
 
 - 1 385/1 385 produits Kino importés dans la base privée : 571 GTA, 814 TR.
@@ -44,3 +59,4 @@ Adresse hébergée : https://bradrien.github.io/weneed-companion-u/
 6. S'assurer que les commissions restent « À vérifier ».
 
 Si un message d'erreur apparaît, conserver le texte pour diagnostic. Les tests réels nécessitent le JWT de la session utilisateur, non communicable dans le chat.
+
