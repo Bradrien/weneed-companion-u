@@ -77,8 +77,17 @@ test('Odoo partner-history API is owner-only and cannot mutate Odoo or bind CRM 
 
 test('Owner-scoped Odoo history retrieves partner identity only if sales are present',()=>{
  const api=readFileSync(new URL('../supabase/functions/client-odoo-history/index.ts',import.meta.url),'utf8');
- assert.match(api,/if\(!hasOrders\)return null/);
+ assert.match(api,/if\(!hasOrders\)return \{partner:null,diagnostic:'no_accessible_orders'\}/);
  assert.match(api,/res\.partner/);
- assert.match(api,/partner=await getPartnerIdentity\(c,uid,partnerId,orders\.length>0\)/);
+ assert.match(api,/partner_diagnostic\}=await getPartnerIdentity\(c,uid,partnerId,orders\.length>0\)/);
  assert.match(api,/identity_verified:false/);
+});
+
+test('Partner Odoo fallback limits exposed fields and returns safe diagnostics without Odoo raw errors',()=>{
+ const api=readFileSync(new URL('../supabase/functions/client-odoo-history/index.ts',import.meta.url),'utf8');
+ assert.match(api,/for\(const mode of modes\)/);
+ assert.match(api,/code:'name_only' as const/);
+ assert.match(api,/diagnostic:rejected\?'odoo_partner_read_rejected':'not_visible'/);
+ assert.match(api,/checked_at:new Date\(\)\.toISOString\(\),orders,partner,partner_diagnostic/);
+ assert.doesNotMatch(api,/JSON\.stringify\(\{code,status,.*error/);
 });
