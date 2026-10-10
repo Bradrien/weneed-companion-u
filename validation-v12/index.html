@@ -11,7 +11,7 @@
  <link rel="manifest" href="manifest.webmanifest">
  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
  <link rel="apple-touch-icon" href="assets/icon.svg">
- <link rel="stylesheet" href="assets/app.css">
+ <link rel="stylesheet" href="assets/app-reconciliation-d4.css">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — préversion V1.2</title>
 </head>
@@ -21,7 +21,7 @@
    <div class="brand"><span class="brand-symbol" aria-hidden="true">W<span class="accent">.</span></span><span class="brand-name">WeNeed<br><strong>Companion</strong></span></div>
    <div class="header-right"><span id="conn-indicator" class="connection-indicator">Lecture seule</span><button type="button" id="logout-top" class="icon-button hidden" aria-label="Se déconnecter" title="Se déconnecter">⏻</button></div>
   </header>
-  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · diagnostic D3 — Essais uniquement. Le site principal reste inchangé. Aucune commission calculée.</div>
+  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · audit D4 — Essais uniquement. Le site principal reste inchangé. Aucune commission calculée.</div>
    <section id="login-panel" class="login-screen">
     <div class="login-hero"><span class="eyebrow">ESPACE COMMERCIAL PRIVÉ</span><h1>Ton activité, au même endroit.</h1><p>Commandes Odoo GTA/TR et suivi des commissions. Des données consultables, des montants traçables.</p></div>
     <form id="login-form" class="login-card">
@@ -30,7 +30,7 @@
       <label for="login-password">Mot de passe Companion</label><input type="password" id="login-password" autocomplete="current-password" required>
       <button type="submit" id="login-button" class="primary-button">Se connecter <span aria-hidden="true">→</span></button>
       <p id="login-error" role="alert" class="error-text hidden"></p>
-      <p class="help">Ton mot de passe est envoyé uniquement à Supabase Auth. Aucun secret Odoo n'est présent dans l'application.</p>
+      <p class="help">Ton mot de passe Companion est envoyé uniquement à Supabase Auth. Les identifiants Odoo sont stockés sur le serveur Supabase, jamais dans ce navigateur.</p>
     </form>
    </section>
    <section id="app-panel" class="hidden">
@@ -56,6 +56,7 @@
       <div class="commission-hero"><span class="eyebrow">COMMISSIONS GTA + TR</span><h2>Calcul en attente</h2><p>Les règles du calculateur Kino ne sont pas encore intégrées. Aucun montant de commission n'est estimé ni présenté comme acquis.</p><span class="status-pill">Validation Kino requise</span></div>
       <div id="commission-facts" class="metrics-grid"></div>
       <section class="section"><div class="section-heading"><div><p class="eyebrow">TRAÇABILITÉ</p><h2>Réconciliation des commandes</h2></div></div><div id="commission-review" class="stack"></div></section>
+      <section class="section"><div class="section-heading"><div><p class="eyebrow">AUDIT ODOO</p><h2>Lignes à vérifier avant calcul</h2></div></div><div id="commission-audit" class="stack"></div></section>
       <div class="disclaimer">Le chiffre d'affaires HT issu d'Odoo n'est pas ta commission. Les règles Kino, frais de livraison, échantillons et avoirs doivent être rapprochés avant tout paiement.</div>
     </div>
     <div id="view-clients" class="view hidden">
@@ -79,5 +80,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span>Réglages</span></button>
   </nav>
  </div>
- <script src="assets/app-credential-probe-20261010.js" type="module"></script>
+ <script src="assets/app-reconciliation-d4.js" type="module"></script>
 </body></html>
