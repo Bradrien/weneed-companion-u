@@ -87,3 +87,5 @@
 .client-partner-evidence{border:1px solid #d5e7d7;border-radius:11px;padding:13px;background:#f1f7f2;margin:6px 0 12px;display:flex;flex-direction:column;gap:6px}
 .client-partner-evidence strong{font-size:13px;color:#1d4730}
 .client-partner-evidence p{font-size:12px;overflow-wrap:anywhere;line-height:1.5;margin:0}
+
+.client-link-confirmed{font-size:13px;font-weight:650;color:#246a43;background:#edf7ef;border:1px solid #cce5d1;padding:11px 12px;border-radius:10px;line-height:1.6;margin:9px 0}
