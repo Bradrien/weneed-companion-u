@@ -5,6 +5,7 @@ on:
       - 'index.html'
       - 'assets/**'
       - 'tests/browser-smoke.mjs'
+      - 'tests/live-preview.mjs'
       - '.github/workflows/browser-smoke.yml'
   push:
     branches: [main, 'codex/**']
@@ -27,10 +28,13 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright@1.56.1
       - run: npx playwright install --with-deps chromium
       - run: mkdir -p artifacts && node tests/browser-smoke.mjs
+      - run: node tests/live-preview.mjs
       - name: Upload synthetic mobile screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mobile-smoke-screenshot
-          path: artifacts/companion-mobile-smoke.png
+          path: |
+            artifacts/companion-mobile-smoke.png
+            artifacts/live-preview-mobile.png
           if-no-files-found: ignore
