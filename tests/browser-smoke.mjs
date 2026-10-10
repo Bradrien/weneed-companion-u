@@ -36,6 +36,7 @@ const dashboard={stats:{clients_total:131,clients_needing_attention:1,open_actio
  attention_clients:clients,unassigned_actionable_tasks:[]};
 const report=(from,to)=>({source:'odoo_live_read_only',period_from:from,period_to:to,
  persisted:false,verified_commissions_eur:null,commissions_are_calculated:false,
+ source_order_status_rechecked:true,source_order_status_checked_at:'2026-10-10T15:00:00.000Z',
  orders_count:1,catalog_snapshot:{products_total:1385,source_completed_at:'2026-10-10T00:35:35Z'},
  catalog_matching:{eligible:2,matched:1,not_found:0,missing_sku:1,ambiguous_sku:0,catalog_invalid_price:0,zero_cost:0,zero_list_price:0},
  line_kinds:{candidate:1,review:1,sample:0,shipping:0,anomaly:0},
@@ -118,6 +119,8 @@ try{
  assert.match(await page.locator('#view-commissions').innerText(),/Simulation sous conditions/);
  await page.locator('#commission-scenario .scenario-metric').first().waitFor({state:'visible'});
  assert.match(await page.locator('#commission-scenario').innerText(),/SIMULATION CONDITIONNELLE/);
+ assert.match(await page.locator('#commission-scenario').innerText(),/États des commandes revérifiés dans Odoo/);
+ assert.match(await page.locator('#commission-scenario').innerText(),/Commandes Odoo annulées : 0/);
  assert.match(await page.locator('#commission-scenario').innerText(),/2,72/);
  assert.match(await page.locator('#commission-scenario').innerText(),/1 ligne\(s\) simulée/);
  assert.match(await page.locator('#commission-scenario').innerText(),/Lignes non simulées : 1/);
