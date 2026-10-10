@@ -2,7 +2,7 @@ import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
 import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from './client-360-model.mjs';
-import {normalizePartnerHistory} from './client-history-model.mjs';
+import {normalizePartnerHistory,assessPartnerIdentity} from './client-history-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -390,6 +390,29 @@ function clientHistoryPanel(partnerId){
   ' · TR '+formatMoney(h.totals.TR,'EUR')+'. Ni encaissements ni commissions.'));
  else box.append(node('p','client-source-warning',
   'Total HT non affiché : certaines commandes ont une devise ou un montant manquant.'));
+ if(h.partner){
+  const evidence=assessPartnerIdentity(clients.detail?.profile,clients.detail?.contacts,h.partner);
+  const section=node('div','client-partner-evidence');
+  section.append(node('strong','','Contrôle d’identité CRM ↔ partenaire Odoo #'+partnerId));
+  const fields=[
+   ['Nom Odoo',h.partner.name||'Non renseigné'],
+   ['E-mail Odoo',h.partner.email||'Non renseigné'],
+   ['Téléphone Odoo',h.partner.phone||h.partner.mobile||'Non renseigné'],
+   ['Adresse Odoo',[h.partner.street,h.partner.zip,h.partner.city].filter(Boolean).join(', ')||'Non renseignée']
+  ];
+  for(const [label,value] of fields)section.append(node('p','',label+' : '+value));
+  section.append(node('p','client-provenance',
+   'Concordances : nom '+(evidence?.nameMatch?'identique':'non confirmé')+
+   ' · e-mail '+(evidence?.emailMatch?'identique':'non confirmé')+
+   ' · téléphone '+(evidence?.phoneMatch?'identique':'non confirmé')+'.'));
+  if(h.partner.parentOdooId)section.append(node('p','client-source-warning',
+   'Ce partenaire dépend d’un compte Odoo parent #'+h.partner.parentOdooId+
+   '. Ne pas regrouper sans contrôler cette relation.'));
+  section.append(node('p','client-source-warning',
+   'Comparaison indicative uniquement. Le lien entre le CRM et Odoo reste NON VALIDÉ. Aucune fiche fusionnée.'));
+  box.append(section);
+ }else box.append(node('p','client-source-warning',
+  'La fiche partenaire Odoo n’est pas accessible : historique disponible, identité à vérifier séparément.'));
  if(!h.orders.length){box.append(node('p','client-quiet','Aucune commande trouvée pour cet identifiant dans la période.'));return box}
  const byYear=new Map();
  for(const row of h.orders){
