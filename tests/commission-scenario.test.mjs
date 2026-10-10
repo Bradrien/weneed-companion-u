@@ -120,3 +120,18 @@ test('multiple lines in same order are grouped as one order',()=>{
  assert.equal(r.simulatedLines,2);
  assert.equal(r.companies.GTA.orders,1);
 });
+
+test('incomplete or mismatched order totals block entire order scenario',()=>{
+ const faulty=order({issues:['lines_total_mismatch'],amount_ht:300});
+ const r=simulateOdooReport(report([faulty]));
+ assert.equal(r.simulatedLines,0);
+ assert.equal(r.reasons.invalid_order_totals,1);
+});
+test('rounding and Odoo reporting never mutate the original report',()=>{
+ const source=report([order()]);
+ const snapshot=structuredClone(source);
+ const r=simulateOdooReport(source);
+ assert.deepEqual(source,snapshot);
+ assert.equal(source.orders[0].lines[0].commission_eur,null);
+ assert.equal(r.payable,false);
+});
