@@ -63,6 +63,12 @@ try{
   else if(u.pathname==='/auth/v1/logout')body={};
   else if(u.pathname==='/functions/v1/companion-profile')body={ok:true,role:'owner'};
   else if(u.pathname==='/functions/v1/companion-api/dashboard')body={ok:true,data:dashboard};
+  else if(u.pathname==='/functions/v1/odoo-read'){
+   const resource=u.searchParams.get('resource');
+   if(resource==='ping')body={ok:true,data:{connected:true,mode:'read_only',persisted:false}};
+   else if(resource==='orders_probe')body={ok:true,data:{readable:true,has_accessible_orders:true,mode:'read_only',returned_order_data:false,persisted:false}};
+   else throw Error('Unexpected Odoo diagnostic request: '+resource);
+  }
   else if(u.pathname==='/functions/v1/companion-api/clients')body={ok:true,data:clients};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid+'/card'))body={ok:true,data:crmCard};
   else if(u.pathname==='/functions/v1/commission-catalog-review'){
@@ -97,12 +103,16 @@ try{
  assert.match(await page.locator('#orders-list').innerText(),/TEST-ORDER/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
  assert.match(await page.locator('#view-commissions').innerText(),/Calcul en attente/);
+ await page.locator('#bottom-nav [data-nav="settings"]').click();
+ await page.locator('#odoo-probe').click();
+ await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('Connexion Odoo opérationnelle'));
+ assert.match(await page.locator('#odoo-state').innerText(),/Accès lecture validé/);
  await page.locator('#logout-top').click();
  await page.locator('#login-panel').waitFor({state:'visible'});
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.deepEqual(await page.evaluate(()=>Object.keys(sessionStorage)),[]);
  assert.deepEqual(errors,[],'Unhandled JavaScript errors: '+errors.join('; '));
- console.log('PASS browser smoke: mobile login, CRM, client card, orders, commissions guard, logout');
+ console.log('PASS browser smoke: mobile login, CRM, client card, orders, commission guard, Odoo diagnostics, logout');
 }finally{
  if(browser)await browser.close();
  await new Promise(resolve=>server.close(resolve));
