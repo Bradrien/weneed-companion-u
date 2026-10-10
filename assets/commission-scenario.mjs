@@ -8,6 +8,7 @@ import {simulateKinoLine} from './kino-simulator.mjs';
 const CONFIRMED=new Set(['sale','done']);
 export const SCENARIO_REASONS=Object.freeze({
   not_confirmed:'Commande non confirmée',
+  invalid_order_totals:'Sous-total de commande Odoo incohérent ou incomplet',
   excluded_kind:'Échantillon, livraison, gratuité ou ligne non éligible',
   not_matched:'Référence ou SKU non officiellement rapproché',
   not_eur:'Devise différente de EUR',
@@ -22,6 +23,7 @@ export const SCENARIO_REASONS=Object.freeze({
 function usable(n){return typeof n==='number'&&Number.isFinite(n)}
 function checkLine(order,line){
  if(!CONFIRMED.has(order.state))return 'not_confirmed';
+ if((order.issues||[]).some(x=>x==='lines_total_mismatch'||x==='incomplete_source_amount'))return 'invalid_order_totals';
  if(line.kind!=='candidate')return 'excluded_kind';
  const match=line.catalog_match;
  if(!match||match.status!=='matched')return 'not_matched';
@@ -34,7 +36,7 @@ function checkLine(order,line){
     !usable(line.line_ht)||line.line_ht<0||
     !usable(line.discount_pct)||line.discount_pct<0||line.discount_pct>100)return 'invalid_amount';
  const expected=line.quantity*line.unit_price*(1-line.discount_pct/100);
- if(Math.abs(expected-line.line_ht)>Math.max(0.03,0.01*line.quantity))
+ if(Math.abs(expected-line.line_ht)>0.03)
   return 'inconsistent_subtotal';
  if(line.commission_eur!==null||order.commission_eur!==null)return 'unverified_commission';
  return null;
