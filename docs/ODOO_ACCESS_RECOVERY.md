@@ -32,6 +32,19 @@ Sources officielles :
 - Aucune valeur d'API key dans le dépôt, les fichiers de log ou les messages.
 - Ne pas confondre mot de passe de Companion et API key Odoo.
 
+## Correction du diagnostic après confirmation du propriétaire (10 octobre 2026)
+
+Le propriétaire a confirmé que **la clé Odoo a été créée avec une durée de validité de trois mois**. La piste d'une durée initiale de 24 heures est donc **écartée**. Le passage des GET 200 du 9 octobre à `odoo_credentials_rejected` le 10 octobre reste établi, mais ne prouve ni une expiration, ni une révocation, ni un changement de configuration.
+
+La connexion serveur repose sur `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` et le compte propriétaire Odoo. La configuration initiale indiquait l'instance `https://weneedweed.odoo.com`, une base `weneedweed` et l'utilisateur `ah@weneedweed.eu` ; ce sont des **valeurs historiques attendues**, non la preuve des secrets actuellement chargés.
+
+Ordre des vérifications sans rotation inutile :
+
+1. Confirmer dans Odoo, sous l'utilisateur qui a **créé la clé**, que cette clé existe toujours, n'est pas révoquée, et que l'utilisateur est actif. Vérifier le **login Odoo** du compte lié (le login peut différer de l'adresse de contact).
+2. Comparer la base et le login de la configuration Supabase avec les valeurs de référence, sans copier ni exposer la clé. Le connecteur Supabase disponible ne permet pas de lire ni de modifier les secrets d'environnement.
+3. Vérifier si les paramètres ont changé depuis les authentifications du 9 octobre. Éviter de conclure à une expiration sur la seule chronologie.
+4. Si toutes ces vérifications sont correctes, créer une **nouvelle clé pour le même compte** et la mettre à jour uniquement dans `ODOO_API_KEY` ; tester `odoo-read?resource=ping` avant de désactiver l'ancienne.
+
 ## Nouvel indice — clé potentiellement valable un jour
 
 - L'utilisateur confirme le 10 octobre que la clé API renseignée dans Supabase était déjà celle de la configuration initiale ; **remplacer le secret par la même chaîne n'apporterait aucune correction**.
