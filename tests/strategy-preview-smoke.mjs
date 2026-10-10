@@ -29,6 +29,7 @@ const portfolio={version:'strategy_verified_v1',checked_at:'2026-10-11T00:00:00Z
  {odoo_id:80,reference:'G888',date:'2026-10-03',state:'sale',partner_id:998,partner_name:'Other',
   company:'GTA',amount_ht:2000,currency:'EUR'}]}};
 let quoteRows=[];
+let pipelineFails=false;
 const quoteId='fef12218-1111-4111-8111-bb011ac01acf';
 const json=(data,status=200)=>({status,contentType:'application/json',headers:{
  'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info',
@@ -45,6 +46,7 @@ try{
   else if(u.pathname==='/functions/v1/companion-profile')data={ok:true,role:'owner'};
   else if(u.pathname==='/functions/v1/strategy-portfolio')data={ok:true,data:portfolio};
   else if(u.pathname==='/functions/v1/odoo-commission-pipeline'){
+   if(pipelineFails){data={ok:false,error:'odoo_unreachable'};return route.fulfill(json(data));}
    const make=(id,state,invoiceStatus)=>({
     id,reference:'SO-'+id,date:'2026-10-09 09:00:00',company:'GTA',
     client:'Boutique Test',state,invoice_status:invoiceStatus,
@@ -99,18 +101,34 @@ try{
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
  await page.locator('#odoo-quote-pipeline-root').getByText(
    'Devis et commandes synchronisés depuis Odoo').waitFor({state:'visible'});
- await page.getByRole('button',{name:'Devis en cours (2)'}).waitFor({state:'visible'});
- await page.getByRole('button',{name:'Devis en cours (2)'}).click();
+ await page.getByRole('checkbox',{name:'Inclure Devis en cours'}).waitFor({state:'visible'});
+ assert.equal(await page.locator('.pipeline-order').count(),4);
+ const pending=page.getByRole('checkbox',{name:'Inclure Devis en cours'});
+ const confirmed=page.getByRole('checkbox',{name:'Inclure Confirmées non facturées entièrement'});
+ const invoiced=page.getByRole('checkbox',{name:'Inclure Facturées'});
+ assert.equal(await pending.isChecked(),true);
+ await invoiced.uncheck();
+ assert.equal(await page.locator('.pipeline-order').count(),3);
+ await confirmed.uncheck();
  assert.equal(await page.locator('.pipeline-order').count(),2);
- await page.getByRole('button',{name:'Facturées (statut Odoo) (1)'}).click();
- assert.equal(await page.locator('.pipeline-order').count(),1);
- await page.getByRole('button',{name:'Commandes confirmées non entièrement facturées (1)'}).click();
- assert.equal(await page.locator('.pipeline-order').count(),1);
- await page.getByRole('button',{name:'Tous (4)'}).click();
+ await pending.uncheck();
+ assert.equal(await page.locator('.pipeline-order').count(),0);
+ await pending.check();
+ await invoiced.check();
+ assert.equal(await page.locator('.pipeline-order').count(),3);
+ await confirmed.check();
  assert.equal(await page.locator('.pipeline-order').count(),4);
  await page.locator('.pipeline-order-head').first().click();
  assert.match(await page.locator('.pipeline-order-details').first().innerText(),/Commission potentielle/i);
  assert.equal(await page.getByRole('button',{name:'+ Ajouter un devis'}).count(),0);
- assert.equal(errors.length,0,'Unexpected runtime errors: '+errors.join(' | '));
- console.log('D22 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
+ pipelineFails=true;
+ await page.getByRole('button',{name:/Actualiser Odoo/}).click();
+ await page.getByText(/Code : odoo_unreachable/).waitFor({state:'visible'});
+ assert.equal(await page.getByRole('checkbox',{name:'Inclure Devis en cours'}).isVisible(),true);
+ assert.equal(await page.getByRole('checkbox',{name:'Inclure Facturées'}).isVisible(),true);
+ await invoiced.uncheck();
+ assert.equal(await page.locator('.pipeline-order').count(),3);
+ assert.match(await page.locator('#odoo-quote-pipeline-root').innerText(),/Dernière lecture en mémoire/);
+  assert.equal(errors.length,0,'Unexpected runtime errors: '+errors.join(' | '));
+ console.log('D23 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
