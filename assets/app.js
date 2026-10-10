@@ -1,7 +1,7 @@
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
-import {normalizeClient360,proposePeriodOdooOrders} from './client-360-model.mjs';
+import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from './client-360-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -333,6 +333,12 @@ function clientPeriodOrders(name){
  section.append(node('p','client-provenance',
   'Correspondances proposées uniquement à partir du nom strictement identique. Aucun identifiant partenaire Odoo n’est encore vérifié pour cette fiche. Vérifier avant de fusionner les historiques.'));
  const rows=proposePeriodOdooOrders(name,report);
+ const identity=assessOdooPartnerCandidates(rows);
+ if(identity.conflicting)section.append(node('p','client-source-warning',
+  'Attention : plusieurs identifiants partenaires Odoo correspondent à ce nom ('+
+  identity.distinctPartnerIds.join(', ')+'). Ne pas fusionner ces comptes sans vérification.'));
+ if(identity.missingPartnerIds)section.append(node('p','client-source-warning',
+  identity.missingPartnerIds+' commande(s) sans identifiant partenaire Odoo exploitable.'));
  if(!rows.length){
   section.append(node('p','client-quiet','Aucune correspondance exacte dans les commandes chargées de ce mois. Cela ne signifie pas qu’il n’existe pas d’autres commandes.'));
   return section;
@@ -342,8 +348,9 @@ function clientPeriodOrders(name){
   entry.append(node('strong','',o.reference+' · '+o.company));
   entry.append(node('small','',
    [shortDate(o.date),statusText(o.state),
-    o.amount!==null&&o.currency?formatMoney(o.amount,o.currency):''].filter(Boolean).join(' · ')));
-  const btn=node('button','audit-order-link','Examiner dans Odoo');
+    o.amount!==null&&o.currency?formatMoney(o.amount,o.currency):'',
+    o.partnerOdooId!==null?'Partenaire Odoo #'+o.partnerOdooId:'Identité Odoo non renseignée'].filter(Boolean).join(' · ')));
+  const btn=node('button','audit-order-link','Voir la commande dans Companion');
   btn.type='button';btn.addEventListener('click',()=>openAuditOrder(o));
   entry.append(btn);section.append(entry);
  }
@@ -371,7 +378,10 @@ function renderClients(){
   header.append(node('strong','',d.profile.name),node('span','',[d.profile.status,d.profile.address,d.profile.country].filter(Boolean).join(' · ')||'CRM propriétaire'));
   details.append(header);
   details.append(clientPeriodOrders(d.profile.name));
-  if(d.memory)details.append(clientSection('Mémoire commerciale',[['Synthèse',d.memory]]));
+  if(d.memory)details.append(clientSection('Mémoire commerciale · synthèse automatique non vérifiée',[
+   ['Synthèse conservée dans sa langue d’origine',d.memory],
+   ['Fiabilité','Les mentions « payé », « confirmed paid » ou équivalentes proviennent des échanges, pas d’une vérification des encaissements.']
+  ]));
   details.append(clientSection('Actions en cours',d.attention.tasks.map(t=>[t.title,[t.description,t.dueAt?'Échéance : '+shortDate(t.dueAt):''].filter(Boolean).join(' · ')])));
   details.append(clientSection('Contacts',d.contacts.map(c=>[c.name,[c.role,...c.channels.map(x=>x.type+': '+x.value)].filter(Boolean).join(' · ')])));
   details.append(client360Section(clients.full,clients.fullError,d.profile.name));
