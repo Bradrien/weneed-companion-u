@@ -44,3 +44,18 @@ Ordre des vérifications sans rotation inutile :
 2. Comparer la base et le login de la configuration Supabase avec les valeurs de référence, sans copier ni exposer la clé. Le connecteur Supabase disponible ne permet pas de lire ni de modifier les secrets d'environnement.
 3. Vérifier si les paramètres ont changé depuis les authentifications du 9 octobre. Éviter de conclure à une expiration sur la seule chronologie.
 4. Si toutes ces vérifications sont correctes, créer une **nouvelle clé pour le même compte** et la mettre à jour uniquement dans `ODOO_API_KEY` ; tester `odoo-read?resource=ping` avant de désactiver l'ancienne.
+
+## Ancien Cockpit vs Companion : cause potentielle isolée (10 octobre 2026)
+
+Le propriétaire confirme que **l'ancien Cockpit continue à actualiser les commandes Odoo aujourd'hui**. Le code de référence a été retrouvé dans `Bradrien/cockpit-weneed` (`app.py`) :
+
+- Ancien Cockpit Flask : `https://weneedweed.odoo.com`, base `weneedweed`, UID Odoo numérique connu, appel direct `object.execute_kw` avec un **mot de passe intégré dans le code historique**. Il ne passe pas par `common.authenticate`. Le bouton de rafraîchissement déclenche un chargement asynchrone en serveur. **Ne pas recopier l'ancien mot de passe dans ce document ou dans Companion.**
+- Companion : lit `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY`, `ODOO_UID_PIN` dans les secrets Edge Functions, puis appelle `common.authenticate`, actuellement refusé.
+- La différence de méthode d'authentification explique pourquoi le succès de l'ancien outil **ne prouve pas** la validité de la clé API Companion.
+- `odoo-read` v12 ajoute l'endpoint propriétaire `credential_probe` : appel `sale.order.search_read` avec UID **uniquement issu du secret `ODOO_UID_PIN`** et clé **uniquement issue de `ODOO_API_KEY`**. Aucune donnée Odoo n'est renvoyée ; seules la catégorie de résultat et la présence d'un droit de lecture sont observables.
+- Si ce test réussit tandis que `common.authenticate` échoue : investiguer prioritairement le **login** `ODOO_USERNAME`, sans remplacer la clé.
+- S'il échoue aussi : vérifier clé API, base de données, UID et droits de lecture ; l'échec n'identifie pas à lui seul une clé invalide.
+- Si `odoo_uid_pin_not_configured` : configurer l'UID attendu sans contourner la validation, dans les secrets Supabase, après vérification de l'identité.
+- L'ancien dépôt contient un identifiant sensible en clair. Prévoir rotation et retrait de ce secret de l'historique du dépôt, avec vérification de toutes les dépendances avant suppression ; le vieux script désactive également la validation du certificat SSL, ce qui exige une correction séparée.
+
+Préversion D3 : https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D3-20261010
