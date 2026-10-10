@@ -60,7 +60,12 @@ try{
    loginMessage:await page.locator('#login-error').textContent(),url:page.url()}));
   throw e;
  }
- await page.getByText('Green Purple',{exact:true}).first().waitFor({state:'visible'});
+ try{await page.getByText('Green Purple',{exact:true}).first().waitFor({state:'visible',timeout:7000})}
+ catch(e){
+  console.log('D19 portfolio diagnosis:',JSON.stringify({body:(await page.locator('#strategy-root').innerText()).slice(0,1600),
+   errors,location:page.url()}));
+  throw e;
+ }
  assert.match(await page.locator('#strategy-root').innerText(),/131|2 client/i);
  assert.match(await page.locator('#strategy-root').innerText(),/1500|1.?500/);
  await page.locator('#strategy-root .strategy-client').filter({hasText:'Green Purple'}).first().click();
