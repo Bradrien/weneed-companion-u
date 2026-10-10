@@ -83,3 +83,7 @@
 .client-history-order{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:9px 0;border-top:1px solid #e9efe9;margin-top:7px}
 .client-history-order strong{font-size:12px;color:#284733}
 .client-history-order small{font-size:11px;color:#607967}
+
+.client-partner-evidence{border:1px solid #d5e7d7;border-radius:11px;padding:13px;background:#f1f7f2;margin:6px 0 12px;display:flex;flex-direction:column;gap:6px}
+.client-partner-evidence strong{font-size:13px;color:#1d4730}
+.client-partner-evidence p{font-size:12px;overflow-wrap:anywhere;line-height:1.5;margin:0}
