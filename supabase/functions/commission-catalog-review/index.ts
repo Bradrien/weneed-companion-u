@@ -115,6 +115,22 @@ function matchProduct(company,sku,kind,confirmed,catalog){
    cost_zero:cost===0,price_zero:price===0};
 }
 
+/**
+ * Read-only suggestion from an exact [SKU] prefix on the product name.
+ * It must not turn the missing Odoo SKU into an official matched line.
+ */
+function candidateFromDescription(company,productName,catalog){
+ const hit=txt(productName).match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
+ if(!hit)return null;
+ const sku=hit[1].toUpperCase();
+ const k=company+'\u0000'+sku;
+ if(catalog.duplicates.has(k))return {sku,status:'ambiguous'};
+ const row=catalog.byKey.get(k);
+ if(!row)return {sku,status:'not_found'};
+ return {sku,status:'found',catalog_name:txt(row.product_name),
+  category:txt(row.category),tier:txt(row.tier)};
+}
+
 async function review(from,to){
  const catalog=await loadCatalog();
  if(!env.url||!env.db||!env.login||!env.pass)throw new SafeError('odoo_not_configured',503);
@@ -177,6 +193,10 @@ async function review(from,to){
    const [kind,reason]=classify(line,product);
    flags[kind]++;
    const catalog_match=matchProduct(company,txt(product?.default_code),kind,confirmed,catalog);
+   if(catalog_match.status==='missing_sku'){
+    const candidate=candidateFromDescription(company,txt(product?.name||line.name),catalog);
+    if(candidate)catalog_match.candidate=candidate;
+   }
    if(catalog_match.status!=='not_applicable'){
      matching.eligible++;
      if(Object.hasOwn(matching,catalog_match.status))matching[catalog_match.status]++;
