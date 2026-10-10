@@ -15,6 +15,7 @@ const order=(override={})=>({
 const report=(orders)=>({
  source:'odoo_live_read_only',persisted:false,
  verified_commissions_eur:null,commissions_are_calculated:false,
+ source_order_status_rechecked:true,source_order_status_checked_at:'2026-10-10T15:00:00.000Z',
  catalog_matching:{matched:orders.reduce((sum,o)=>sum+o.lines.filter(l=>l.catalog_match.status==='matched').length,0)},
  orders
 });
@@ -134,4 +135,25 @@ test('rounding and Odoo reporting never mutate the original report',()=>{
  assert.deepEqual(source,snapshot);
  assert.equal(source.orders[0].lines[0].commission_eur,null);
  assert.equal(r.payable,false);
+});
+
+test('report without independent Odoo state recheck never produces monetary simulation',()=>{
+ const src=report([order()]);
+ for(const props of [{source_order_status_rechecked:false},{source_order_status_checked_at:''},
+  {source_order_status_checked_at:'not-a-date'}]){
+  assert.throws(()=>simulateOdooReport({...src,...props}),/simulation_requires_rechecked_order_status/);
+ }
+});
+test('cancelled order is reported separately and never appears in candidate or total',()=>{
+ const orders=[
+  order({id:123,reference:'SO-VALID',state:'sale'}),
+  order({id:456,reference:'SO-CANCELLED',state:'cancel',amount_ht:400})
+ ];
+ const result=simulateOdooReport(report(orders));
+ assert.equal(result.ready.length,1);
+ assert.equal(result.cancelledOrders.length,1);
+ assert.equal(result.cancelledOrders[0].reference,'SO-CANCELLED');
+ assert.equal(round(result.total),20.43);
+ assert.equal(result.excluded.filter(x=>x.reason==='not_confirmed').length,1);
+ assert.ok(result.ready.every(x=>x.reference!=='SO-CANCELLED'));
 });
