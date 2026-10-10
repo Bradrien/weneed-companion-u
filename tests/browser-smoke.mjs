@@ -29,6 +29,7 @@ const crmCard={profile:{id:uuid,name:'Boutique Test',status:'ACTIVE',address:'12
  attention:{open_task_count:1,overdue_task_count:0,tasks:[{title:'Rappeler le gérant',due_at:'2026-10-15'}]},
  activity:{recent:[{source:'whatsapp',type:'message',occurred_at:'2026-10-08',body:'Échange de démonstration'}]}};
 const clients=[{client_id:uuid,canonical_name:'Boutique Test',status:'ACTIVE',summary:'Client fictif pour tests',open_task_count:1,overdue_task_count:0,event_count:1}];
+let odooFailure=false;
 const dashboard={stats:{clients_total:131,clients_needing_attention:1,open_actionable_tasks:1,overdue_actionable_tasks:0},
  attention_clients:clients,unassigned_actionable_tasks:[]};
 const report=(from,to)=>({source:'odoo_live_read_only',period_from:from,period_to:to,
@@ -65,6 +66,7 @@ try{
   else if(u.pathname==='/functions/v1/companion-api/dashboard')body={ok:true,data:dashboard};
   else if(u.pathname==='/functions/v1/odoo-read'){
    const resource=u.searchParams.get('resource');
+   if(resource==='ping'&&odooFailure){await route.fulfill(json({ok:false,error:'upstream_failure'},502));return}
    if(resource==='ping')body={ok:true,data:{connected:true,mode:'read_only',persisted:false}};
    else if(resource==='orders_probe')body={ok:true,data:{readable:true,has_accessible_orders:true,mode:'read_only',returned_order_data:false,persisted:false}};
    else throw Error('Unexpected Odoo diagnostic request: '+resource);
@@ -107,6 +109,13 @@ try{
  await page.locator('#odoo-probe').click();
  await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('Connexion Odoo opérationnelle'));
  assert.match(await page.locator('#odoo-state').innerText(),/Accès lecture validé/);
+ odooFailure=true;
+ await page.locator('#odoo-probe').click();
+ await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('upstream_failure'));
+ assert.match(await page.locator('#odoo-probe-status').innerText(),/ping · upstream_failure · HTTP 502/);
+ assert.match(await page.locator('#odoo-probe-status').innerText(),/erreur serveur inattendue/);
+ odooFailure=false;
+
  await page.locator('#logout-top').click();
  await page.locator('#login-panel').waitFor({state:'visible'});
  assert.equal(await page.locator('#app-panel').isVisible(),false);
