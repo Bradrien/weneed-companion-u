@@ -198,8 +198,13 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
  if(cd)left.append(node('div','detail-match'+(l.catalog_match?.status==='matched'?' success':' warn'),cd));
  const right=node('div','detail-value');right.append(node('span','',formatMoney(l.line_ht,order.currency||'EUR')),node('span','detail-kind',lineText(l.kind)));
  const estimate=lineCommission(commissionIndex(),order.id,l.id);
+ const sourceStatus=l.catalog_match?.status;
+ const specific={missing_sku:'SKU absent dans Odoo',not_found:'SKU Odoo absent du catalogue Kino',
+  ambiguous_sku:'Plusieurs correspondances Kino possibles',
+  catalog_invalid_price:'Coût ou prix Kino non exploitable',
+  not_applicable:'Ligne non éligible au calcul'}[sourceStatus];
  const commText=estimate.status==='simulated'?'Commission estimée : '+formatMoney(estimate.commission,'EUR'):
-   estimate.status==='excluded'?'Commission à vérifier : '+estimate.reason:
+   estimate.status==='excluded'?'Commission à vérifier : '+(specific||estimate.reason):
    'Commission non disponible : '+estimate.reason;
  const comm=node('div','order-line-commission'+(estimate.status==='simulated'?' estimated':' pending'),commText);
  left.append(comm);
