@@ -3,6 +3,7 @@ import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
 import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from './client-360-model.mjs';
 import {normalizePartnerHistory,assessPartnerIdentity} from './client-history-model.mjs';
+import {buildCommercialMemory} from './client-memory-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -15,7 +16,7 @@ const clientRequests=createRequestGuard();
 const dashboardRequests=createRequestGuard();
 const odooProbeRequests=createRequestGuard();
 const dashboard={data:null,loading:false,error:''};
-const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,loading:false,error:'',timer:null};
+const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,linkCandidate:null,linkSubmitting:false,linkError:'',loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
@@ -25,7 +26,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -253,7 +254,7 @@ async function loadClients(){
 async function openClient(clientId){
  if(!validClientId(clientId)||!state.access)return;
  const ticket=clientRequests.begin();
- clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.error='';clients.loading=true;renderClients();
+ clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.error='';clients.loading=true;renderClients();
  try{
   const [card,full]=await Promise.allSettled([
    companionGet('/clients/'+encodeURIComponent(clientId)+'/card'),
@@ -361,6 +362,94 @@ async function loadPartnerHistory(partnerId,clientId){
   }
  }
 }
+async function changeOdooLink(action,partnerId,clientId){
+ if(!state.access||clients.selected!==clientId||clients.linkSubmitting||!validClientId(clientId))return;
+ const ticket=clientRequests.begin();
+ clients.linkSubmitting=true;clients.linkError='';renderClients();
+ try{
+  const jwt=await ensureToken();
+  const res=await authFetch('/functions/v1/client-odoo-link',{
+   method:'POST',headers:{authorization:'Bearer '+jwt},
+   body:JSON.stringify({action,client_id:clientId,partner_id:partnerId,
+    confirmation:action==='confirm'?'CONFIRMER_LIAISON':'REVOQUER_LIAISON'})
+  });
+  let value;try{value=await res.json()}catch{throw Error('invalid_response')}
+  if(!res.ok||!value?.ok)throw Error(value?.error||'link_unavailable');
+  const card=await companionGet('/clients/'+encodeURIComponent(clientId)+'/card');
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  clients.detail=normalizeClientCard(card,clientId);
+  clients.linkCandidate=null;clients.linkError='';
+  if(action==='revoke'){clients.history=null;clients.historyPartner=null;}
+ }catch(e){
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  const labels={
+   partner_name_mismatch:'Le nom officiel Odoo ne correspond pas au nom du CRM.',
+   contact_evidence_not_confirmed:'Aucun e-mail ou téléphone identique : rattachement refusé.',
+   partner_contact_unavailable:'Odoo ne fournit pas assez de coordonnées pour valider ce lien.',
+   no_salesperson_order_for_partner:'Aucune commande autorisée ne relie ce partenaire à ton compte Odoo.',
+   existing_client_or_partner_link:'Cette fiche CRM ou ce partenaire Odoo est déjà lié à un autre compte.',
+   link_conflict_or_insert_failed:'Conflit avec un rattachement existant : vérifie les autres fiches.',
+   link_lookup_failed:'Impossible de vérifier l’existence d’autres liaisons.',
+   active_link_not_found:'Cette association n’est plus active.',
+   odoo_auth_failed:'Connexion Odoo indisponible lors de la confirmation.'
+  };
+  clients.linkError=labels[e?.message]||'Opération impossible : aucun nouveau lien enregistré.';
+ }finally{
+  if(clientRequests.isCurrent(ticket)&&clients.selected===clientId){
+   clients.linkSubmitting=false;renderClients();
+  }
+ }
+}
+function clientMemoryPanel(card,full,history){
+ const digest=buildCommercialMemory(card,full,history);
+ const section=node('section','client-section client-memory-digest');
+ section.append(node('h3','','Mémoire commerciale sourcée'));
+ section.append(node('p','client-provenance',
+  'Synthèse factuelle recalculée à l’ouverture. Provenance indiquée pour chaque catégorie ; aucun paiement déduit des messages.'));
+ if(digest.odooBacked){
+  section.append(node('p','client-link-confirmed',
+   'Historique Odoo associé au partenaire validé : '+
+   digest.orders.confirmed+' commandes confirmées · '+digest.orders.cancelled+' annulées · dernier achat confirmé '+
+   (digest.orders.lastConfirmed?shortDate(digest.orders.lastConfirmed):'non disponible')+'.'));
+  if(digest.orders.confirmedTotal)
+   section.append(node('p','client-provenance',
+    'Montants HT des commandes confirmées : GTA '+formatMoney(digest.orders.confirmedTotal.GTA,'EUR')+
+    ' · TR '+formatMoney(digest.orders.confirmedTotal.TR,'EUR')+
+    '. Période couverte : '+shortDate(digest.period.from)+' → '+shortDate(digest.period.to)+'.'));
+ }else section.append(node('p','client-source-warning',
+  'Aucun historique Odoo exploitable associé à une liaison propriétaire validée. Les chiffres ne sont pas extrapolés.'));
+ const append=(heading,entries)=>{
+  const sub=node('div','client-memory-sub');sub.append(node('h4','',heading));
+  if(!entries.length)sub.append(node('p','client-quiet','Aucun élément disponible dans les sources chargées.'));
+  for(const [title,detail]of entries.slice(0,12)){
+   const part=node('div','client-memory-entry');
+   part.append(node('strong','',title));
+   if(detail)part.append(node('small','',detail));
+   sub.append(part);
+  }
+  section.append(sub);
+ };
+ append('Actions en cours · CRM',digest.tasks.map(t=>[t.title,
+  [t.description,t.dueAt?'Échéance : '+shortDate(t.dueAt):'',t.source].filter(Boolean).join(' · ')]));
+ append('Derniers événements datés · Odoo / échanges CRM',digest.timeline.slice(0,10).map(e=>[
+  shortDate(e.date)+' · '+e.title,
+  [e.status==='confirmed_order'?'Commande confirmée':
+   e.status==='cancelled_order'?'Commande annulée':'Échange, non vérifié',
+   e.source==='odoo'&&e.amount!==null&&e.currency?formatMoney(e.amount,e.currency):'',
+   e.source==='odoo'?e.ref:e.detail].filter(Boolean).join(' · ')
+ ]));
+ append('Références documentaires · CRM non rapproché',digest.business.slice(0,8).map(o=>[
+  o.kind+' · '+o.ref,[o.status,
+  o.amount!==null&&o.currency?formatMoney(o.amount,o.currency):'',
+  o.source].filter(Boolean).join(' · ')
+ ]));
+ append('Pistes et faits extraits · non vérifiés',
+  [...digest.openLoops.map(x=>[x.title,x.description+' · '+x.source]),
+   ...digest.facts.map(x=>[x.title,x.source])].slice(0,10));
+ section.append(node('p','client-source-warning',digest.certainty));
+ return section;
+}
+
 function clientHistoryPanel(partnerId){
  const box=node('div','client-history-panel');
  box.append(node('h4','','Historique des commandes · partenaire Odoo #'+partnerId));
@@ -421,6 +510,21 @@ function clientHistoryPanel(partnerId){
    clients.detail?.odooPartnerLink?.partnerId===partnerId?
     'Coordonnées concordantes avec le lien confirmé par le propriétaire. Les paiements restent indépendants et non vérifiés.':
     'Comparaison indicative uniquement. Le lien entre le CRM et Odoo reste NON VALIDÉ. Aucune fiche fusionnée.'));
+  if(!clients.detail?.odooPartnerLink&&evidence?.nameMatch&&(evidence.emailMatch||evidence.phoneMatch)){
+   const linkBox=node('div','client-link-action');
+   linkBox.append(node('p','client-provenance',
+    'Candidat compatible : la liaison reste non validée tant que tu n’as pas confirmé. Le serveur reverra les données Odoo et CRM avant l’enregistrement.'));
+   if(clients.linkError)linkBox.append(node('p','client-source-warning',clients.linkError));
+   const button=node('button','secondary-button',
+    clients.linkCandidate===partnerId?'Confirmer le rattachement permanent à #'+partnerId:
+    'Vérifier ce candidat pour rattachement');
+   button.type='button';button.disabled=clients.linkSubmitting;
+   button.addEventListener('click',()=>{
+    if(clients.linkCandidate!==partnerId){clients.linkCandidate=partnerId;renderClients();return;}
+    changeOdooLink('confirm',partnerId,clients.selected);
+   });
+   linkBox.append(button);section.append(linkBox);
+  }
   box.append(section);
  }else{
   const diagnostics={
@@ -464,6 +568,17 @@ function clientPeriodOrders(name){
    'Lien confirmé par le propriétaire · partenaire Odoo #'+verifiedLink.partnerId+
    ' · enregistré le '+shortDate(verifiedLink.confirmedAt)));
   section.append(clientHistoryPanel(verifiedLink.partnerId));
+  const revoke=node('button','client-link-revoke',
+   clients.linkCandidate===-verifiedLink.partnerId?
+   'Confirmer la désactivation du lien #'+verifiedLink.partnerId:
+   'Désactiver cette liaison');
+  revoke.type='button';revoke.disabled=clients.linkSubmitting;
+  revoke.addEventListener('click',()=>{
+   if(clients.linkCandidate!==-verifiedLink.partnerId){clients.linkCandidate=-verifiedLink.partnerId;renderClients();return;}
+   changeOdooLink('revoke',verifiedLink.partnerId,clients.selected);
+  });
+  section.append(revoke);
+  if(clients.linkError)section.append(node('p','client-source-warning',clients.linkError));
  }
  const report=state.report;
  if(!report){
@@ -517,7 +632,7 @@ function renderClients(){
  if(inDetail){
   count.textContent='';
   const back=node('button','secondary-button','← Retour aux clients');
-  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.loading=false;clients.error='';renderClients()});
+  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.loading=false;clients.error='';renderClients()});
   details.append(back);
   if(clients.loading){details.append(empty('Chargement de la fiche client…'));return}
   if(clients.error){details.append(empty(clients.error));return}
@@ -526,6 +641,7 @@ function renderClients(){
   header.append(node('strong','',d.profile.name),node('span','',[d.profile.status,d.profile.address,d.profile.country].filter(Boolean).join(' · ')||'CRM propriétaire'));
   details.append(header);
   details.append(clientPeriodOrders(d.profile.name));
+  details.append(clientMemoryPanel(d,clients.full,clients.history));
   if(d.memory)details.append(clientSection('Mémoire commerciale · synthèse automatique non vérifiée',[
    ['Synthèse conservée dans sa langue d’origine',d.memory],
    ['Fiabilité','Les mentions « payé », « confirmed paid » ou équivalentes proviennent des échanges, pas d’une vérification des encaissements.']
