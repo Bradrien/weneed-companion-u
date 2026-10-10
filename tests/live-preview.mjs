@@ -20,8 +20,8 @@ try{
  await page.waitForTimeout(500);
  assert.match(await page.title(),/préversion V1\.2/);
  assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
- assert.match(await page.locator('body').innerText(),/CRM 360 D9/,'Cache-busted preview marker not published');
- assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-crm-d9\.js/,'Old iPhone JS still referenced');
+ assert.match(await page.locator('body').innerText(),/contrôle identité D10/,'Cache-busted preview marker not published');
+ assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-crm-d10\.js/,'Old iPhone JS still referenced');
  assert.equal(await page.locator('#commission-audit').count(),1,'D4 audit panel missing');
  assert.equal(await page.locator('#commission-scenario').count(),1,'D7 conditional simulation panel missing');
  assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-crm-d9\.css/);
