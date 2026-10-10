@@ -209,3 +209,17 @@ Le SQL CRM contient pour la fiche Green Purple (UUID déjà connu) une identité
 - Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D12`.
 
 Une vérification humaine de la fiche partenaire `#3277` est encore nécessaire avant l'enregistrement d'un lien stable permettant de rechercher tout l'historique commercial sans dépendre du mois sélectionné.
+
+## D13 — Diagnostic sûr lorsque les coordonnées Odoo sont inaccessibles
+
+Une capture réelle de la fiche Green Purple D12 confirme que l'historique du partenaire `#3277` retourne toujours 28 commandes (13 confirmées, 15 annulées), mais qu'un avertissement générique « fiche partenaire Odoo inaccessible » apparaît.
+
+Analyse du code : `getPartnerIdentity` utilisait un unique `res.partner.search_read` avec 9 champs et retournait `null` sur **toute** erreur ou réponse vide, supprimant la cause observable. On ne peut donc pas conclure sur les permissions du compte API à partir de D12.
+
+- `client-odoo-history` v3 : lecture progressive **en lecture seule** des champs complets, puis nom/e-mail/téléphone, puis nom seulement ; chaque niveau échoué donne lieu à un essai plus restreint. Des diagnostics énumérés (`complete`, `partial`, `name_only`, `not_visible`, `odoo_partner_read_rejected`, `no_accessible_orders`) sont retournés séparément des commandes. Aucun détail d'erreur brut Odoo n'est exposé ni journalisé.
+- La normalisation refuse les diagnostics inconnus, ne suppose pas qu'une correspondance nominale établit l'identité et garde le statut CRM ↔ Odoo **non vérifié**.
+- La fiche D13 affiche si les coordonnées sont partielles, si le partenaire n'est pas visible, ou si la lecture est refusée jusque sur les champs minimaux.
+- Déploiement effectué **sans changement de secrets, permissions ou écritures Odoo**. Tests Node, contrat serveur et smoke Chromium réussis.
+- Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D13`.
+
+**À tester** : recharger D13 et la fiche Green Purple, cliquer « Consulter les commandes sur 3 ans », capturer uniquement le bandeau diagnostic situé avant la liste d'années. Si `odoo_partner_read_rejected`, investiguer les ACL sur `res.partner`. Si lecture partielle, valider la concordance des champs disponibles. Dans tous les cas, aucune association persistante sans validation explicite.
