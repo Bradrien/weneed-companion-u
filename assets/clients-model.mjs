@@ -15,6 +15,15 @@ export function normalizeClientList(value){
    events:count(item.event_count)};
  });
 }
+export function normalizeOdooLink(value){
+ if(value===null||value===undefined)return null;
+ if(!value||typeof value!=='object'||Array.isArray(value)||
+  !Number.isSafeInteger(value.partner_odoo_id)||value.partner_odoo_id<=0||
+  value.confirmed_by!=='owner_explicit'||
+  typeof value.confirmed_at!=='string'||!Number.isFinite(Date.parse(value.confirmed_at)))
+  throw Error('invalid_odoo_link');
+ return {partnerId:value.partner_odoo_id,confirmedAt:value.confirmed_at,confirmedBy:'owner_explicit'};
+}
 export function normalizeClientCard(value,expectedId){
  if(!value||typeof value!=='object'||Array.isArray(value)||!value.profile||
    !validClientId(value.profile.id)||value.profile.id!==expectedId||
@@ -27,6 +36,7 @@ export function normalizeClientCard(value,expectedId){
    address:str(value.profile.address,250),country:str(value.profile.country,80),
    notes:str(value.profile.notes,1200)},
   memory:str(value.memory?.summary,1800),
+  odooPartnerLink:normalizeOdooLink(value.odoo_partner_link),
   contacts:contacts.filter(x=>x&&typeof x==='object').map(c=>({
    name:str(c.name,180),role:str(c.role,80),
    channels:Array.isArray(c.channels)?c.channels.slice(0,30).filter(x=>x&&typeof x==='object').map(ch=>({type:str(ch.type,30),value:str(ch.value,200)})):[]
