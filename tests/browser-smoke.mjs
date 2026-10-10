@@ -29,6 +29,11 @@ const crmCard={profile:{id:uuid,name:'Boutique Test',status:'ACTIVE',address:'12
  attention:{open_task_count:1,overdue_task_count:0,tasks:[{title:'Rappeler le gérant',due_at:'2026-10-15'}]},
  activity:{recent:[{source:'whatsapp',type:'message',occurred_at:'2026-10-08',body:'Échange de démonstration'}]}};
 const clients=[{client_id:uuid,canonical_name:'Boutique Test',status:'ACTIVE',summary:'Client fictif pour tests',open_task_count:1,overdue_task_count:0,event_count:1}];
+const crm360={profile:{id:uuid,canonical_name:'Boutique Test'},memory:{},
+ business_objects:[{id:'doc-1',type:'invoice',key:'INV-DEMO',status:'sent',amount:120,currency:'EUR'}],
+ key_facts:[{type:'document',status:'inferred',value:{text:'Document mentionné dans un échange fictif'}}],
+ conversations:[{id:'conv-1',source:'gmail',title:'E-mail de démonstration',last_event_at:'2026-09-25'}],
+ stale_tasks:[{title:'Ancienne action test',description:'À réexaminer'}]};
 let odooFailure=false;
 let odooLoginRejected=false;
 let pinnedReadAccepted=true;
@@ -85,6 +90,7 @@ try{
   }
   else if(u.pathname==='/functions/v1/companion-api/clients')body={ok:true,data:clients};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid+'/card'))body={ok:true,data:crmCard};
+  else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid))body={ok:true,data:crm360};
   else if(u.pathname==='/functions/v1/commission-catalog-review'){
    const from=u.searchParams.get('from'),to=u.searchParams.get('to');
    body={ok:true,data:report(from,to)};
@@ -109,12 +115,22 @@ try{
  await page.locator('#client-detail .client-profile').waitFor({state:'visible'});
  assert.match(await page.locator('#client-detail').innerText(),/Contact Démo/);
  assert.match(await page.locator('#client-detail').innerText(),/Rappeler le gérant/);
+ assert.match(await page.locator('#client-detail').innerText(),/Dossier commercial/);
+ assert.match(await page.locator('#client-detail').innerText(),/INV-DEMO/);
+ assert.match(await page.locator('#client-detail').innerText(),/Conversations par source/);
  const privateStorage=await page.evaluate(()=>Object.keys(sessionStorage));
  assert.deepEqual(privateStorage,['weneed_v1_ephemeral_session']);
  await page.locator('#bottom-nav [data-nav="orders"]').click();
  await page.locator('#reload').click();
  await page.locator('#orders-list .order-card').first().waitFor({state:'visible'});
  assert.match(await page.locator('#orders-list').innerText(),/TEST-ORDER/);
+ await page.locator('#bottom-nav [data-nav="clients"]').click();
+ assert.match(await page.locator('#client-detail .client-odoo').innerText(),/TEST-ORDER/);
+ assert.match(await page.locator('#client-detail .client-odoo').innerText(),/nom strictement identique/);
+ await page.locator('#client-detail .client-odoo .audit-order-link').first().click();
+ await page.locator('#view-orders').waitFor({state:'visible'});
+ assert.match(await page.locator('#order-search').inputValue(),/TEST-ORDER/);
+
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
  assert.match(await page.locator('#view-commissions').innerText(),/Simulation sous conditions/);
  await page.locator('#commission-scenario .scenario-metric').first().waitFor({state:'visible'});
