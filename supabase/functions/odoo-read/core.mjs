@@ -74,7 +74,7 @@ export function parseReadRequest(urlString, now = new Date()) {
     }
   }
   const resource = url.searchParams.get('resource') || 'ping';
-  if (resource === 'ping' || resource === 'orders_probe') {
+  if (resource === 'ping' || resource === 'orders_probe' || resource === 'credential_probe') {
     if (url.searchParams.size > 1) throw new OdooBridgeError('invalid_query', 400);
     return { resource };
   }
@@ -145,6 +145,29 @@ export async function jsonRpc(cfg, service, method, args, fetchImpl = fetch) {
 }
 
 export async function performRead(cfg, parsed, fetchImpl = fetch) {
+  if (parsed.resource === 'credential_probe') {
+    // Diagnostic only: Odoo key + the already-configured, server-side UID PIN.
+    // No client-supplied identity, model, method or fields, and no data is returned.
+    if (!cfg.uidPin) throw new OdooBridgeError('odoo_uid_pin_not_configured', 503);
+    let found;
+    try {
+      found = await jsonRpc(cfg, 'object', 'execute_kw', [
+        cfg.db, cfg.uidPin, cfg.apiKey, 'sale.order', 'search_read', [[]],
+        { fields: ['id'], limit: 1, offset: 0, order: 'id desc' },
+      ], fetchImpl);
+    } catch (error) {
+      if (error instanceof OdooBridgeError && error.code === 'odoo_remote_error') {
+        throw new OdooBridgeError('odoo_pinned_read_rejected', 502);
+      }
+      throw error;
+    }
+    if (!Array.isArray(found) || found.length > 1 ||
+        found.some((item) => !Number.isSafeInteger(item?.id) || item.id <= 0)) {
+      throw new OdooBridgeError('invalid_odoo_response', 502);
+    }
+    return { pinned_credentials_accepted: true, returned_order_data: false,
+      mode: 'read_only', persisted: false };
+  }
   const uid = await jsonRpc(cfg, 'common', 'authenticate', [cfg.db, cfg.login, cfg.apiKey, {}], fetchImpl);
   // Only owner-authenticated callers see a diagnostic category, never an Odoo ID.
   if (!Number.isSafeInteger(uid) || uid <= 0) {
