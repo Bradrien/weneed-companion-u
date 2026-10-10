@@ -36,8 +36,16 @@ try{
  assert.equal(await page.locator('#client-search').count(),0,'Main UI unexpectedly replaced');
  assert.equal(await page.locator('#login-form').count(),1);
  // Anonymous clients cannot bypass Supabase Auth.
- const api=await fetch('https://gcirlrghjvumhkekrtmf.supabase.co/functions/v1/companion-api/clients',
-   {headers:{accept:'application/json'}});
- assert.ok([401,403].includes(api.status),'CRM endpoint accessible without credentials');
+ const protectedEndpoints=[
+  '/functions/v1/companion-api/clients',
+  '/functions/v1/odoo-read?resource=ping',
+  '/functions/v1/commission-catalog-review?from=2026-09-01&to=2026-09-30'
+ ];
+ for(const endpoint of protectedEndpoints){
+  const result=await fetch('https://gcirlrghjvumhkekrtmf.supabase.co'+endpoint,{
+   headers:{accept:'application/json'}
+  });
+  assert.ok([401,403].includes(result.status),endpoint+' unexpectedly returned '+result.status);
+ }
  console.log('PASS live preview: main unmodified, real hosted HTML/CSS/JS, owner login gated, anonymous CRM denied');
 }finally{await browser.close()}
