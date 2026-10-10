@@ -53,7 +53,13 @@ try{
  await page.locator('#login-email').fill('owner@example.test');
  await page.locator('#login-password').fill('fake-password');
  await page.locator('#login-button').click();
- await page.locator('#view-strategy').waitFor({state:'visible'});
+ try{await page.locator('#view-strategy').waitFor({state:'visible',timeout:7000})}
+ catch(e){
+  console.log('D19 diagnosis:',JSON.stringify({errors,appVisible:await page.locator('#app-panel').isVisible(),
+   loginVisible:await page.locator('#login-panel').isVisible(),
+   loginMessage:await page.locator('#login-error').textContent(),url:page.url()}));
+  throw e;
+ }
  await page.getByText('Green Purple',{exact:true}).first().waitFor({state:'visible'});
  assert.match(await page.locator('#strategy-root').innerText(),/131|2 client/i);
  assert.match(await page.locator('#strategy-root').innerText(),/1500|1.?500/);
