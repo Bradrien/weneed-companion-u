@@ -113,6 +113,9 @@ try{
  assert.match(await page.locator('#orders-list').innerText(),/TEST-ORDER/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
  assert.match(await page.locator('#view-commissions').innerText(),/Calcul en attente/);
+ await page.locator('#commission-audit .audit-heading').first().waitFor({state:'visible'});
+ assert.match(await page.locator('#commission-audit').innerText(),/Références internes Odoo manquantes/);
+ assert.match(await page.locator('#commission-audit').innerText(),/Classement par mot-clé/);
  await page.locator('#bottom-nav [data-nav="settings"]').click();
  await page.locator('#odoo-probe').click();
  await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('Connexion Odoo opérationnelle'));
