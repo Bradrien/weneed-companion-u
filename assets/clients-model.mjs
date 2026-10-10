@@ -37,3 +37,16 @@ export function normalizeClientCard(value,expectedId){
    when:str(e.occurred_at,40),body:str(e.body,500)}))
  };
 }
+
+export function normalizeCrmDashboard(value){
+ if(!value||typeof value!=='object'||Array.isArray(value)||!value.stats||typeof value.stats!=='object')
+  throw Error('invalid_crm_dashboard');
+ const s=value.stats;
+ return {
+  clients:count(s.clients_total),attentionCount:count(s.clients_needing_attention),
+  tasks:count(s.open_actionable_tasks),overdue:count(s.overdue_actionable_tasks),
+  attention:normalizeClientList(Array.isArray(value.attention_clients)?value.attention_clients.slice(0,10):[]),
+  unassigned:(Array.isArray(value.unassigned_actionable_tasks)?value.unassigned_actionable_tasks.slice(0,10):[])
+   .filter(x=>x&&typeof x==='object').map(t=>({title:str(t.title,250),dueAt:str(t.due_at,40)}))
+ };
+}
