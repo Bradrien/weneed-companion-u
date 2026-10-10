@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validClientId,normalizeClientList,normalizeClientCard,normalizeCrmDashboard} from '../assets/clients-model.mjs';
+import {validClientId,normalizeClientList,normalizeClientCard,normalizeOdooLink,normalizeCrmDashboard} from '../assets/clients-model.mjs';
 const id='fef12218-1111-4111-8111-bb011ac01ac0';
 test('client list accepts the server read-only shape',()=>{
  const rows=normalizeClientList([{client_id:id,canonical_name:'CBD Shop',status:'ACTIVE',summary:'client',open_task_count:2,overdue_task_count:1,event_count:4}]);
@@ -35,4 +35,15 @@ test('CRM dashboard handles empty data without inventing task amounts',()=>{
 test('CRM dashboard rejects missing stats and invalid client IDs',()=>{
  assert.throws(()=>normalizeCrmDashboard(null));
  assert.throws(()=>normalizeCrmDashboard({stats:{},attention_clients:[{client_id:'../../secret',canonical_name:'no'}]}));
+});
+
+test('owner confirmed Odoo links are strictly normalized on client cards',()=>{
+ const id='fef12218-1111-4111-8111-bb011ac01ac0';
+ const payload={profile:{id,name:'Boutique Test'},odoo_partner_link:{
+  partner_odoo_id:777,confirmed_at:'2026-10-10T17:13:54Z',confirmed_by:'owner_explicit'}};
+ const a=normalizeClientCard(payload,id);
+ assert.equal(a.odooPartnerLink.partnerId,777);
+ assert.equal(normalizeOdooLink(null),null);
+ assert.throws(()=>normalizeOdooLink({...payload.odoo_partner_link,confirmed_by:'automatic'}),/invalid_odoo_link/);
+ assert.throws(()=>normalizeOdooLink({...payload.odoo_partner_link,partner_odoo_id:0}),/invalid_odoo_link/);
 });
