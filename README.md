@@ -1,25 +1,46 @@
-# WeNeed Companion — interface mobile alpha
+# WeNeed Companion — V1.2, rapprochement Kino
 
-Prototype d'interface privée pour consultation **en lecture seule** des commandes Odoo GTA / Trim Rocket et préparation du rapprochement des commissions.
+Application commerciale **en lecture seule** pour les commandes Odoo de GTA et Trim Rocket, avec une vérification des SKU contre le catalogue Kino.
 
-## Publication GitHub Pages
+Adresse hébergée : https://bradrien.github.io/weneed-companion-u/
 
-Dans **Settings → Pages**, choisir **Deploy from a branch**, puis `main` et `/(root)`, puis **Save**.
+## Fonctionnement
 
-Une fois le site publié : https://bradrien.github.io/weneed-companion-u/
+- Connexion par Supabase Auth et contrôle propriétaire côté serveur.
+- Commandes Odoo obtenues via `commission-catalog-review` (Supabase Edge Function, JWT obligatoire).
+- Correspondance des lignes éligibles par **société + SKU normalisé (casse/espaces externes uniquement)**.
+- Les références non trouvées, manquantes ou ambiguës sont signalées, sans suggestion automatique hasardeuse.
+- Les échantillons, livraisons, commandes non confirmées, et lignes gratuites sont distingués.
+- Le catalogue est une **capture horodatée**, pas un inventaire en direct.
+- Les coûts et prix catalogue ne sont **pas** des marges ou des commissions.
+- Aucun montant de commission n'est calculé tant que la logique du simulateur Kino (notamment SPIFF) n'a pas été validée.
+- Si le service de rapprochement est indisponible, l'interface utilise le rapport Odoo historique `commission-review` et signale que Kino est indisponible.
 
-## Configuration
+## Données et sécurité
 
-- Supabase Auth : connexion propriétaire par e-mail et mot de passe.
-- Fonction `companion-profile` : vérifie la session et l'autorisation propriétaire.
-- Fonction `commission-review` : lecture Odoo et revue des commandes GTA/TR, sans écriture.
-- `assets/config.js` : URL de projet et clé **publishable** Supabase uniquement (publique par conception).
-- Les secrets Odoo ne figurent **jamais** dans ce dépôt.
+- Le dépôt GitHub Pages est **public** ; ne jamais y ajouter de secrets, données commerciales ou identifiants.
+- L'URL et la clé Supabase `sb_publishable_*` exposées dans `assets/config.js` sont publiques par conception.
+- Les secrets Odoo restent dans les variables de la fonction Supabase.
+- Tables privées `kino_catalog_snapshots`, `kino_catalog_products` : RLS activée, pas de `SELECT` pour `anon`/`authenticated` ; lecture par la fonction serveur après authentification propriétaire.
+- Le rapprochement est transitoire : les commandes client ne sont pas copiées en base.
+- L'application conserve les jetons Supabase en `sessionStorage` et nettoie la session à la déconnexion. Ne pas utiliser sur un poste partagé.
+- `commission-catalog-review` et `commission-review` sont en lecture seule.
 
-## Limites connues
+## Vérifications
 
-- Les commissions ne sont **pas calculées** tant que les règles Kino n'ont pas été vérifiées.
-- L'accès aux commandes doit être validé en condition réelle depuis Safari iPhone.
-- Aucun import automatique ni transcription audio ne sont activés.
-- GitHub Pages héberge des fichiers **publics** ; seul le contenu de l'application est protégé par l'authentification et les autorisations vérifiées côté serveur.
-- Le dépôt historique `cockpit-weneed` est indépendant et ne doit pas être modifié pour ce projet.
+- 1 385/1 385 produits Kino importés dans la base privée : 571 GTA, 814 TR.
+- Aucun doublon sur le couple société + SKU, 220 SKU présents chez les deux sociétés.
+- 365 coûts et 150 prix catalogue à zéro : **à examiner** (pas à corriger automatiquement).
+- Tests syntaxiques Node et tests du modèle côté client réussis.
+- **Connexion réelle du nouvel écran à l'API de rapprochement non encore testée avec le compte utilisateur** : validation à faire sur Safari/Chrome.
+
+## Prochaine validation
+
+1. Ouvrir https://bradrien.github.io/weneed-companion-u/ et recharger sans cache (ou naviguer en fenêtre privée).
+2. Se connecter à son compte propriétaire.
+3. Choisir septembre 2026 et cliquer sur ↻.
+4. Sur « Commissions », vérifier le nombre de SKU retrouvés / non retrouvés.
+5. Sur « Commandes », ouvrir une commande confirmée et vérifier les coûts/prix Kino sur ses lignes.
+6. S'assurer que les commissions restent « À vérifier ».
+
+Si un message d'erreur apparaît, conserver le texte pour diagnostic. Les tests réels nécessitent le JWT de la session utilisateur, non communicable dans le chat.
