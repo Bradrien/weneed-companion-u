@@ -234,6 +234,7 @@ try{
  odooLoginRejected=false;
 
  await page.locator('#bottom-nav [data-nav="clients"]').click();
+ await page.locator('#client-detail > button').first().click();
  await page.locator('#client-search').fill('Sans Lien');
  await page.locator('#clients-list .client-row').filter({hasText:'Boutique Sans Lien'}).click();
  await page.locator('#client-detail .client-candidate-discovery button').first().click();
