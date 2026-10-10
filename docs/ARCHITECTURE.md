@@ -223,3 +223,17 @@ Analyse du code : `getPartnerIdentity` utilisait un unique `res.partner.search_r
 - Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D13`.
 
 **À tester** : recharger D13 et la fiche Green Purple, cliquer « Consulter les commandes sur 3 ans », capturer uniquement le bandeau diagnostic situé avant la liste d'années. Si `odoo_partner_read_rejected`, investiguer les ACL sur `res.partner`. Si lecture partielle, valider la concordance des champs disponibles. Dans tous les cas, aucune association persistante sans validation explicite.
+
+## D14 — liaison CRM Green Purple ↔ partenaire Odoo #3277 confirmée
+
+Le propriétaire a confirmé explicitement dans la conversation, après validation D13 des concordances nom/e-mail/téléphone, que le client CRM Green Purple (`d4522538-54d8-497f-a80d-15a1cf214189`) correspond au partenaire Odoo `res.partner.id = 3277`.
+
+- Migration Supabase `crm_manual_odoo_partner_links_with_revocation` : table `crm_odoo_partner_links` (clé CRM, identifiant Odoo, statut actif/révoqué, confirmation owner, horodatage, provenance minimale de la validation, date de révocation). Index uniques empêchant qu'un même partenaire Odoo soit lié à plusieurs CRM actifs. RLS activée : ni `anon` ni `authenticated` ne peuvent lire la table directement, seule la fonction de service propriétaire la consulte.
+- Enregistrement créé et vérifié : **une association active #3277 → Green Purple**, aucune association concurrente. Révocation possible en passant le statut à `revoked` et en renseignant `revoked_at` (opération d'administration explicite, pas une suppression définitive).
+- `companion-api` v14 : dans `GET /clients/{uuid}/card`, joint seulement la liaison active pour cette fiche **après vérification du compte propriétaire et de son JWT** ; si plusieurs liens actifs sont présents, l'API refuse de sélectionner un partenaire arbitraire.
+- `assets/clients-model.mjs` refuse tout lien mal formé/non confirmé. D14 utilise le `partner_odoo_id` sauvegardé pour proposer l'historique de trois ans **indépendamment de la période affichée ou de la disponibilité du rapport Odoo mensuel**. Les propositions sur le mois courant restent distinguées des liaisons validées.
+- Aucun changement dans les commandes, produits, données des contacts Odoo, commissions ou historiques source. Aucune fusion d'entreprises et aucune validation des paiements.
+- Test navigateur Chromium avec liaison approuvée présente avant le chargement du rapport Odoo, test du modèle, tests du Bridge Kino, test du site hébergé.
+- Préversion privée D14 : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D14`.
+
+À venir : test sur iPhone avec authentification réelle pour confirmer l'affichage automatique du lien, puis généralisation des appariements **uniquement** après validation de chaque entreprise.
