@@ -45,7 +45,7 @@ const report=(from,to)=>({source:'odoo_live_read_only',period_from:from,period_t
  orders_count:1,catalog_snapshot:{products_total:1385,source_completed_at:'2026-10-10T00:35:35Z'},
  catalog_matching:{eligible:2,matched:1,not_found:0,missing_sku:1,ambiguous_sku:0,catalog_invalid_price:0,zero_cost:0,zero_list_price:0},
  line_kinds:{candidate:1,review:1,sample:0,shipping:0,anomaly:0},
- orders:[{id:987,reference:'TEST-ORDER',date:from,company:'GTA',client:'Boutique Test',salesperson:'Test Owner',
+ orders:[{id:987,reference:'TEST-ORDER',date:from,company:'GTA',client:'Boutique Test',partner_odoo_id:777,salesperson:'Test Owner',
   currency:'EUR',state:'sale',amount_ht:220,line_sum_ht:220,amount_difference:0,
   commission_eur:null,issues:[],
   lines:[{id:1,sku:'SKU/TEST',product_name:'Produit Démo',quantity:100,unit_price:2,
@@ -91,6 +91,15 @@ try{
   else if(u.pathname==='/functions/v1/companion-api/clients')body={ok:true,data:clients};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid+'/card'))body={ok:true,data:crmCard};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid))body={ok:true,data:crm360};
+  else if(u.pathname==='/functions/v1/client-odoo-history'){
+   assert.equal(u.searchParams.get('partner_id'),'777');
+   body={ok:true,data:{source:'odoo_partner_history_read_only',identity_verified:false,
+    partner_odoo_id:777,period_from:u.searchParams.get('from'),period_to:u.searchParams.get('to'),
+    checked_at:'2026-10-10T16:30:00Z',orders:[
+     {id:987,reference:'TEST-ORDER',partner_odoo_id:777,company:'GTA',date:'2026-09-10',state:'sale',amount_ht:220,currency:'EUR'},
+     {id:888,reference:'OLD-ORDER',partner_odoo_id:777,company:'TR',date:'2025-06-10',state:'cancel',amount_ht:150,currency:'EUR'}
+    ]}};
+  }
   else if(u.pathname==='/functions/v1/commission-catalog-review'){
    const from=u.searchParams.get('from'),to=u.searchParams.get('to');
    body={ok:true,data:report(from,to)};
@@ -126,6 +135,14 @@ try{
  assert.match(await page.locator('#orders-list').innerText(),/TEST-ORDER/);
  await page.locator('#bottom-nav [data-nav="clients"]').click();
  assert.match(await page.locator('#client-detail .client-odoo').innerText(),/TEST-ORDER/);
+ assert.match(await page.locator('#client-detail .client-odoo').innerText(),/Partenaire Odoo #777/);
+ await page.locator('#client-detail .client-history-panel button').first().click();
+ await page.locator('#client-detail .client-history-summary').waitFor({state:'visible'});
+ assert.match(await page.locator('#client-detail .client-history-summary').innerText(),/2 commande\(s\)/);
+ assert.match(await page.locator('#client-detail .client-history-summary').innerText(),/1 annulée\(s\)/);
+ await page.locator('#client-detail .client-history-year').last().evaluate(el=>{el.open=true});
+ assert.match(await page.locator('#client-detail .client-history-panel').innerText(),/OLD-ORDER/);
+
  assert.match(await page.locator('#client-detail .client-odoo').innerText(),/nom strictement identique/);
  await page.locator('#client-detail .client-odoo .audit-order-link').first().click();
  await page.locator('#view-orders').waitFor({state:'visible'});
