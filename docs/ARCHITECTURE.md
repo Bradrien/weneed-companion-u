@@ -151,3 +151,19 @@ Les informations détaillées des clients et les descriptions commerciales reste
 - Préversion isolée D6 : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D6`. Navigation vers les commandes conservée.
 - Les règles de calcul Kino GTA/TR, la politique d'échantillons et les éventuels avoirs restent **à valider** avant tout montant de commission.
 
+
+## D9 — Fiche client 360° enrichie, première étape CRM
+
+La capture iPhone de la fiche Green Purple montre que la recherche CRM, les contacts, la mémoire et les derniers événements Gmail/Google Chat fonctionnent, mais que la vue initiale ne présente ni dossier commercial complet ni commandes Odoo.
+
+**Données effectivement présentes :** l'API propriétaire `companion-api` possède déjà `GET /clients/{uuid}`, basé sur `api_get_client_360`, avec `business_objects` (factures, avoirs et autres références CRM), `conversations`, `key_facts`, `stale_tasks`, en plus de `GET /clients/{uuid}/card`. Pour Green Purple, cette API contient plusieurs conversations, faits et références financières (pas de preuve de paiement bancaire). D9 utilise ces deux endpoints **sans aucun nouveau déploiement backend ni écriture SQL**.
+
+- `assets/client-360-model.mjs` normalise les données enrichies, impose le même UUID client et borne tous les champs et listes.
+- `assets/app.js` charge la fiche courte et la vue complète simultanément. La fiche courte reste accessible même si l'extension 360 échoue ; une alerte différencie les deux.
+- La rubrique **Dossier commercial** présente les sources de conversations, les documents et références identifiés, les faits issus des échanges et les anciennes pistes nécessitant une vérification. Aucun statut de facture `paid` vu dans un e-mail n'est présenté comme encaissement comptable confirmé.
+- La rubrique **Commandes Odoo · période analysée** exploite uniquement le rapport Odoo déjà chargé dans la session propriétaire pour rechercher un **nom strictement identique**, normalisé en casse et espaces. La proposition est **non validée**, pas une association permanente `partner_id → client_id`. Pas de fusion de clients, pas de recherche floue ou sur les boutiques filles. Un bouton ouvre la commande originale pour examen.
+- Cette rubrique **n'est pas un historique global de commandes** : elle couvre exclusivement le mois actuellement chargé. Son absence de résultat ne prouve pas qu'un client n'a jamais commandé.
+- Tests purs de normalisation / nom exact et smoke Chromium mobile avec réponses Supabase entièrement fictives.
+- Préversion privée : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D9`.
+
+**Suite nécessaire :** vérifier la relation d'identité CRM ↔ `res.partner.id` d'Odoo (et les entreprises filles) avant un historique multi-mois véritablement fiable ; relier le CRM aux commandes historiques et, ensuite, organiser les échanges en jalons commerciaux avec sources et validations.
