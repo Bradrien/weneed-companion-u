@@ -32,3 +32,11 @@ test('Kino reconciliation gateway logs only non-sensitive diagnostic codes',()=>
  assert.match(source,/JSON\.stringify\(\{code,status\}\)/);
  assert.doesNotMatch(source,/console\.(?:error|log)\([^)]*(?:pass|token|jwt|email|orderData)/i);
 });
+
+test('Odoo login diagnostic distinguishes pin mismatch without logging user IDs or secrets',()=>{
+ const source=readFileSync(new URL('../supabase/functions/commission-catalog-review/index.ts',import.meta.url),'utf8');
+ assert.match(source,/reason:pinMismatch\?'uid_pin_mismatch':'credentials_rejected'/);
+ assert.match(source,/console\.error\('commission_odoo_auth_reason',JSON\.stringify\(\{/);
+ assert.match(source,/const credentialsAccepted=Number\.isSafeInteger\(uid\)&&uid>0/);
+ assert.doesNotMatch(source,/console\.error\('commission_odoo_auth_reason',[^;]*\buid\b/);
+});
