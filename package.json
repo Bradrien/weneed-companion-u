@@ -4,7 +4,10 @@
   "version": "1.2.1",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check:bridge": "node --check kino-bridge/content.js && node --check kino-bridge/search-core.js && node --check kino-bridge/background.js && node --check kino-bridge/popup.js"
+    "check:bridge": "node --check kino-bridge/content.js && node --check kino-bridge/search-core.js && node --check kino-bridge/background.js && node --check kino-bridge/popup.js",
+    "check:app": "node --check assets/app.js && node --check assets/model.mjs && node --check assets/reconciliation.mjs && node --check assets/clients-model.mjs && node --check assets/auth-guard.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
