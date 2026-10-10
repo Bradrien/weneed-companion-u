@@ -177,7 +177,16 @@ function warningInFrench(v){return ({
  'Some confirmed products lack an Odoo SKU':'Certaines lignes Odoo n’ont pas de SKU',
  'Matched Kino products include zero catalogue prices or costs':'Des coûts ou prix du catalogue Kino sont à zéro'
  })[v]||'Contrôle supplémentaire nécessaire';}
-function renderCommissions(){renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber});renderReconciliationAudit(state.report,$('commission-audit'),{empty,fmtNumber})}
+function openAuditOrder(order){
+ if(!order?.reference||!state.report)return;
+ state.company='ALL';state.orderState='all';state.query=order.reference;state.page=1;
+ state.expanded=new Set([String(order.id)]);
+ $('order-search').value=order.reference;
+ $('status-select').value='all';
+ document.querySelectorAll('[data-company]').forEach(button=>button.classList.toggle('active',button.dataset.company==='ALL'));
+ navigate('orders');
+}
+function renderCommissions(){renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber});renderReconciliationAudit(state.report,$('commission-audit'),{empty,fmtNumber,onOpenOrder:openAuditOrder})}
 
 
 async function loadDashboard(){
