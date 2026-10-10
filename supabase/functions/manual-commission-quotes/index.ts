@@ -8,7 +8,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const obj=(v:unknown):v is Record<string,unknown>=>Boolean(v)&&typeof v==='object'&&!Array.isArray(v);
 const safeText=(v:unknown,max:number)=>typeof v==='string'?v.trim().slice(0,max):'';
 const money=(v:unknown)=>v===null||v===undefined||v===''?null:
- (typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1_000_000_000&&Math.round(v*100)===v*100?v:null);
+ (typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1_000_000_000&&Math.abs(Math.round(v*100)-v*100)<0.000001?v:null);
 const dateOK=(v:unknown)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&
  !Number.isNaN(Date.parse(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
 const issue=(code:string,status=400)=>Object.assign(new Error(code),{status});
