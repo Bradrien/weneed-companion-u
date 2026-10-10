@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildOrderLineCommissions,lineCommission} from '../assets/order-line-commission-d20.mjs';
+import {buildOrderLineCommissions,lineCommission} from '../validation-v12/assets/order-line-commission-d20.mjs';
 const base={verified_commissions_eur:null,commissions_are_calculated:false,persisted:false,
  source_order_status_rechecked:true,source_order_status_checked_at:'2026-10-11T12:00:00Z',
  catalog_matching:{matched:1},orders:[{id:100,reference:'SO100',company:'GTA',state:'sale',currency:'EUR',
