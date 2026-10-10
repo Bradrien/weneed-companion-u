@@ -35,7 +35,7 @@ npm test
 npm run check:bridge
 ```
 
-Le dossier `kino-bridge/` contient une version **0.7.0 candidate**, dérivée de la version 0.5.0 installée. L'archive 0.6 n'a pas pu être récupérée ; aucune équivalence avec cette version n'est présumée. Voir `kino-bridge/INSTALLATION.txt` pour la validation et le retour arrière.
+Le dossier `kino-bridge/` contient une version **0.7.0 candidate**, dérivée de la version 0.5.0 installée. L'archive 0.6 a été récupérée et comparée le 10 octobre : ses variantes de suggestions et ses diagnostics locaux sont repris avec la classification stricte et la protection de saisie de la 0.7. Voir `docs/KINO_BRIDGE_VALIDATION.md`. Voir `kino-bridge/INSTALLATION.txt` pour la validation et le retour arrière.
 
 La recherche filtre les suggestions par SKU et société, ignore les filtres du catalogue, protège une saisie utilisateur concurrente et permet de choisir le SKU testé. Les tests utilisent un DOM simulé : ils ne remplacent pas une validation Chrome/React. Le bridge n'automatise pas la sélection d'un produit ni les simulations de vente.
 

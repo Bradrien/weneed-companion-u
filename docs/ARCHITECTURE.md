@@ -63,7 +63,7 @@ Les tests Node et GitHub Actions valident uniquement les composants testés. Ils
 3. **Rémunération** : aucun total issu d'Odoo ne doit être présenté comme commission acquise. Échantillons, produits gratuits, devis, retours, remises et règles Kino nécessitent une validation explicite.
 4. **Sécurité** : ne jamais intégrer jeton JWT, mot de passe, clé Odoo, cookie ou données commerciales dans GitHub public ; utiliser les fonctions serveur.
 5. **Session** : `sessionStorage` est volontairement éphémère. Déconnecter l'application sur un poste partagé.
-6. **Kino 0.7** : candidat dérivé de l'extension 0.5 installée ; l'archive 0.6 n'a pas été récupérée. Conserver la 0.5 comme secours.
+6. **Kino 0.7** : candidat dérivé de l'extension 0.5 installée ; l'archive 0.6 a été récupérée et comparée ; ses variantes de suggestions et diagnostics locaux sont réintégrés (voir `KINO_BRIDGE_VALIDATION.md`). Conserver la 0.5 comme secours.
 
 ## Validation manuelle avant fusion
 

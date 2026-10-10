@@ -154,8 +154,12 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
       const r=await searchProbeTab(t,sku).catch(()=>null);
       if(!r?.ok)return {ok:false,error:r?.error||'Recherche non accessible.'};
       const d=r.result.search;
+      if(d.restore_status!=='cleared')return {ok:false,error:'search_field_restore_failed'};
       return {ok:true,summary:{sku:d.query_sku,count:d.candidates.length,
-        labels:d.candidates.slice(0,8).map(x=>x.text),restored:true}};
+        labels:d.candidates.slice(0,8).map(x=>x.text),restored:true,
+        input_accepted:d.diagnostics?.input_accepted===true,
+        excluded_non_products:d.diagnostics?.rejected_non_products||0,
+        dropdown_detected:d.diagnostics?.suggestion_container_detected===true}};
     }
     if(message.type==='SIMULATOR_LOCAL'){
       const t=await openKinoTab();

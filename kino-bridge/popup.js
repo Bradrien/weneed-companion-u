@@ -58,7 +58,10 @@ $('search').addEventListener('click',async()=>{
  try{
   const r=await send({type:'SEARCH_LOCAL',sku});
   info(r.ok?'Test local : '+r.summary.sku+'\nSuggestions : '+r.summary.count+
-    '\nExemples : '+r.summary.labels.join(' | ')+
+    (r.summary.labels.length?'\nExemples : '+r.summary.labels.join(' | '):'\nAucun produit reconnu pendant ce test. Vérifie la société et la recherche dans Kino.')+
+    '\nRecherche prise en compte : '+(r.summary.input_accepted?'oui':'non')+
+    '\nÉléments non produits écartés : '+r.summary.excluded_non_products+
+    '\nListe de suggestions détectée : '+(r.summary.dropdown_detected?'oui':'non')+
     '\nLe champ de recherche a été vidé. Aucun produit ajouté. Aucun transfert demandé.':r.error);
  }catch{info('Test de recherche impossible.');}
  finally{$('search').disabled=false;}

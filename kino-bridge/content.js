@@ -209,16 +209,18 @@ function writeText(el,value){
 }
 function suggestionLabels(input,sku){
   const r=input.getBoundingClientRect(),items=[],seen=new Set();
-  const selectors='[role="option"],[cmdk-item],[data-slot="command-item"],button';
+  // Preserve v0.6's clickable div/list variants, with the stricter SKU+company parser.
+  const selectors='[role="option"],li,[cmdk-item],[data-slot="command-item"],button,div[role="button"],div[class*="cursor-pointer"],div[class*="hover:"]';
   const els=[...document.querySelectorAll(selectors)].filter(isVisible);
+  let rejected=0;
   for(const el of els){
-    if(el.disabled||el.getAttribute('aria-disabled')==='true'||el.closest('table,thead,tbody,form#login'))continue;
-    const parsed=KinoSearch.classify(textOf(el,181),sku);
-    if(!parsed)continue;
+    if(el.disabled||el.getAttribute('aria-disabled')==='true'||el.closest('table,thead,tbody,[role="tablist"],nav,header,form#login'))continue;
     const b=el.getBoundingClientRect();
     if(b.width<28||b.height<12||b.height>130)continue;
     if(b.top<r.bottom-10||b.top>r.bottom+540)continue;
     if(b.right<r.left||b.left>r.right)continue;
+    const parsed=KinoSearch.classify(textOf(el,181),sku);
+    if(!parsed){rejected++;continue;}
     const key=parsed.company+'|'+parsed.sku.toUpperCase();
     if(seen.has(key))continue;
     seen.add(key);
@@ -226,7 +228,9 @@ function suggestionLabels(input,sku){
       role:String(el.getAttribute('role')||'').slice(0,30),text:parsed.text});
     if(items.length>=18)break;
   }
-  return items;
+  return {candidates:items,diagnostics:{input_accepted:input.value===sku,
+    rejected_non_products:rejected,
+    suggestion_container_detected:Boolean(document.querySelector('[role="listbox"],[cmdk-list],[data-slot="command-list"]'))}};
 }
 async function probeSearch(query){
   if(searchBusy||catalogBusy)return {ok:false,error:'search_probe_busy'};
@@ -241,19 +245,19 @@ async function probeSearch(query){
   searchBusy=true;let restored=false,report=null,probeError=null,interrupted=false;
   try{
     input.focus();writeText(input,query);
-    await sleep(1250);
+    await sleep(1700);
     if(!input.isConnected)throw Error('search_field_replaced');
     if(input.value!==query){interrupted=true;throw Error('search_interrupted');}
-    const suggestions=suggestionLabels(input,query);
-    const mode=suggestions.length?'search_observed':'no_matches';
+    const observed=suggestionLabels(input,query);
+    const mode=observed.candidates.length?'search_observed':'no_matches';
     report={ok:true,result:{search:{query_sku:query,search_field_found:true,
-      mode,candidates:suggestions,restore_status:'cleared'}}};
+      mode,candidates:observed.candidates,diagnostics:observed.diagnostics,restore_status:'cleared'}}};
   }catch{probeError=interrupted?'search_interrupted_by_user':'search_probe_failed';}
   finally{
     // Never erase text typed by the user while the asynchronous probe was running.
     const current=input.isConnected?input:searchInput();
     if(current&&(current.value===query||current.value==='')&&!interrupted){
-      try{writeText(current,'');restored=current.value==='';current.blur();}catch{}
+      try{writeText(current,'');await sleep(0);restored=current.isConnected&&current.value==='';current.blur();}catch{}
     }else if(current&&current.value!==query){interrupted=true;}
     searchBusy=false;
   }

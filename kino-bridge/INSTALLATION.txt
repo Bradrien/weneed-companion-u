@@ -1,7 +1,7 @@
 KINO BRIDGE 0.7.0 — VERSION CANDIDATE
 
-Cette version est dérivée du bridge 0.5.0 installé localement. L'archive 0.6 n'a pas pu être récupérée : son contenu et ses éventuelles corrections ne sont pas intégrés ou vérifiés.
-Les tests Node utilisent un DOM simulé. La validation dans Chrome avec Kino reste obligatoire avant utilisation régulière.
+Cette version est dérivée du bridge 0.5.0 installé localement. L'archive 0.6 a été récupérée et comparée le 10 octobre : ses variantes de suggestions et diagnostics locaux sont intégrés avec les protections de la 0.7. Voir docs/KINO_BRIDGE_VALIDATION.md.
+Les tests Node utilisent un DOM simulé ; le test Chromium charge la véritable extension sur une page synthétique. La validation dans Chrome avec Kino reste obligatoire avant utilisation régulière.
 
 Installation de validation
 1. Conserver le dossier de l'extension précédente pour pouvoir revenir en arrière.

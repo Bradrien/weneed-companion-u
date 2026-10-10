@@ -45,7 +45,7 @@ function harness({labels=[],existing='',hidden=[],disabled=[],duringWait,hostnam
     getBoundingClientRect:()=>({top:50+i*30,bottom:75+i*30,left:0,right:300,width:300,height:25}),
     click:()=>{clicks++;}}));
   const context=vm.createContext({KinoSearch:core,document:{title:'Kino Commission',
-    querySelectorAll:selector=>selector.startsWith('input')?[input]:candidates},
+    querySelectorAll:selector=>selector.startsWith('input')?[input]:candidates,querySelector:()=>null},
     location:{hostname},window:{HTMLInputElement:Input},getComputedStyle:()=>({visibility:'visible',display:'block'}),
     InputEvent:class{},Event:class{},setTimeout:fn=>queueMicrotask(()=>{
       if(!waited){waited=true;if(duringWait)value=duringWait;if(replacement)input.isConnected=false;}fn();}),
@@ -159,7 +159,7 @@ function backgroundHarness(){
     chrome:{runtime:{onMessage:{addListener:fn=>listener=fn},onInstalled:{addListener(){}},onStartup:{addListener(){}}},
       alarms:{onAlarm:{addListener(){}},create(){}},
       tabs:{query:async()=>[{id:1,status:'complete'}],sendMessage:async(id,message)=>{
-        messages.push(message);return {ok:true,result:{search:{query_sku:message.sku,candidates:[]}}};
+        messages.push(message);return {ok:true,result:{search:{query_sku:message.sku,candidates:[],restore_status:'cleared'}}};
       }}}});
   vm.runInContext(fs.readFileSync(new URL('../kino-bridge/background.js',import.meta.url),'utf8'),c);
   return {messages,send:(message,sender={})=>new Promise(resolve=>listener(message,sender,resolve))};
