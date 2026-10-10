@@ -391,6 +391,11 @@ function clientHistoryPanel(partnerId){
  else box.append(node('p','client-source-warning',
   'Total HT non affiché : certaines commandes ont une devise ou un montant manquant.'));
  if(h.partner){
+  if(h.partnerDiagnostic==='partial'||h.partnerDiagnostic==='name_only')
+   box.append(node('p','client-source-warning',
+    h.partnerDiagnostic==='name_only'?
+    'Odoo ne fournit que le nom du partenaire. Les champs de contact sont indisponibles : la correspondance CRM reste à vérifier.':
+    'Odoo ne fournit qu’une partie des coordonnées du partenaire. Les champs manquants ne permettent pas de conclure.'));
   const evidence=assessPartnerIdentity(clients.detail?.profile,clients.detail?.contacts,h.partner);
   const section=node('div','client-partner-evidence');
   section.append(node('strong','','Contrôle d’identité CRM ↔ partenaire Odoo #'+partnerId));
@@ -411,8 +416,16 @@ function clientHistoryPanel(partnerId){
   section.append(node('p','client-source-warning',
    'Comparaison indicative uniquement. Le lien entre le CRM et Odoo reste NON VALIDÉ. Aucune fiche fusionnée.'));
   box.append(section);
- }else box.append(node('p','client-source-warning',
-  'La fiche partenaire Odoo n’est pas accessible : historique disponible, identité à vérifier séparément.'));
+ }else{
+  const diagnostics={
+   not_visible:'Odoo ne renvoie aucune fiche pour cet identifiant. Le compte partenaire est peut-être masqué par les droits de lecture.',
+   odoo_partner_read_rejected:'Odoo refuse la lecture de la fiche partenaire, y compris les champs minimaux. Vérifie les droits du compte API sur les contacts.',
+   no_accessible_orders:'La recherche n’a trouvé aucune commande accessible : la fiche partenaire n’a pas été consultée.',
+   legacy_unknown:'La fiche partenaire n’a pas pu être lue. Relance la vérification dans la dernière préversion.'
+  };
+  box.append(node('p','client-source-warning',
+   diagnostics[h.partnerDiagnostic]||'Fiche partenaire indisponible. Historique des commandes conservé, identité à vérifier séparément.'));
+ }
  if(!h.orders.length){box.append(node('p','client-quiet','Aucune commande trouvée pour cet identifiant dans la période.'));return box}
  const byYear=new Map();
  for(const row of h.orders){
