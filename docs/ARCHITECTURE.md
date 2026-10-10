@@ -194,3 +194,18 @@ L'examen Supabase montre que la fiche CRM Green Purple possède une identité e-
 - Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D11`.
 
 La suite sera de comparer les coordonnées de `res.partner(3277)` aux identités CRM/import Odoo puis de demander une confirmation de rattachement ; un futur historique multi-mois durable ne devrait plus dépendre de la présence d'une commande dans la période affichée.
+
+## D12 — recoupement des coordonnées Odoo / CRM sans création de lien
+
+La capture réelle de D11 pour le partenaire Odoo `#3277` confirme : 28 commandes trouvées depuis 2026, dont 13 au statut confirmé et 15 au statut annulé ; chiffres d'affaires HT des seules commandes confirmées GTA 71 245,50 € et TR 46 100 €. Il n'y a aucune ligne de 2023–2025 dans la réponse, ce qui ne prouve pas l'absence d'achats hors périmètre du commercial ou sous d'autres partenaires Odoo.
+
+Le SQL CRM contient pour la fiche Green Purple (UUID déjà connu) une identité e-mail issue de Gmail et un numéro issu de l'import Odoo, mais aucune association vérifiée au partenaire Odoo `#3277`.
+
+- `client-odoo-history` v2 ajoute une lecture **facultative, en lecture seule** de `res.partner` pour l'identifiant ayant au moins une commande accessible au commercial, sans exposer d'autres contacts. En cas d'absence d'autorisation de lecture, l'historique demeure disponible et l'identité Odoo est marquée inaccessible.
+- Champs limités à nom, e-mail, téléphone, mobile, rue, code postal, ville, et identifiant éventuel du partenaire parent. Aucun justificatif de paiement ni écriture CRM.
+- `assets/client-history-model.mjs` valide le partenaire renvoyé, puis compare localement le nom, l'e-mail et le téléphone (formats FR) avec les contacts et la fiche CRM. **Toutes les concordances sont des indices non validés et n'activent aucune fusion automatique**.
+- La fiche D12 affiche le résultat du recoupement avec sa provenance Odoo et un avertissement « lien CRM ↔ Odoo NON VALIDÉ ». Si plusieurs ID partenaires portent le même nom, la fonctionnalité historique demeure verrouillée.
+- Tests de l'absence de fusion, identité Odoo incompatible, comparaisons de contacts, accès propriétaire et parcours Chromium fictif.
+- Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D12`.
+
+Une vérification humaine de la fiche partenaire `#3277` est encore nécessaire avant l'enregistrement d'un lien stable permettant de rechercher tout l'historique commercial sans dépendre du mois sélectionné.
