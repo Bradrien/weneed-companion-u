@@ -81,3 +81,40 @@ test('valid pinned identity still permits owner-only read-only ping',async()=>{
  assert.equal(r.status,200);
  assert.equal((await r.json()).data.connected,true);
 });
+
+test('credential_probe is owner-only and rejects unknown or untrusted query params',async()=>{
+ const withoutToken=await gateway(new Request(address.replace('resource=ping','resource=credential_probe'),{headers:{origin}}));
+ assert.equal(withoutToken.status,401);
+ const invalidQuery=await gateway(new Request(address.replace('resource=ping','resource=credential_probe&ids=13'),{
+  headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(invalidQuery.status,400);
+});
+test('credential_probe validates saved Odoo key against PIN and never returns order data',async()=>{
+ const cfg={...env,ODOO_UID_PIN:'32'};
+ let calls=[];
+ const fetchImpl=async(_url,opts)=>{
+  const p=JSON.parse(opts.body).params;
+  calls.push({service:p.service,method:p.method,model:p.args[3],action:p.args[4]});
+  return new Response(JSON.stringify({result:[{id:123456}]}),{status:200,headers:{'content-type':'application/json'}});
+ };
+ const probe=createHandler({env:cfg,authenticateCaller:async()=>true,fetchImpl});
+ const r=await probe(new Request(address.replace('resource=ping','resource=credential_probe'),{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,200);
+ const data=(await r.json()).data;
+ assert.deepEqual(data,{pinned_credentials_accepted:true,returned_order_data:false,mode:'read_only',persisted:false});
+ assert.deepEqual(calls,[{service:'object',method:'execute_kw',model:'sale.order',action:'search_read'}]);
+});
+test('credential_probe requires server-configured expected UID',async()=>{
+ const g=createHandler({env,authenticateCaller:async()=>true,fetchImpl:fakeFetch});
+ const r=await g(new Request(address.replace('resource=ping','resource=credential_probe'),{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,503);
+ assert.equal((await r.json()).error,'odoo_uid_pin_not_configured');
+});
+test('credential_probe sanitizes upstream rejection',async()=>{
+ const fake=async()=>new Response(JSON.stringify({error:{message:'secret data should not leak'}}),
+ {status:200,headers:{'content-type':'application/json'}});
+ const g=createHandler({env:{...env,ODOO_UID_PIN:'13'},authenticateCaller:async()=>true,fetchImpl:fake});
+ const r=await g(new Request(address.replace('resource=ping','resource=credential_probe'),{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,502);
+ assert.deepEqual(await r.json(),{ok:false,error:'odoo_pinned_read_rejected'});
+});
