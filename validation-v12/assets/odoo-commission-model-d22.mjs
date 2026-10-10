@@ -6,7 +6,7 @@ export const statusLabels=Object.freeze({
 const money=x=>typeof x==='number'&&Number.isFinite(x)&&x>=0?x:null;
 export function normalizeOdooPipeline(input){
  if(!input||input.version!=='odoo_commission_pipeline_v1'||!Array.isArray(input.orders)||
-  input.orders.length>950||input.scope!=='owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked'||
+  input.orders.length>1600||input.scope!=='owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked'||
   input.invoicing_semantics!=='sale.order.invoice_status_not_payment_status'||
   input.formula!=='kino_browser_formula_provisional_without_spiff_units_unverified'||
   !Number.isFinite(Date.parse(input.read_at)))throw Error('invalid_odoo_pipeline');
@@ -17,7 +17,7 @@ export function normalizeOdooPipeline(input){
    !['GTA','TR'].includes(o.company)||!['draft','sent','sale','done'].includes(o.state)||
    typeof o.invoice_status!=='string'||!['EUR'].includes(o.currency)||
    typeof o.date!=='string'||!Number.isFinite(Date.parse(o.date))||
-   !Array.isArray(o.lines)||o.lines.length>250||!Number.isSafeInteger(o.matched_lines)||
+   !Array.isArray(o.lines)||o.lines.length>4500||!Number.isSafeInteger(o.matched_lines)||
    !Number.isSafeInteger(o.unmatched_lines)||o.matched_lines<0||o.unmatched_lines<0)
    throw Error('invalid_odoo_pipeline_order');
   const stage=['draft','sent'].includes(o.state)?'en_cours':
