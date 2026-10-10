@@ -115,7 +115,16 @@ try{
  await page.locator('#orders-list .order-card').first().waitFor({state:'visible'});
  assert.match(await page.locator('#orders-list').innerText(),/TEST-ORDER/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
- assert.match(await page.locator('#view-commissions').innerText(),/Calcul en attente/);
+ assert.match(await page.locator('#view-commissions').innerText(),/Simulation sous conditions/);
+ await page.locator('#commission-scenario .scenario-metric').first().waitFor({state:'visible'});
+ assert.match(await page.locator('#commission-scenario').innerText(),/SIMULATION CONDITIONNELLE/);
+ assert.match(await page.locator('#commission-scenario').innerText(),/2,72/);
+ assert.match(await page.locator('#commission-scenario').innerText(),/1 ligne\(s\) simulée/);
+ assert.match(await page.locator('#commission-scenario').innerText(),/Lignes non simulées : 1/);
+ await page.locator('#commission-scenario .scenario-order .audit-order-link').first().click();
+ await page.locator('#view-orders').waitFor({state:'visible'});
+ assert.match(await page.locator('#order-search').inputValue(),/TEST-ORDER/);
+ await page.locator('#bottom-nav [data-nav="commissions"]').click();
  await page.locator('#commission-audit .audit-heading').first().waitFor({state:'visible'});
  assert.match(await page.locator('#commission-audit').innerText(),/Références internes Odoo manquantes/);
  assert.match(await page.locator('#commission-audit').innerText(),/Classement par mot-clé/);
