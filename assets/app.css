@@ -59,3 +59,17 @@
 .scenario-verified-status{padding:10px 12px;border-radius:11px;background:#eaf5ef;border:1px solid #cee1d2;color:#2c6142;font-size:12px;line-height:1.6;margin:0}
 .scenario-cancel-row{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;border-top:1px solid #dce9dd;padding-top:8px;font-size:12px;color:#506957}
 .scenario-cancel-row strong{color:#963b33;white-space:nowrap}
+
+/* CRM 360 client detail: private source-separated data, no validated-payment badges. */
+.client-360-sub{display:flex;flex-direction:column;gap:8px;padding-top:12px}
+.client-360-sub + .client-360-sub{border-top:1px solid #e2ebe4;margin-top:12px}
+.client-360-sub h4{font-size:13px;color:#234432;margin:0}
+.client-360-entry{display:flex;flex-direction:column;gap:5px;padding:10px 0;border-bottom:1px solid #ebf0eb}
+.client-360-entry strong{font-size:12px;overflow-wrap:anywhere}
+.client-360-entry small{font-size:11px;line-height:1.55;color:#65816b;overflow-wrap:anywhere;white-space:pre-line}
+.client-provenance,.client-quiet{font-size:12px;color:#667e6f;line-height:1.55;margin:8px 0}
+.client-source-warning{border:1px solid #ead4a6;border-radius:10px;padding:9px 12px;color:#7d5731;background:#fff4e4;font-size:12px;line-height:1.55}
+.client-odoo-order{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid #e7eee7}
+.client-odoo-order strong{font-size:13px}
+.client-odoo-order small{font-size:11px;color:#64806e}
+.client-odoo-order button{align-self:flex-start}
