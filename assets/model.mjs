@@ -9,11 +9,33 @@ export function lineText(v) {return ({candidate:'Produit à rapprocher',sample:'
 export function shortDate(value){if(typeof value!=='string')return '—';const s=value.slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return '—';const [y,m,d]=s.split('-');return `${d}/${m}/${y}`;}
 export function monthOf(date){const y=date.getFullYear(),m=date.getMonth();return {from:`${y}-${String(m+1).padStart(2,'0')}-01`,to:`${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`,label:new Intl.DateTimeFormat('fr-FR',{month:'long',year:'numeric'}).format(new Date(y,m,1))};}
 export function prevCompleteMonth(now=new Date()){return monthOf(new Date(now.getFullYear(),now.getMonth()-1,1));}
+export const MATCH_STATUSES=Object.freeze(['matched','missing_sku','not_found','ambiguous_sku','catalog_invalid_price','not_applicable']);
+export function assertMatching(report){
+ if(report.catalog_matching===undefined && report.catalog_snapshot===undefined)return;
+ const m=report.catalog_matching,s=report.catalog_snapshot;
+ if(!m||!s||!Number.isSafeInteger(s.products_total)||s.products_total<1||s.products_total>1500)throw new Error('invalid_report');
+ const names=['eligible','matched','not_found','missing_sku','ambiguous_sku','catalog_invalid_price','zero_cost','zero_list_price'];
+ if(names.some(n=>!Number.isSafeInteger(m[n])||m[n]<0))throw new Error('invalid_report');
+ if(m.matched+m.not_found+m.missing_sku+m.ambiguous_sku+m.catalog_invalid_price!==m.eligible ||
+    m.zero_cost>m.matched||m.zero_list_price>m.matched)throw new Error('invalid_report');
+ let observed=0;
+ for(const order of report.orders)for(const line of order.lines){
+  const match=line.catalog_match;
+  if(!match||!MATCH_STATUSES.includes(match.status)||line.commission_eur!==null)throw new Error('invalid_report');
+  if(match.status!=='not_applicable')observed++;
+  if(match.status==='matched'&&(
+   typeof match.cost_eur!=='number'||!Number.isFinite(match.cost_eur)||match.cost_eur<0||
+   typeof match.list_price_eur!=='number'||!Number.isFinite(match.list_price_eur)||match.list_price_eur<0
+  ))throw new Error('invalid_report');
+ }
+ if(observed!==m.eligible)throw new Error('invalid_report');
+}
 export function assertReport(report){
  if(!report||typeof report!=='object'||report.source!=='odoo_live_read_only'||!Array.isArray(report.orders))throw new Error('invalid_report');
  if(report.persisted!==false||report.verified_commissions_eur!==null||report.commissions_are_calculated!==false)throw new Error('unverified_commissions_guard');
  if(!Number.isInteger(report.orders_count)||report.orders_count!==report.orders.length)throw new Error('incomplete_report');
  if(report.orders.some(o=>!o||!SOURCE_COMPANIES.includes(o.company)||!Array.isArray(o.lines)||o.commission_eur!==null))throw new Error('invalid_orders');
+ assertMatching(report);
  return report;
 }
 export function filteredOrders(report,{company='ALL',state='all',query='',onlyReview=false}={}) {
