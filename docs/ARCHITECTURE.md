@@ -128,3 +128,16 @@ Le nouveau module `assets/reconciliation.mjs` propose des détails directement s
 Aucune modification d'Odoo ni calcul de commission dans ces fonctions de présentation. Tests Node purs et validation navigateur Chromium ajoutés. Une préversion isolée est publiée sous `validation-v12/?build=D4`, avec fichiers JS/CSS versionnés.
 
 **À valider ensuite :** relire les six lignes concrètes et confirmer que les produits sans SKU sont réellement vendus et non des erreurs de ligne ; distinguer la politique d'échantillons de la détection par mot-clé ; obtenir la méthode de calcul officielle GTA/TR, avec frais, avoirs et plafonds, avant toute estimation de rémunération.
+
+## Audit D5 : regroupement des codes candidats et accès direct aux commandes
+
+La lecture réelle de septembre 2026 indique six lignes sans SKU réparties sur **quatre codes candidats distincts en tête de description Odoo**, pour un montant source de 3 000 € HT. Ces chiffres ne sont pas des commissions. Le regroupement reste séparé par société (GTA/TR) et devise.
+
+- Les codes entre crochets sont des **indices de saisie**, pas des SKU Kino vérifiés. Aucun rapprochement supplémentaire n'est effectué automatiquement.
+- La page *Commissions → Audit Odoo* affiche les groupes, les montants source lorsque la devise est connue, et un bouton **Ouvrir la commande** sur chaque anomalie.
+- Le bouton applique un filtre local à la référence Odoo et ouvre la commande développée dans l'onglet *Commandes*, sans requête d'écriture.
+- L'extraction ne considère que les préfixes sous la forme `[CODE]` au début de la description ; aucune invention de SKU ni injection HTML.
+- Tests unitaires : six lignes réparties en quatre groupes, 3 000 € HT ; test Chromium : navigation depuis l'audit vers la commande développée.
+- Préversion sur GitHub Pages : `validation-v12/?build=D5`, scripts et styles versionnés pour contourner le cache iOS.
+
+Les informations détaillées des clients et les descriptions commerciales restent dans le rapport privé de la session navigateur ; elles ne sont pas copiées dans le dépôt public.
