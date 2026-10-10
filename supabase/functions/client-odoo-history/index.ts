@@ -99,25 +99,43 @@ async function list(c:Config,uid:number,partnerId:number,from:string,to:string){
 }
 // Read Odoo partner identity only when it is backed by this sales person's orders.
 // An empty history does not authorize enumerating arbitrary Odoo contacts.
-async function getPartnerIdentity(c:Config,uid:number,partnerId:number,hasOrders:boolean){
- if(!hasOrders)return null;
- try{
-  const data=await rpc(c,'object','execute_kw',[c.db,uid,c.pass,'res.partner',
-   'search_read',[[['id','=',partnerId]]],{
-    fields:['id','name','email','phone','mobile','street','zip','city','parent_id'],
-    limit:2
-   }]);
-  if(!Array.isArray(data)||data.length!==1||data[0]?.id!==partnerId)
-   return null;
+type PartnerDiagnostic='complete'|'partial'|'name_only'|'not_visible'|'odoo_partner_read_rejected'|'no_accessible_orders';
+async function getPartnerIdentity(c:Config,uid:number,partnerId:number,hasOrders:boolean):
+ Promise<{partner:Record<string,unknown>|null,diagnostic:PartnerDiagnostic}>{
+ if(!hasOrders)return {partner:null,diagnostic:'no_accessible_orders'};
+ // Odoo may reject search_read when an optional field is not exposed to the API user.
+ // Retry with progressively smaller read-only fields and never leak Odoo errors.
+ const modes=[
+  {fields:['id','name','email','phone','mobile','street','zip','city','parent_id'],code:'complete' as const},
+  {fields:['id','name','email','phone'],code:'partial' as const},
+  {fields:['id','name'],code:'name_only' as const}
+ ];
+ let rejected=false;
+ for(const mode of modes){
+  let data:unknown;
+  try{
+   data=await rpc(c,'object','execute_kw',[c.db,uid,c.pass,'res.partner',
+    'search_read',[[['id','=',partnerId]]],{fields:mode.fields,limit:2}]);
+  }catch{
+   rejected=true;continue;
+  }
+  if(!Array.isArray(data)||data.length>1){
+   rejected=true;continue;
+  }
+  if(data.length===0)return {partner:null,diagnostic:'not_visible'};
   const p=data[0];
-  return {id:partnerId,name:str(p.name).slice(0,160),email:str(p.email).slice(0,180),
-   phone:str(p.phone).slice(0,50),mobile:str(p.mobile).slice(0,50),
-   street:str(p.street).slice(0,180),zip:str(p.zip).slice(0,24),
-   city:str(p.city).slice(0,100),parent_odoo_id:oid(p.parent_id)};
- }catch{
-  // A lack of partner read permissions must not invalidate order history.
-  return null;
+  if(!p||typeof p!=='object'||Array.isArray(p)||(p as any).id!==partnerId){
+   rejected=true;continue;
+  }
+  const record=p as Record<string,unknown>;
+  return {partner:{
+   id:partnerId,name:str(record.name).slice(0,160),email:str(record.email).slice(0,180),
+   phone:str(record.phone).slice(0,50),mobile:str(record.mobile).slice(0,50),
+   street:str(record.street).slice(0,180),zip:str(record.zip).slice(0,24),
+   city:str(record.city).slice(0,100),parent_odoo_id:oid(record.parent_id)
+  },diagnostic:mode.code};
  }
+ return {partner:null,diagnostic:rejected?'odoo_partner_read_rejected':'not_visible'};
 }
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';
@@ -158,11 +176,11 @@ Deno.serve(async req=>{
   if(!Number.isSafeInteger(uid)||uid<=0||(pin&&String(uid)!==pin))
    throw new SafeError('odoo_auth_failed');
   const orders=await list(c,uid,partnerId,from!,to!);
-  const partner=await getPartnerIdentity(c,uid,partnerId,orders.length>0);
+  const {partner,diagnostic:partner_diagnostic}=await getPartnerIdentity(c,uid,partnerId,orders.length>0);
   return new Response(JSON.stringify({ok:true,data:{
    partner_odoo_id:partnerId,period_from:from,period_to:to,
    source:'odoo_partner_history_read_only',identity_verified:false,
-   checked_at:new Date().toISOString(),orders,partner}}),{status:200,headers});
+   checked_at:new Date().toISOString(),orders,partner,partner_diagnostic}}),{status:200,headers});
  }catch(e){
   const code=e instanceof SafeError?e.message:'history_unavailable';
   const status=e instanceof SafeError?e.status:502;
