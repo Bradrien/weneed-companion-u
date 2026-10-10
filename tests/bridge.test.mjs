@@ -59,6 +59,8 @@ test('DOM probe ignores catalogue filters and restores the empty search',async()
   const r=await h.probe('DEMO/I');
   assert.equal(r.ok,true);assert.equal(r.result.search.candidates.length,2);
   assert.equal(r.result.search.restore_status,'cleared');assert.equal(h.input.value,'');
+  assert.equal(r.result.search.diagnostics.input_accepted,true);
+  assert.equal(r.result.search.diagnostics.rejected_non_products,3);
   assert.deepEqual(h.writes,['DEMO/I','']);assert.equal(h.clicks(),0);
 });
 test('no matches is reported without treating filters as suggestions',async()=>{
@@ -153,16 +155,16 @@ test('catalogue collection releases its lock after an error',async()=>{
   assert.equal((await h.c.collectCatalog()).error,'catalog_collection_failed');
 });
 
-function backgroundHarness(){
+function backgroundHarness({restoreStatus='cleared'}={}){
   let listener;const messages=[];
   const c=vm.createContext({importScripts:()=>{},KinoSearch:core,
-    chrome:{runtime:{onMessage:{addListener:fn=>listener=fn},onInstalled:{addListener(){}},onStartup:{addListener(){}}},
+    chrome:{runtime:{id:'fixture',getURL:path=>'chrome-extension://fixture/'+path,onMessage:{addListener:fn=>listener=fn},onInstalled:{addListener(){}},onStartup:{addListener(){}}},
       alarms:{onAlarm:{addListener(){}},create(){}},
       tabs:{query:async()=>[{id:1,status:'complete'}],sendMessage:async(id,message)=>{
-        messages.push(message);return {ok:true,result:{search:{query_sku:message.sku,candidates:[],restore_status:'cleared'}}};
+        messages.push(message);return {ok:true,result:{search:{query_sku:message.sku,candidates:[],restore_status:restoreStatus}}};
       }}}});
   vm.runInContext(fs.readFileSync(new URL('../kino-bridge/background.js',import.meta.url),'utf8'),c);
-  return {messages,send:(message,sender={})=>new Promise(resolve=>listener(message,sender,resolve))};
+  return {messages,send:(message,sender={id:'fixture',url:'chrome-extension://fixture/popup.html'})=>new Promise(resolve=>listener(message,sender,resolve))};
 }
 test('popup search forwards the chosen SKU through the service worker',async()=>{
   const h=backgroundHarness();const r=await h.send({type:'SEARCH_LOCAL',sku:'DEMO/OTHER'});
@@ -173,7 +175,17 @@ test('invalid popup SKU never reaches the Kino content script',async()=>{
   const h=backgroundHarness();assert.equal((await h.send({type:'SEARCH_LOCAL',sku:'<invalid>'})).ok,false);
   assert.equal(h.messages.length,0);
 });
+test('popup cannot claim cleanup success without content-script confirmation',async()=>{
+  const h=backgroundHarness({restoreStatus:'unconfirmed'});
+  assert.equal((await h.send({type:'SEARCH_LOCAL',sku:'DEMO/I'})).error,'search_field_restore_failed');
+});
 test('page content cannot invoke popup search commands',async()=>{
-  const h=backgroundHarness();assert.equal((await h.send({type:'SEARCH_LOCAL',sku:'DEMO/I'},{tab:{id:1}})).ok,false);
+  const h=backgroundHarness();assert.equal((await h.send({type:'SEARCH_LOCAL',sku:'DEMO/I'},{id:'fixture',url:'https://kinocommission.base44.app/',tab:{id:1}})).ok,false);
   assert.equal(h.messages.length,0);
+});
+test('the packaged popup can be tested in a tab without accepting another extension',async()=>{
+  const h=backgroundHarness();const message={type:'SEARCH_LOCAL',sku:'DEMO/I'};
+  assert.equal((await h.send(message,{id:'fixture',url:'chrome-extension://fixture/popup.html',tab:{id:2}})).ok,true);
+  assert.equal((await h.send(message,{id:'other',url:'chrome-extension://fixture/popup.html'})).ok,false);
+  assert.equal(h.messages.length,1);
 });

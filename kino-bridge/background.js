@@ -126,7 +126,10 @@ async function signIn(email,password) {
   await chrome.alarms.create('pollKino',{periodInMinutes:0.5});
 }
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
-  if(sender.tab || !message || !['LOGIN','LOGOUT','STATUS','CHECK','INSPECT_LOCAL','CATALOG_LOCAL','SIMULATOR_LOCAL','SEARCH_LOCAL'].includes(message.type)) {
+  // Only our own packaged popup may issue commands, whether opened as a popup or tab.
+  // A content script has the same extension ID but the untrusted page URL.
+  if(sender.id!==chrome.runtime.id || sender.url!==chrome.runtime.getURL('popup.html') ||
+     !message || !['LOGIN','LOGOUT','STATUS','CHECK','INSPECT_LOCAL','CATALOG_LOCAL','SIMULATOR_LOCAL','SEARCH_LOCAL'].includes(message.type)) {
     respond({ok:false,error:'unsupported_message'});return;
   }
   (async()=>{

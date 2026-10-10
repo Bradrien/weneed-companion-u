@@ -49,8 +49,11 @@ try{
   }
   external.push(route.request().url());await route.abort();
  });
- const worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');
+ const worker=context.serviceWorkers().find(w=>w.url().startsWith('chrome-extension://'))||
+  await context.waitForEvent('serviceworker',{predicate:w=>w.url().startsWith('chrome-extension://')});
  await worker.evaluate(async()=>{
+  for(let i=0;i<100&&!globalThis.chrome?.alarms?.clearAll;i++)await new Promise(resolve=>setTimeout(resolve,50));
+  if(!globalThis.chrome?.alarms?.clearAll)throw Error('Extension bindings not ready');
   await chrome.alarms.clearAll();
   await chrome.storage.session.set({session:{access_token:'synthetic-not-a-token',expires_at_ms:Date.now()+3600000}});
  });
