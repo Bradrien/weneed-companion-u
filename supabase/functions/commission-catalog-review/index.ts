@@ -124,8 +124,15 @@ async function review(from,to){
  const cfg={url:url.href.replace(/\/+$/,''),db:env.db,login:env.login,pass:env.pass};
  const uid=await rpc(cfg,'common','authenticate',[cfg.db,cfg.login,cfg.pass,{}]);
  const pin=Deno.env.get('ODOO_UID_PIN')||'';
- if(!Number.isSafeInteger(uid)||uid<=0||(pin&&String(uid)!==pin))
+ const credentialsAccepted=Number.isSafeInteger(uid)&&uid>0;
+ const pinMismatch=credentialsAccepted&&Boolean(pin)&&String(uid)!==pin;
+ if(!credentialsAccepted||pinMismatch){
+  // Diagnostic only: never log user IDs, passwords, API keys or request details.
+  console.error('commission_odoo_auth_reason',JSON.stringify({
+    reason:pinMismatch?'uid_pin_mismatch':'credentials_rejected'
+  }));
   throw new SafeError('odoo_auth_failed');
+ }
  const orders=await readPages(cfg,uid,'sale.order',[
   ['date_order','>=',from+' 00:00:00'],['date_order','<=',to+' 23:59:59'],['user_id','=',uid]],
   ['id','name','date_order','state','partner_id','user_id','company_id','amount_untaxed','currency_id'],250);
