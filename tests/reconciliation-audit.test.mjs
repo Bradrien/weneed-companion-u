@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {auditReconciliation} from '../assets/reconciliation.mjs';
+import {auditReconciliation,candidateSkuFromName,groupMissingSkuCandidates} from '../assets/reconciliation.mjs';
 
 const m=status=>({status});
 const make=(state,company,amount,lines,reference)=>({
@@ -59,4 +59,33 @@ test('non-confirmed missing SKU entries cannot masquerade as eligible matches',(
   make('cancel','TR',0,[line(10,'sample','not_applicable',0,'Annulé')],'SO-CANCEL')
  ]};
  assert.equal(auditReconciliation(r).missing.length,0);
+});
+
+test('extract proposed SKU only from a bracketed prefix, without guessing Kino identity',()=>{
+ assert.equal(candidateSkuFromName('[PEB/G/TR/250] Peanut Butter 250'), 'PEB/G/TR/250');
+ assert.equal(candidateSkuFromName(' [TT/+/G/TR/50] Tangie Tonic'), 'TT/+/G/TR/50');
+ assert.equal(candidateSkuFromName('[TT/G] Tangie Tonic'), 'TT/G');
+ assert.equal(candidateSkuFromName('Branded sealed bag [TT/G]'),null);
+ assert.equal(candidateSkuFromName('No SKU'),null);
+ assert.equal(candidateSkuFromName('[<script>] unsafe'),null);
+});
+test('six missing order lines collapse to four company-scoped SKU candidates',()=>{
+ const missing=(i,code,amount)=>({
+  id:i,kind:'review',line_ht:amount,commission_eur:null,
+  catalog_match:{status:'missing_sku'},product_name:'['+code+'] Fictional test compliance text'
+ });
+ const orders=[
+  make('sale','TR',400,[missing(1,'PEB/G/TR/250',300),missing(2,'TT/+/G/TR/50',100)],'T01836'),
+  make('sale','TR',600,[missing(3,'TT/+/G/TR/250',600)],'T01852'),
+  make('sale','TR',550,[missing(4,'PEB/G/TR/250',550)],'T01910'),
+  make('sale','GTA',150,[missing(5,'TT/G',150)],'S03502'),
+  make('sale','GTA',1300,[missing(6,'TT/G',1300)],'S03515')
+ ];
+ const groups=groupMissingSkuCandidates({orders});
+ assert.equal(groups.length,4);
+ assert.equal(groups.reduce((a,g)=>a+g.count,0),6);
+ assert.equal(groups.reduce((a,g)=>a+g.total,0),3000);
+ assert.equal(groups.find(g=>g.candidate==='TT/G').total,1450);
+ assert.equal(groups.find(g=>g.candidate==='PEB/G/TR/250').count,2);
+ assert.equal(groups.some(g=>g.currency!=='EUR'),false);
 });
