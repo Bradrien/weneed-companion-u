@@ -1,0 +1,65 @@
+# Kino Commission — moteur de simulation navigateur (extraction 10/10/2026)
+
+## Portée et statut
+
+La source de référence est un fichier JavaScript construit et minifié servi au navigateur Chrome connecté au calculateur Kino, fourni par le propriétaire du compte. Les fonctions de simulation `IT` (taux) et `FT` (ligne) ont été identifiées dans le bundle. Le code original n'est **pas** copié dans ce dépôt. Une réimplémentation indépendante figure dans `assets/kino-simulator.mjs`, testée dans `tests/kino-simulator.test.mjs`.
+
+**Important :** ce moteur reproduit le SIMULATEUR côté navigateur. La gestion effective des commandes Odoo et des commissions par vendeur dans Kino utilise au moins deux fonctions Base44 **côté serveur** : `importOdooSales` et `recalcBatch`, appelées depuis le navigateur. Leurs implémentations ne sont **pas** contenues dans l'extraction et n'ont pas été validées. Ne pas assimiler une simulation à une créance ou à un montant acquis.
+
+## Formules de simulation
+
+Pour chaque ligne avec un produit du catalogue et un prix de vente / unité :
+
+- Catégorie A : coût corrigé = coût Kino × **1,25**.
+- Catégorie B : coût corrigé = coût Kino × **1,15**.
+- Marge unitaire = prix saisi − coût corrigé.
+- Marge totale = marge unitaire × quantité.
+- Ratio de marge = marge unitaire / **coût Kino initial** (pas le coût corrigé). Si coût initial nul et marge unitaire positive, Kino attribue conventionnellement le ratio 999. Si les deux sont non positifs, ratio 0.
+- Commission = max(0, marge totale) × taux progressif. Si marge totale n'est pas positive, le taux appliqué est zéro.
+- Les montants sont conservés en précision décimale native du JavaScript ; pas d'arrondi intermédiaire dans l'extraction. L'affichage en euros utilise deux décimales.
+
+**Catégorie A, ratio r :**
+
+| Ratio r | Taux |
+|---|---|
+| r ≤ 0 | 20 % (mais commission = 0 si marge ≤ 0) |
+| 0 < r ≤ 0,15 | 20 % + (r / 0,15) × 3,21 points |
+| 0,15 < r < 0,80 | 23,21 % + ((r − 0,15) / 0,65) × 6,79 points |
+| r ≥ 0,80 | 30 % |
+
+**Catégorie B, ratio r :**
+
+| Ratio r | Taux |
+|---|---|
+| r ≤ 0 | 22,254 % (mais commission = 0 si marge ≤ 0) |
+| 0 < r < 1 | 22,254 % + r × 7,746 points |
+| r ≥ 1 | 30 % |
+
+## SPIFF
+
+Il n'est **pas** activé par défaut dans le simulateur :
+
+- Pour une unité dont le libellé contient `gr` (sans distinction de casse), poids kg = quantité / 1000.
+- Pour les autres unités, poids kg = quantité × `unit_weight_kg` du catalogue ; si cette donnée manque, le code du simulateur utilise 0.
+- SPIFF si interrupteur activé = poids kg × **50 € pour A** ou × **25 € pour B**, ajouté en plus de la commission normale.
+- Le simulateur peut produire un SPIFF même si la marge est négative, dès lors que l'interrupteur est actif. Ne pas supposer que cette situation est admissible dans la rémunération réelle.
+
+## Vérification contre l'interface fournie
+
+| Simulation | Vente | Coût catalogue | Coût corrigé | Marge | Commission attendue |
+|---|---:|---:|---:|---:|---:|
+| GTA Slurp, 100 gr, catégorie A, 2,50 €/gr | 250 € | 1,40 €/gr | 1,75 €/gr | 75 € | **20,43 €** |
+| TR Toad Venom 250, 1 unité, catégorie A, 800 €/unité | 800 € | 395 €/unité | 493,75 €/unité | 306,25 € | **91,09 €** |
+| Total (sans SPIFF) | **1 050 €** | — | — | **381,25 €** | **111,51 €** |
+
+Les neuf tests de régression couvrent ces montants, catégories A/B, plafonds, frais SPIFF, coût nul, et marge négative.
+
+## Conditions avant le calcul réel de septembre
+
+1. Lire la logique serveur `importOdooSales` et `recalcBatch` avec une autorisation valide, ou confronter suffisamment de commandes Odoo à des sorties Kino validées (statuts, vendeurs, avoirs, annulations, remises).
+2. Confirmer l'unité de mesure et les conversions Odoo/Kino. Le catalogue disponible dans Companion expose notamment `tier`, `cost_eur` et `list_price_eur`, mais le poids unitaire / type `unit` n'est pas garanti pour tous les produits.
+3. Ne pas traiter automatiquement les échantillons ou les livraisons comme des lignes rémunérables ; leurs exclusions officielles sont encore à valider.
+4. Les six lignes sans SKU Odoo sont seulement **suggérées** à partir de leur préfixe de description retrouvé dans Kino, sans correction des références officielles.
+5. Garder la commission de septembre au statut **simulation non validée** tant que la traçabilité des commandes et l'alignement sur les règles serveur ne sont pas établis.
+
+Aucune modification d'Odoo et aucun calcul de paiement n'ont été déclenchés par l'extraction.
