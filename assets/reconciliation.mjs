@@ -75,7 +75,40 @@ export function auditReconciliation(report){
  return {missing,samples,confirmedSamples,paidSamples,shipping,confirmedShipping,paidShipping,zeroAmountOrders};
 }
 
-export function renderReconciliationAudit(report,el,{empty,fmtNumber}){
+
+/**
+ * A prefix inside the product description is only a candidate for a missing
+ * Odoo internal reference. It is NOT an automatically verified Kino SKU.
+ */
+export function candidateSkuFromName(name){
+ if(typeof name!=='string')return null;
+ const hit=name.match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
+ return hit?hit[1].toUpperCase():null;
+}
+
+export function groupMissingSkuCandidates(report){
+ const audit=auditReconciliation(report);
+ if(!audit)return [];
+ const groups=new Map();
+ for(const entry of audit.missing){
+  const candidate=candidateSkuFromName(entry.line.product_name);
+  const currency=entry.order.currency||null;
+  const key=JSON.stringify([entry.order.company,candidate,currency]);
+  let g=groups.get(key);
+  if(!g){
+   g={company:entry.order.company,candidate,currency,count:0,total:0,amountComplete:true,entries:[]};
+   groups.set(key,g);
+  }
+  g.count++;
+  g.entries.push(entry);
+  if(typeof entry.line.line_ht==='number'&&Number.isFinite(entry.line.line_ht))g.total+=entry.line.line_ht;
+  else g.amountComplete=false;
+ }
+ return [...groups.values()].sort((a,b)=>b.count-a.count || a.company.localeCompare(b.company) ||
+  (a.candidate||'').localeCompare(b.candidate||''));
+}
+
+export function renderReconciliationAudit(report,el,{empty,fmtNumber,onOpenOrder}){
  el.replaceChildren();
  const audit=auditReconciliation(report);
  if(!audit){el.append(empty('Charge le rapport de la période pour examiner les lignes non rapprochées.'));return}
@@ -93,6 +126,13 @@ export function renderReconciliationAudit(report,el,{empty,fmtNumber}){
      make('div','audit-product',line.product_name||'Produit non renseigné'),
      make('div','audit-note',
        (order.client||'Client non renseigné')+' · '+formatMoney(line.line_ht,order.currency||'EUR')));
+   if(typeof onOpenOrder==='function'){
+    const open=make('button','audit-order-link','Ouvrir la commande');
+    open.type='button';
+    open.setAttribute('aria-label','Ouvrir '+(order.reference||'la commande')+' dans Commandes');
+    open.addEventListener('click',()=>onOpenOrder(order));
+    card.append(open);
+   }
    el.append(card);
   }
   if(entries.length>cap)el.append(make('p','audit-hint',
@@ -100,8 +140,20 @@ export function renderReconciliationAudit(report,el,{empty,fmtNumber}){
  };
  makeTitle('Références internes Odoo manquantes — '+fmtNumber(audit.missing.length)+' ligne(s)',
   'Lignes éligibles dont la fiche produit Odoo ne fournit aucun SKU. Vérifier les références internes avant de rapprocher les commissions.');
- if(audit.missing.length)showEntries(audit.missing,20);
- else el.append(make('p','audit-ok','Aucune ligne éligible sans SKU sur cette période.'));
+ if(audit.missing.length){
+  const candidates=groupMissingSkuCandidates(report);
+  const candidateCount=new Set(candidates.filter(g=>g.candidate).map(g=>g.company+'|'+g.candidate)).size;
+  el.append(make('p','audit-hint',candidateCount+' code(s) candidat(s) extrait(s) des noms de produits. À vérifier dans Kino et Odoo, aucune correspondance automatique.'));
+  for(const group of candidates){
+   const box=make('div','audit-candidate');
+   const code=group.candidate?'['+group.candidate+']':'Code non identifié dans la description';
+   box.append(make('strong','',group.company+' · '+code),
+     make('div','audit-note',fmtNumber(group.count)+' ligne(s) · '+
+       (group.amountComplete&&group.currency?formatMoney(group.total,group.currency):'Montant HT non totalisable')));
+   el.append(box);
+  }
+  showEntries(audit.missing,20);
+ } else el.append(make('p','audit-ok','Aucune ligne éligible sans SKU sur cette période.'));
  makeTitle('Échantillons : classement automatique à confirmer',
   fmtNumber(audit.samples.length)+' lignes signalées, dont '+fmtNumber(audit.confirmedSamples.length)+
   ' dans des commandes confirmées et '+fmtNumber(audit.paidSamples.length)+
