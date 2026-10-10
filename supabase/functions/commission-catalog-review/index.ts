@@ -174,6 +174,25 @@ async function review(from,to){
   if(!Array.isArray(result)||result.length>slice.length)throw new SafeError('invalid_odoo_response');
   for(const p of result)prods.set(p.id,p);
  }
+ // Status verification is performed AFTER line and product reads to avoid
+ // including an order cancelled while the report is being assembled.
+ // This is a point-in-time read, not a guarantee against later cancellations.
+ const statusCheckedAt=new Date().toISOString();
+ if(ids.length){
+  const latest=await readPages(cfg,uid,'sale.order',[['id','in',ids]],
+    ['id','state'],250);
+  const states=new Map();
+  for(const item of latest){
+   if(!Number.isSafeInteger(item.id)||states.has(item.id)||
+      typeof item.state!=='string')throw new SafeError('odoo_order_status_unverifiable',409);
+   states.set(item.id,item.state);
+  }
+  if(states.size!==ids.length||
+     orders.some(order=>!states.has(order.id)))
+    throw new SafeError('odoo_order_status_unverifiable',409);
+  if(orders.some(order=>states.get(order.id)!==order.state))
+    throw new SafeError('odoo_order_state_changed',409);
+ }
  const counts={GTA:{sale:0,done:0,cancel:0,draft:0,other:0},
                TR:{sale:0,done:0,cancel:0,draft:0,other:0}};
  const flags={candidate:0,sample:0,shipping:0,free:0,review:0,anomaly:0,display:0};
@@ -234,6 +253,7 @@ async function review(from,to){
  }
  return {period_from:from,period_to:to,source:'odoo_live_read_only',persisted:false,
   orders_count:report.length,source_order_count:orders.length,company_counts:counts,
+  source_order_status_rechecked:true,source_order_status_checked_at:statusCheckedAt,
   catalog_snapshot:catalog.snapshot,catalog_matching:matching,
   line_kinds:flags,confirmed_sales_ht_source_only:grossCurrencies.size===1?round(gross):null,
   confirmed_sales_currency:grossCurrencies.size===1?[...grossCurrencies][0]:null,
