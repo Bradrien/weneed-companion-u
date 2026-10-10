@@ -1,4 +1,4 @@
-name: Companion D22 mobile preview
+name: Companion D23 mobile preview
 on:
   push:
     branches: [main]
@@ -19,8 +19,8 @@ jobs:
           node-version: '22'
       - name: Check preview module syntax
         run: |
-          node --check validation-v12/assets/app-crm-d22.js
-          node --check validation-v12/assets/odoo-quote-pipeline-d22.mjs
+          node --check validation-v12/assets/app-crm-d23.js
+          node --check validation-v12/assets/odoo-quote-pipeline-d23.mjs
           node --check validation-v12/assets/odoo-commission-model-d22.mjs
           node --check validation-v12/assets/manual-quotes-ui-d21.mjs
           node --check validation-v12/assets/quote-forecast-d21.mjs
