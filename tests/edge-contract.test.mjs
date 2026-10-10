@@ -70,7 +70,7 @@ test('Odoo partner-history API is owner-only and cannot mutate Odoo or bind CRM 
  assert.match(api,/partner_id/);
  assert.match(api,/odoo_order_state_changed/);
  assert.match(api,/identity_verified:false/);
- assert.match(api,/\\['partner_id','=',partnerId\\]/);
- assert.match(api,/\\['user_id','=',uid\\]/);
+ assert.ok(api.includes("['partner_id','=',partnerId]"));
+ assert.ok(api.includes("['user_id','=',uid]"));
  assert.doesNotMatch(api,/\\b(create|write|unlink)\\b['"]\\s*,/);
 });
