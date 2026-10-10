@@ -37,6 +37,20 @@ try{
  assert.equal(main.status(),200);
  assert.equal(await page.locator('#client-search').count(),0,'Main UI unexpectedly replaced');
  assert.equal(await page.locator('#login-form').count(),1);
+ // Check the REAL hosted gateway's browser preflight, not just a simulated router.
+ const corsOrigin='https://bradrien.github.io';
+ const corsResponse=await fetch('https://gcirlrghjvumhkekrtmf.supabase.co/functions/v1/odoo-read?resource=ping',{
+   method:'OPTIONS',
+   headers:{origin:corsOrigin,'access-control-request-method':'GET',
+    'access-control-request-headers':'authorization,apikey,content-type'}
+ });
+ assert.equal(corsResponse.status,204,'Published browser CORS preflight must pass');
+ assert.equal(corsResponse.headers.get('access-control-allow-origin'),corsOrigin);
+ const anonymous=await fetch('https://gcirlrghjvumhkekrtmf.supabase.co/functions/v1/odoo-read?resource=ping',{
+   headers:{origin:corsOrigin}
+ });
+ assert.equal(anonymous.status,401,'Read-only gateway must still reject anonymous access');
+ assert.equal(anonymous.headers.get('access-control-allow-origin'),corsOrigin);
  // Anonymous clients cannot bypass Supabase Auth.
  const protectedEndpoints=[
   '/functions/v1/companion-api/clients',
