@@ -90,10 +90,10 @@ Deno.serve(async req=>{
   const standard=['id','name','date_order','state','invoice_status','partner_id','user_id',
    'company_id','amount_untaxed','currency_id'];
   const open=await pages(host,db,uid,apiKey,'sale.order',
-   [['user_id','=',uid],['state','in',['draft','sent']]],standard,300);
+   [['user_id','=',uid],['state','in',['draft','sent']]],standard,400);
   const closed=await pages(host,db,uid,apiKey,'sale.order',
    [['user_id','=',uid],['state','in',['sale','done']],['date_order','>=',from+' 00:00:00']],
-   standard,650);
+   standard,1200);
   const all=[...open,...closed].filter(o=>COMPANY[name(o.company_id)]);
   const ids=all.map(o=>o.id);
   if(ids.some(x=>!Number.isSafeInteger(x)||x<=0)||new Set(ids).size!==ids.length)
@@ -101,9 +101,9 @@ Deno.serve(async req=>{
   const lines=ids.length?await pages(host,db,uid,apiKey,'sale.order.line',
    [['order_id','in',ids]],
    ['id','order_id','product_id','name','product_uom_qty','price_unit','price_subtotal',
-    'discount','display_type','product_uom'],2200):[];
+    'discount','display_type','product_uom'],4500):[];
   const pids=[...new Set(lines.map(l=>rel(l.product_id)).filter(x=>x!==null))] as number[];
-  if(pids.length>600)throw safe('odoo_scope_too_large',413);
+  if(pids.length>1000)throw safe('odoo_scope_too_large',413);
   const pmap=new Map<number,Record<string,unknown>>();
   for(let i=0;i<pids.length;i+=100){
    const group=pids.slice(i,i+100);
