@@ -1,0 +1,43 @@
+/** Live public preview smoke test. No credentials, no CRM records and no mutation. */
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from 'playwright';
+
+const base='https://bradrien.github.io/weneed-companion-u/';
+const beta=base+'validation-v12/';
+const browser=await chromium.launch({headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
+ const errors=[];
+ const failedStatic=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ page.on('response',response=>{
+  if(response.url().startsWith(beta)&&response.status()>=400)failedStatic.push(response.url()+' '+response.status());
+ });
+ const response=await page.goto(beta,{waitUntil:'load',timeout:30000});
+ assert.equal(response.status(),200,'Live preview is not published');
+ await page.locator('#login-form').waitFor({state:'visible',timeout:12000});
+ await page.waitForTimeout(500);
+ assert.match(await page.title(),/préversion V1\.2/);
+ assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
+ assert.equal(await page.locator('#login-panel').isVisible(),true);
+ assert.equal(await page.locator('#app-panel').isVisible(),false);
+ assert.equal(await page.locator('#bottom-nav').isVisible(),false);
+ assert.equal(await page.locator('#login-password').inputValue(),'');
+ const css=await page.locator('#login-card, #login-form').first().evaluate(el=>getComputedStyle(el).borderRadius);
+ assert.notEqual(css,'0px','CSS file not applied');
+ assert.deepEqual(errors,[],'JS errors in published preview');
+ assert.deepEqual(failedStatic,[],'Missing published assets');
+ await mkdir('artifacts',{recursive:true});
+ await page.screenshot({path:'artifacts/live-preview-mobile.png',fullPage:true});
+ // Production home should not be replaced by the preview.
+ const main=await page.goto(base,{waitUntil:'load',timeout:30000});
+ assert.equal(main.status(),200);
+ assert.equal(await page.locator('#client-search').count(),0,'Main UI unexpectedly replaced');
+ assert.equal(await page.locator('#login-form').count(),1);
+ // Anonymous clients cannot bypass Supabase Auth.
+ const api=await fetch('https://gcirlrghjvumhkekrtmf.supabase.co/functions/v1/companion-api/clients',
+   {headers:{accept:'application/json'}});
+ assert.ok([401,403].includes(api.status),'CRM endpoint accessible without credentials');
+ console.log('PASS live preview: main unmodified, real hosted HTML/CSS/JS, owner login gated, anonymous CRM denied');
+}finally{await browser.close()}
