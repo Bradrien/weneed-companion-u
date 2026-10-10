@@ -23,13 +23,19 @@ const server=createServer(async(req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 const uuid='fef12218-1111-4111-8111-bb011ac01ac0';
+const uuid2='fef12218-1111-4111-8111-bb011ac01ac1';
+let linkedSecond=false;
 const crmCard={profile:{id:uuid,name:'Boutique Test',status:'ACTIVE',address:'12 rue Exemple',country:'France'},
  odoo_partner_link:{partner_odoo_id:777,confirmed_by:'owner_explicit',confirmed_at:'2026-10-10T17:13:54Z'},
  memory:{summary:'Compte de démonstration, aucune donnée réelle.'},
  contacts:[{name:'Contact Démo',role:'Gérant',channels:[{type:'email',value:'demo@example.test'}]}],
  attention:{open_task_count:1,overdue_task_count:0,tasks:[{title:'Rappeler le gérant',due_at:'2026-10-15'}]},
  activity:{recent:[{source:'whatsapp',type:'message',occurred_at:'2026-10-08',body:'Échange de démonstration'}]}};
-const clients=[{client_id:uuid,canonical_name:'Boutique Test',status:'ACTIVE',summary:'Client fictif pour tests',open_task_count:1,overdue_task_count:0,event_count:1}];
+const secondCard={profile:{id:uuid2,name:'Boutique Sans Lien',status:'client'},
+ contacts:[{name:'Gérant fictif',channels:[{type:'email',value:'second@example.test'}]}],
+ attention:{tasks:[]},activity:{recent:[]}};
+const clients=[{client_id:uuid,canonical_name:'Boutique Test',status:'ACTIVE',summary:'Client fictif pour tests',open_task_count:1,overdue_task_count:0,event_count:1},
+ {client_id:uuid2,canonical_name:'Boutique Sans Lien',status:'client',summary:'Candidat Odoo à confirmer',open_task_count:0,overdue_task_count:0,event_count:0}];
 const crm360={profile:{id:uuid,canonical_name:'Boutique Test'},memory:{},
  business_objects:[{id:'doc-1',type:'invoice',key:'INV-DEMO',status:'sent',amount:120,currency:'EUR'}],
  key_facts:[{type:'document',status:'inferred',value:{text:'Document mentionné dans un échange fictif'}}],
@@ -91,12 +97,39 @@ try{
   }
   else if(u.pathname==='/functions/v1/companion-api/clients')body={ok:true,data:clients};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid+'/card'))body={ok:true,data:crmCard};
+  else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid2+'/card'))
+   body={ok:true,data:{...secondCard,odoo_partner_link:linkedSecond?
+    {partner_odoo_id:778,confirmed_by:'owner_explicit',confirmed_at:'2026-10-10T18:00:00Z'}:null}};
   else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid))body={ok:true,data:crm360};
+  else if(u.pathname===('/functions/v1/companion-api/clients/'+uuid2))
+   body={ok:true,data:{profile:{id:uuid2,canonical_name:'Boutique Sans Lien'},memory:{},
+    key_facts:[],business_objects:[],conversations:[],stale_tasks:[]}};
+  else if(u.pathname==='/functions/v1/client-odoo-link'){
+   if(req.method()==='GET'){
+    assert.equal(u.searchParams.get('client_id'),uuid2);
+    body={ok:true,data:{client_id:uuid2,matching:'exact_partner_name_and_salesperson_orders',
+     complete:false,verified:false,sampled_orders:2,
+     candidates:[{partner_odoo_id:778,name:'Boutique Sans Lien',examples:2,last_date:'2026-09-11'}]}};
+   }else{
+    const request=req.postDataJSON();
+    assert.equal(request.client_id,uuid2);
+    assert.equal(request.partner_id,778);
+    assert.equal(request.action,'confirm');
+    assert.equal(request.confirmation,'CONFIRMER_LIAISON');
+    linkedSecond=true;body={ok:true,status:'linked',partner_odoo_id:778,confirmed_at:'2026-10-10T18:00:00Z'};
+   }
+  }
   else if(u.pathname==='/functions/v1/client-odoo-history'){
-   assert.equal(u.searchParams.get('partner_id'),'777');
+   const partner=Number(u.searchParams.get('partner_id'));
+   assert.ok([777,778].includes(partner));
    body={ok:true,data:{source:'odoo_partner_history_read_only',identity_verified:false,
-    partner_odoo_id:777,period_from:u.searchParams.get('from'),period_to:u.searchParams.get('to'),
-    checked_at:'2026-10-10T16:30:00Z',partner_diagnostic:'complete',partner:{id:777,name:'Boutique Test',email:'demo@example.test',phone:'',mobile:'',street:'12 rue Exemple',zip:'',city:'',parent_odoo_id:null},orders:[
+    partner_odoo_id:partner,period_from:u.searchParams.get('from'),period_to:u.searchParams.get('to'),
+    checked_at:'2026-10-10T16:30:00Z',partner_diagnostic:'complete',
+    partner:{id:partner,name:partner===777?'Boutique Test':'Boutique Sans Lien',
+    email:partner===777?'demo@example.test':'second@example.test',
+    phone:'',mobile:'',street:'12 rue Exemple',zip:'',city:'',parent_odoo_id:null},
+    orders:partner===778?[{id:889,reference:'CAND-ORDER',partner_odoo_id:778,company:'TR',
+     date:'2026-09-11',state:'sale',amount_ht:300,currency:'EUR'}]:[
      {id:987,reference:'TEST-ORDER',partner_odoo_id:777,company:'GTA',date:'2026-09-10',state:'sale',amount_ht:220,currency:'EUR'},
      {id:888,reference:'OLD-ORDER',partner_odoo_id:777,company:'TR',date:'2025-06-10',state:'cancel',amount_ht:150,currency:'EUR'}
     ]}};
@@ -199,6 +232,25 @@ try{
  await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('odoo_pinned_read_rejected'));
  assert.match(await page.locator('#odoo-probe-status').innerText(),/Test UID direct \[odoo_pinned_read_rejected · HTTP 502\]/);
  odooLoginRejected=false;
+
+ await page.locator('#bottom-nav [data-nav="clients"]').click();
+ await page.locator('#client-search').fill('Sans Lien');
+ await page.locator('#clients-list .client-row').filter({hasText:'Boutique Sans Lien'}).click();
+ await page.locator('#client-detail .client-candidate-discovery button').first().click();
+ await page.locator('#client-detail .client-candidate').first().waitFor({state:'visible'});
+ assert.match(await page.locator('#client-detail .client-candidate').innerText(),/Partenaire #778/);
+ assert.equal(await page.locator('#client-detail .client-link-confirmed').count(),0);
+ await page.locator('#client-detail .client-candidate button').first().click();
+ await page.locator('#client-detail .client-candidate .client-history-panel button').first().click();
+ await page.locator('#client-detail .client-partner-evidence').waitFor({state:'visible'});
+ assert.match(await page.locator('#client-detail .client-partner-evidence').innerText(),/e-mail identique/);
+ assert.match(await page.locator('#client-detail .client-memory-digest').innerText(),/Aucun historique Odoo exploitable/);
+ await page.locator('#client-detail .client-link-action button').first().click();
+ assert.match(await page.locator('#client-detail .client-link-action').innerText(),/Confirmer le rattachement permanent/);
+ await page.locator('#client-detail .client-link-action button').first().click();
+ await page.locator('#client-detail .client-link-confirmed').waitFor({state:'visible'});
+ assert.match(await page.locator('#client-detail .client-link-confirmed').innerText(),/partenaire Odoo #778/);
+ assert.match(await page.locator('#client-detail .client-memory-digest').innerText(),/1 commandes confirmées/);
 
  await page.locator('#logout-top').click();
  await page.locator('#login-panel').waitFor({state:'visible'});
