@@ -175,3 +175,6 @@
 .strategy-memory>p{font-size:12px;line-height:1.5;white-space:pre-wrap;}
 #view-strategy h4{font-size:13px;color:#264c37;margin:18px 0 8px;}
 @media(max-width:395px){#bottom-nav{padding-left:5px;padding-right:5px;gap:2px}.nav-button{font-size:9px}.nav-button svg{width:18px;height:18px}}
+
+/* Six top-level tabs, including the new Strategy tab. */
+.bottom-nav{grid-template-columns:repeat(6,minmax(0,1fr));}
