@@ -72,6 +72,7 @@ try{
    if(resource==='ping'&&odooLoginRejected){await route.fulfill(json({ok:false,error:'odoo_credentials_rejected'},502));return}
    if(resource==='credential_probe'){
     if(pinnedReadAccepted)body={ok:true,data:{pinned_credentials_accepted:true,returned_order_data:false,mode:'read_only',persisted:false}};
+    if(pinnedReadAccepted){await route.fulfill(json(body));return}
     else {await route.fulfill(json({ok:false,error:'odoo_pinned_read_rejected'},502));return}
    }
    if(resource==='ping')body={ok:true,data:{connected:true,mode:'read_only',persisted:false}};
