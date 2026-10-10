@@ -95,6 +95,18 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
     'La hausse de volume saisie compense théoriquement la réduction du prix unitaire. Confirmer élasticité, capacité, délais et coûts réels avant toute offre.':
     'Le volume espéré ne compense pas la remise. Tester un palier plus élevé, une remise moindre ou une offre différente.');
    outcome.append(result);
+   const options=el('details','strategy-tiers');
+   options.append(el('summary','','Comparer des remises de 2, 4, 6 et 8 %'));
+   const cost=Number(refs.cost.value),price=Number(refs.price.value);
+   for(const discount of [2,4,6,8]){
+      const offer=price*(1-discount/100);
+      const marginUnit=offer-cost;
+      if(marginUnit<=0)continue;
+      const uplift=Math.ceil(((price-cost)/marginUnit-1)*10000)/100;
+      options.append(item('-'+discount+' % · '+fullCash(offer)+'/unité',
+       'Volume additionnel minimal : +'+uplift+' % pour préserver la marge brute unitaire totale.'));
+   }
+   outcome.append(options);
   };
   Object.values(refs).forEach(i=>i.addEventListener('input',update));
   area.append(form,outcome);update();return area;
@@ -106,6 +118,16 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   box.append(head);
   if(!p.odooAvailable)box.append(el('p','strategy-warn','Connexion Odoo inaccessible : les ventes ne peuvent pas être interprétées comme nulles. Cause technique : '+(derived?.meta.odooError||'non précisée')));
   if(!p.verifiedOdooLink)box.append(el('p','strategy-warn','Aucune correspondance Odoo confirmée : les ventes ne sont pas associées à cette fiche. Ne pas conclure à une perte de clientèle.'));
+  if(p.candidateOdooPartners?.length){
+    const candidates=el('section','strategy-candidates');
+    candidates.append(el('h4','','Correspondance Odoo possible · NON vérifiée'));
+    for(const c of p.candidateOdooPartners){
+      candidates.append(el('p','strategy-note',
+       'Nom identique : '+c.partnerName+' · partenaire Odoo #'+c.partnerId+
+       '. Comparer e-mail et téléphone depuis la fiche CRM avant tout rattachement ; son chiffre d’affaires n’est pas inclus ici.'));
+    }
+    box.append(candidates);
+  }
   const kpis=el('div','strategy-kpis');
   kpis.append(card('CA HT vérifié',cash(p.revenueHT),months+' mois glissants'),
    card('Panier moyen',cash(p.avgBasketHT),p.avgBasketHT!==null?'Commandes positives HT':'Non calculable'),
@@ -133,6 +155,22 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   if(p.memory){
    const m=el('details','strategy-memory');m.append(el('summary','','Mémoire commerciale existante · à vérifier'));
    m.append(el('p','',p.memory));box.append(m);
+  }
+  const evidenceItems=[
+    ['Objections mentionnées dans la mémoire CRM',p.objections],
+    ['Opportunités mentionnées dans la mémoire CRM',p.opportunities]
+  ];
+  for(const [label,items] of evidenceItems){
+    if(!items.length)continue;
+    const area=el('details','strategy-memory');
+    area.append(el('summary','',label+' · '+items.length));
+    for(const x of items){
+      const desc=(typeof x==='string'?x:typeof x?.text==='string'?x.text:
+        typeof x?.description==='string'?x.description:typeof x?.title==='string'?x.title:'').slice(0,380);
+      if(desc)area.append(el('p','',desc));
+    }
+    area.append(el('small','strategy-note','Synthèse CRM existante, non vérifiée indépendamment ; vérifier la source et l’actualité.'));
+    box.append(area);
   }
   box.append(el('h4','','Plan d’action recommandé'));
   for(let i=0;i<p.recommendations.length;i++){
