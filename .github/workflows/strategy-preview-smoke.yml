@@ -1,4 +1,4 @@
-name: Strategy D19 mobile preview
+name: Companion D20 mobile preview
 on:
   push:
     branches: [main]
@@ -19,7 +19,10 @@ jobs:
           node-version: '22'
       - name: Check preview module syntax
         run: |
-          node --check validation-v12/assets/app-crm-d19.js
+          node --check validation-v12/assets/app-crm-d20.js
+          node --check validation-v12/assets/manual-quotes-ui-d20.mjs
+          node --check validation-v12/assets/manual-quotes-d20.mjs
+          node --check validation-v12/assets/order-line-commission-d20.mjs
           node --check validation-v12/assets/archives-d18.mjs
           node --check validation-v12/assets/strategy-d19.mjs
           node --check validation-v12/assets/strategy-model.mjs
