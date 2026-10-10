@@ -47,18 +47,24 @@ async function checkOdooReadAccess(){
  if(!state.access)return;
  const ticket=odooProbeRequests.begin();
  const button=$('odoo-probe'),status=$('odoo-probe-status');
+ let phase='ping';
  button.disabled=true;status.textContent='Vérification de l’authentification Odoo…';
  try{
   const jwt=await ensureToken();
   async function check(resource){
    const response=await authFetch('/functions/v1/odoo-read?resource='+encodeURIComponent(resource),{headers:{authorization:`Bearer ${jwt}`}});
-   let data;try{data=await response.json()}catch{throw Error('invalid_odoo_response')}
-   if(!response.ok||data?.ok!==true)throw Error(data?.error||'odoo_unreachable');
+   let data;try{data=await response.json()}catch{throw Object.assign(Error('invalid_odoo_response'),{httpStatus:response.status})}
+   if(!response.ok||data?.ok!==true){
+    const safeCode=typeof data?.error==='string' && /^[a-z][a-z0-9_]{2,60}$/.test(data.error)
+      ?data.error:'server_response_error';
+    throw Object.assign(Error(safeCode),{httpStatus:response.status});
+   }
    return data.data;
   }
   const auth=await check('ping');
   if(!odooProbeRequests.isCurrent(ticket))return;
   if(auth?.connected!==true||auth?.mode!=='read_only')throw Error('invalid_odoo_response');
+  phase='orders_probe';
   status.textContent='Authentification Odoo validée. Vérification des droits de lecture…';
   const result=await check('orders_probe');
   if(!odooProbeRequests.isCurrent(ticket))return;
@@ -68,12 +74,16 @@ async function checkOdooReadAccess(){
  }catch(error){
   if(!odooProbeRequests.isCurrent(ticket))return;
   $('odoo-state').textContent='Vérification échouée';
-  status.textContent='Diagnostic : '+readableError(error.message);
+  const raw=error instanceof Error?error.message:'';
+  const code=/^[a-z][a-z0-9_]{2,60}$/.test(raw)?raw:
+    /fetch|network|load failed/i.test(raw)?'network_error':'request_error';
+  const http=Number.isInteger(error?.httpStatus)?' · HTTP '+error.httpStatus:'';
+  status.textContent='Diagnostic Odoo ['+phase+' · '+code+http+'] : '+readableError(code);
  }finally{if(odooProbeRequests.isCurrent(ticket))button.disabled=false}
 }
 function showLogin(){$('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');$('bottom-nav').classList.add('hidden');$('logout-top').classList.add('hidden')}
 function showApp(){$('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');$('bottom-nav').classList.remove('hidden');$('logout-top').classList.remove('hidden');navigate(state.view)}
-function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',invalid_odoo_configuration:'Configuration de l’accès Odoo invalide côté Supabase.',odoo_unreachable:'Odoo ne répond pas pour le moment.',origin_not_allowed:'Origine du navigateur non autorisée pour la passerelle Odoo.',diagnostic_unavailable:'Diagnostic Odoo indisponible.',odoo_http_error:'La passerelle Odoo a refusé la requête HTTP. Code de diagnostic : odoo_http_error.',odoo_remote_error:'Odoo a renvoyé une erreur lors de la lecture. Code de diagnostic : odoo_remote_error.',review_unavailable:'Le rapport n’a pas pu être généré côté serveur. Code : review_unavailable.',odoo_auth_failed:'Ta connexion Companion est valide, mais la connexion serveur à Odoo est refusée. Vérifie la configuration Odoo côté Supabase (compte, clé API et identité attendue). Changer le mot de passe Companion ne résoudra pas ce problème.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',report_period_mismatch:'La réponse Odoo concerne une autre période. Aucune donnée affichée : recharge le mois.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
+function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',invalid_odoo_configuration:'Configuration de l’accès Odoo invalide côté Supabase.',odoo_unreachable:'Odoo ne répond pas pour le moment.',origin_not_allowed:'Origine du navigateur non autorisée pour la passerelle Odoo.',network_error:'La requête n’atteint pas le serveur (réseau, certificat ou autorisation CORS).',upstream_failure:'La passerelle Odoo a rencontré une erreur serveur inattendue.',request_error:'Échec de la requête de diagnostic.',server_response_error:'La passerelle a renvoyé un code d’erreur non reconnu.',diagnostic_unavailable:'Diagnostic Odoo indisponible.',odoo_http_error:'La passerelle Odoo a refusé la requête HTTP. Code de diagnostic : odoo_http_error.',odoo_remote_error:'Odoo a renvoyé une erreur lors de la lecture. Code de diagnostic : odoo_remote_error.',review_unavailable:'Le rapport n’a pas pu être généré côté serveur. Code : review_unavailable.',odoo_auth_failed:'Ta connexion Companion est valide, mais la connexion serveur à Odoo est refusée. Vérifie la configuration Odoo côté Supabase (compte, clé API et identité attendue). Changer le mot de passe Companion ne résoudra pas ce problème.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',report_period_mismatch:'La réponse Odoo concerne une autre période. Aucune donnée affichée : recharge le mois.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
 async function loadReport(){
  if(!state.access||state.loading)return;
  const {from,to}=state.period;
