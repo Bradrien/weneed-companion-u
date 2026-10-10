@@ -365,7 +365,11 @@ function clientHistoryPanel(partnerId){
  const box=node('div','client-history-panel');
  box.append(node('h4','','Historique des commandes · partenaire Odoo #'+partnerId));
  box.append(node('p','client-provenance',
-  'Lecture des trois dernières années, limitée aux commandes de ton compte commercial GTA/TR. Correspondance CRM ↔ Odoo non encore validée. Aucun montant de commission calculé.'));
+  'Lecture des trois dernières années, limitée aux commandes de ton compte commercial GTA/TR. '+
+  (clients.detail?.odooPartnerLink?.partnerId===partnerId?
+   'Lien CRM ↔ partenaire Odoo confirmé par le propriétaire.':
+   'Correspondance CRM ↔ Odoo non encore validée.')+
+  ' Aucun montant de commission calculé.'));
  if(clients.historyPartner===partnerId&&clients.historyLoading){
   box.append(node('p','client-quiet','Consultation de l’historique Odoo en cours…'));
   return box;
@@ -414,7 +418,9 @@ function clientHistoryPanel(partnerId){
    'Ce partenaire dépend d’un compte Odoo parent #'+h.partner.parentOdooId+
    '. Ne pas regrouper sans contrôler cette relation.'));
   section.append(node('p','client-source-warning',
-   'Comparaison indicative uniquement. Le lien entre le CRM et Odoo reste NON VALIDÉ. Aucune fiche fusionnée.'));
+   clients.detail?.odooPartnerLink?.partnerId===partnerId?
+    'Coordonnées concordantes avec le lien confirmé par le propriétaire. Les paiements restent indépendants et non vérifiés.':
+    'Comparaison indicative uniquement. Le lien entre le CRM et Odoo reste NON VALIDÉ. Aucune fiche fusionnée.'));
   box.append(section);
  }else{
   const diagnostics={
@@ -451,7 +457,14 @@ function clientHistoryPanel(partnerId){
 
 function clientPeriodOrders(name){
  const section=node('section','client-section client-odoo');
- section.append(node('h3','','Commandes Odoo · période analysée'));
+ section.append(node('h3','','Commandes Odoo · historique client'));
+ const verifiedLink=clients.detail?.odooPartnerLink;
+ if(verifiedLink){
+  section.append(node('p','client-link-confirmed',
+   'Lien confirmé par le propriétaire · partenaire Odoo #'+verifiedLink.partnerId+
+   ' · enregistré le '+shortDate(verifiedLink.confirmedAt)));
+  section.append(clientHistoryPanel(verifiedLink.partnerId));
+ }
  const report=state.report;
  if(!report){
   section.append(node('p','client-source-warning',
@@ -459,6 +472,8 @@ function clientPeriodOrders(name){
   return section;
  }
  section.append(node('p','client-provenance',
+  verifiedLink?
+  'Commandes du mois proposées par nom : ne pas fusionner les éventuels autres partenaires Odoo avec le compte confirmé #'+verifiedLink.partnerId+'.':
   'Correspondances proposées uniquement à partir du nom strictement identique. Aucun identifiant partenaire Odoo n’est encore vérifié pour cette fiche. Vérifier avant de fusionner les historiques.'));
  const rows=proposePeriodOdooOrders(name,report);
  const identity=assessOdooPartnerCandidates(rows);
@@ -482,7 +497,10 @@ function clientPeriodOrders(name){
   btn.type='button';btn.addEventListener('click',()=>openAuditOrder(o));
   entry.append(btn);section.append(entry);
  }
- if(!identity.conflicting&&identity.missingPartnerIds===0&&identity.distinctPartnerIds.length===1)
+ if(verifiedLink&&identity.distinctPartnerIds.some(id=>id!==verifiedLink.partnerId))
+  section.append(node('p','client-source-warning',
+   'Attention : une commande portant ce nom appartient à un autre identifiant Odoo que le partenaire lié. Aucun regroupement automatique.'));
+ if(!verifiedLink&&!identity.conflicting&&identity.missingPartnerIds===0&&identity.distinctPartnerIds.length===1)
   section.append(clientHistoryPanel(identity.distinctPartnerIds[0]));
  return section;
 }
