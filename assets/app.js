@@ -1,4 +1,5 @@
 import {createRequestGuard} from './request-guard.mjs';
+import {createRefreshGate} from './auth-guard.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions} from './reconciliation.mjs';
 import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
@@ -6,6 +7,7 @@ const $=x=>document.getElementById(x);
 const state={access:null,refresh:null,exp:0,report:null,view:'home',period:prevCompleteMonth(),company:'ALL',orderState:'all',query:'',page:1,expanded:new Set(),loading:false,refreshTimer:null};
 const STORE='weneed_v1_ephemeral_session';
 const reportRequests=createRequestGuard();
+const refreshGate=createRefreshGate();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
 const node=(tag,cls,textValue)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(textValue!==undefined)x.textContent=String(textValue);return x};
@@ -14,13 +16,26 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){reportRequests.invalidate();loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
-async function refreshTokens(){if(!state.refresh)throw Error('no_session');const res=await authFetch('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:state.refresh})});if(!res.ok){forget();showLogin();throw Error('session_expired')}saveSession(await res.json())}
-async function ensureToken(){if(!state.access)throw Error('no_session');if(state.exp*1000<Date.now()+45000)await refreshTokens();return state.access}
+async function refreshTokens(){
+ if(!state.refresh)throw Error('no_session');
+ return refreshGate.run(async isCurrent=>{
+  const token=state.refresh;
+  if(!token)throw Error('no_session');
+  const res=await authFetch('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:token})});
+  if(!isCurrent())throw Error('session_changed');
+  if(!res.ok){forget();showLogin();throw Error('session_expired')}
+  const data=await res.json();
+  if(!isCurrent())throw Error('session_changed');
+  if(!data?.access_token||!data?.refresh_token)throw Error('invalid_session');
+  saveSession(data);
+ });
+}
+async function ensureToken(){if(!state.access)throw Error('no_session');if(state.exp*1000<Date.now()+45000)await refreshTokens();if(!state.access)throw Error('no_session');return state.access}
 async function ownerCheck(){const jwt=await ensureToken();const res=await authFetch('/functions/v1/companion-profile',{headers:{'authorization':`Bearer ${jwt}`}});if(res.status===401||res.status===403)throw Error('owner_only');if(!res.ok)throw Error('profile_unavailable');const data=await res.json();if(data.ok!==true||data.role!=='owner')throw Error('owner_only')}
-async function login(email,password){const res=await authFetch('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});if(!res.ok)throw Error('invalid_credentials');const data=await res.json();if(!data.access_token||!data.refresh_token)throw Error('invalid_session');saveSession(data);try{await ownerCheck()}catch(e){forget();throw e}}
+async function login(email,password){forget();const res=await authFetch('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});if(!res.ok)throw Error('invalid_credentials');const data=await res.json();if(!data.access_token||!data.refresh_token)throw Error('invalid_session');saveSession(data);try{await ownerCheck()}catch(e){forget();throw e}}
 async function signOut(){const jwt=state.access;forget();showLogin();if(jwt)try{await authFetch('/auth/v1/logout',{method:'POST',headers:{authorization:`Bearer ${jwt}`}})}catch{}}
 function showLogin(){$('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');$('bottom-nav').classList.add('hidden');$('logout-top').classList.add('hidden')}
 function showApp(){$('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');$('bottom-nav').classList.remove('hidden');$('logout-top').classList.remove('hidden');navigate(state.view)}
@@ -102,7 +117,17 @@ function warningInFrench(v){return ({
  })[v]||'Contrôle supplémentaire nécessaire';}
 function renderCommissions(){renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber})}
 function renderViews(){renderStats();renderHome();renderOrders();renderCommissions()}
-async function boot(){updatePeriod();showLogin();const stored=getStored();if(!stored)return;state.access=stored.access;state.refresh=stored.refresh;state.exp=stored.exp;try{await ownerCheck();scheduleRefresh();showApp();setNotice('Session restaurée. Appuie sur ↻ pour récupérer les commandes.')}catch{forget();showLogin()}}
+async function boot(){
+ updatePeriod();showLogin();
+ const stored=getStored();if(!stored)return;
+ state.access=stored.access;state.refresh=stored.refresh;state.exp=stored.exp;
+ const session=refreshGate.current();
+ try{
+  await ownerCheck();
+  if(!refreshGate.isCurrent(session))return;
+  scheduleRefresh();showApp();setNotice('Session restaurée. Appuie sur ↻ pour récupérer les commandes.');
+ }catch{if(refreshGate.isCurrent(session)){forget();showLogin()}}
+}
 $('login-form').addEventListener('submit',async ev=>{ev.preventDefault();const email=$('login-email').value.trim(),password=$('login-password').value;const btn=$('login-button');btn.disabled=true;$('login-error').classList.add('hidden');try{await login(email,password);$('login-password').value='';showApp();setNotice('Connexion propriétaire confirmée. Appuie sur ↻ pour charger les commandes.')}catch(err){forget();$('login-error').textContent=readableError(err.message);$('login-error').classList.remove('hidden')}finally{btn.disabled=false;password.length&&($('login-password').value='')}});
 $('logout-top').addEventListener('click',signOut);$('logout-bottom').addEventListener('click',signOut);
 $('reload').addEventListener('click',loadReport);$('prev-month').addEventListener('click',()=>changeMonth(-1));$('next-month').addEventListener('click',()=>changeMonth(1));
