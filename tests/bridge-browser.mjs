@@ -7,7 +7,7 @@ import {chromium} from 'playwright';
 
 const extension=resolve(new URL('../kino-bridge',import.meta.url).pathname);
 const profile=await mkdtemp(join(tmpdir(),'kino-bridge-test-'));
-const html=`<!doctype html><html><head><title>Kino Commission</title><style>
+const html=`<!doctype html><html><head><title>Kino Commission</title><link rel="icon" href="data:,"><style>
 body{font:16px sans-serif;margin:24px}input{width:400px;height:36px}
 #results{width:400px}.item,button{display:block;padding:8px;min-height:20px}
 </style></head><body><h1>Kino Commission — fixture synthétique</h1>
@@ -43,6 +43,7 @@ try{
  context.setDefaultTimeout(10000);
  const external=[];
  await context.route('**/*',async route=>{
+  if(route.request().url().startsWith('chrome-extension://')){await route.continue();return;}
   if(route.request().url()==='https://kinocommission.base44.app/'){
    await route.fulfill({contentType:'text/html',body:html});return;
   }
@@ -59,7 +60,13 @@ try{
  const popup=await context.newPage();
  popup.on('pageerror',err=>errors.push(err.message));
  await popup.goto(`chrome-extension://${new URL(worker.url()).hostname}/popup.html`);
- await popup.locator('#signed').waitFor({state:'visible'});
+ try{await popup.locator('#signed').waitFor({state:'visible'});}
+ catch(error){
+  console.log('Synthetic popup diagnostics:',JSON.stringify({info:await popup.locator('#info').innerText(),errors,external,
+   status:await popup.evaluate(()=>chrome.runtime.sendMessage({type:'STATUS'})),
+   hasSyntheticSession:await worker.evaluate(async()=>Boolean((await chrome.storage.session.get('session')).session?.access_token))}));
+  throw error;
+ }
  const send=(sku)=>popup.evaluate(sku=>chrome.runtime.sendMessage({type:'SEARCH_LOCAL',sku}),sku);
  // Exercises real popup event, service worker and isolated content script.
  await popup.locator('#search-sku').fill('DEMO/I');
