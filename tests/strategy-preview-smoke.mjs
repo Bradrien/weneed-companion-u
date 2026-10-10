@@ -28,6 +28,8 @@ const portfolio={version:'strategy_verified_v1',checked_at:'2026-10-11T00:00:00Z
   company:'TR',amount_ht:500,currency:'EUR'},
  {odoo_id:80,reference:'G888',date:'2026-10-03',state:'sale',partner_id:998,partner_name:'Other',
   company:'GTA',amount_ht:2000,currency:'EUR'}]}};
+let quoteRows=[];
+const quoteId='fef12218-1111-4111-8111-bb011ac01acf';
 const json=(data,status=200)=>({status,contentType:'application/json',headers:{
  'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info',
  'access-control-allow-methods':'GET,POST,OPTIONS'},body:JSON.stringify(data)});
@@ -42,6 +44,19 @@ try{
   if(u.pathname==='/auth/v1/token')data={access_token:'dummy-browser-only',refresh_token:'dummy-browser-only',expires_in:3600};
   else if(u.pathname==='/functions/v1/companion-profile')data={ok:true,role:'owner'};
   else if(u.pathname==='/functions/v1/strategy-portfolio')data={ok:true,data:portfolio};
+  else if(u.pathname==='/functions/v1/manual-commission-quotes'){
+   if(req.method()==='GET')data={ok:true,quotes:quoteRows,payable:false};
+   else {
+    const input=req.postDataJSON();
+    assert.ok(['create','update'].includes(input.action));
+    const now=input.action==='create'?'2026-10-11T10:00:00Z':'2026-10-11T10:01:00Z';
+    if(input.action==='update')assert.equal(input.expected_updated_at,quoteRows[0].updated_at);
+    const quote={id:quoteId,...input.quote,source_payload:{
+     notes:input.quote.notes||'',products:input.quote.products||''},
+     calculation_source:'manual_quote_d20',created_at:'2026-10-11T10:00:00Z',updated_at:now};
+    quoteRows=[quote];data={ok:true,quote};
+   }
+  }
   else if(u.pathname==='/functions/v1/companion-api/dashboard')data={ok:true,data:{stats:{clients_total:2},attention_clients:[],unassigned_actionable_tasks:[]}};
   else if(u.pathname==='/auth/v1/logout')data={};
   else if(u.pathname.startsWith('/functions/v1/'))data={ok:true,data:[]};
@@ -76,6 +91,23 @@ try{
  for(const [i,v] of ['2.5','1.5','2.3','1000','1300'].entries())await inputs.nth(i).fill(v);
  await page.getByText('Hausse de volume nécessaire').waitFor({state:'visible'});
  assert.match(await page.locator('.strategy-outcome').innerText(),/25/);
+ await page.locator('#bottom-nav [data-nav="commissions"]').click();
+ await page.locator('#manual-quotes-root').getByText('Devis commerciaux en cours').waitFor({state:'visible'});
+ await page.getByRole('button',{name:'+ Ajouter un devis'}).click();
+ await page.getByLabel('Référence unique du devis').fill('DEV-DEMO-2026');
+ await page.getByLabel('Client / boutique').fill('Client fictif');
+ await page.getByLabel('Montant HT du devis (€)').fill('1450');
+ await page.getByLabel('Commission prévue (€) — optionnel').fill('210');
+ await page.locator('.quote-form button[type="submit"]').click();
+ await page.locator('#manual-quotes-root').getByText('DEV-DEMO-2026 · GTA').waitFor({state:'visible'});
+ assert.match(await page.locator('#manual-quotes-root').innerText(),/commission prévisionnelle/i);
+ assert.match(await page.locator('#manual-quotes-root').innerText(),/210/);
+ assert.equal(quoteRows.length,1);
+ await page.locator('.quote-row button').first().click();
+ await page.getByLabel('Statut').selectOption('valide');
+ await page.locator('.quote-form button[type="submit"]').click();
+ await page.getByText('Validé · 1').waitFor({state:'visible'});
+ assert.equal(quoteRows[0].status,'valide');
  assert.equal(errors.length,0,'Unexpected runtime errors: '+errors.join(' | '));
- console.log('D19 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
+ console.log('D20 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
