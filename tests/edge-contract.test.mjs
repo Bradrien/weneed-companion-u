@@ -48,6 +48,6 @@ test('catalogue gateway only suggests bracket-prefixed SKUs when official Odoo S
  assert.match(source,/status:'found'/);
  assert.match(source,/if\(catalog_match\.status==='missing_sku'\)/);
  assert.match(source,/catalog_match\.candidate=candidate/);
- assert.match(source,/matching\.matched/);
+ assert.match(source,/matching\[catalog_match\.status\]\+\+/);
  assert.match(source,/verified_commissions_eur:null,commissions_are_calculated:false/);
 });
