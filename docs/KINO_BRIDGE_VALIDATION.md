@@ -19,6 +19,8 @@ Le manifeste de l'archive porte la version 0.6.0. L'archive n'est pas republiée
 | Catalogue et inspection des contrôles | Algorithmes inchangés entre les sources comparées, avec verrouillage croisé catalogue/recherche en 0.7. |
 | Accès Chrome et domaines | Identiques ; aucune nouvelle permission. |
 
+Le service worker vérifie désormais l'identifiant de sa propre extension **et** l'URL exacte de son popup pour accepter une commande. Le même popup peut ainsi être ouvert en onglet pour les tests ; les messages du contenu Kino ou d'une autre extension restent refusés.
+
 La passerelle Supabase actuellement déployée conserve les candidats et le statut de restauration, mais ne persiste pas les diagnostics supplémentaires de recherche. Le popup les affiche localement ; aucun changement serveur n'est requis pour ces corrections.
 
 ## Validation automatisée
@@ -29,7 +31,13 @@ La passerelle Supabase actuellement déployée conserve les candidats et le stat
 
 Ce test vérifie les variantes de suggestions récupérées de la 0.6, l'exclusion des filtres, le vidage du champ, l'absence de sélection de produit, les recherches vides, les brouillons utilisateur et les recherches concurrentes. Il est exécuté par `.github/workflows/bridge-browser.yml` avec Playwright 1.56.1.
 
-Le lancement Chromium local est bloqué dans l'environnement de travail par `socket() failed: Operation not permitted`. Le résultat GitHub Actions fait foi pour ce test ; ne pas confondre ce blocage de lancement avec une erreur de l'extension.
+Le lancement Chromium local est bloqué dans l'environnement de travail par `socket() failed: Operation not permitted`. Le test a ensuite **réussi dans GitHub Actions**, avec les 92 tests Node et le parcours mobile, sur le commit `408a09db270c75696d15ddc3b69d718c960a3dcb` :
+
+- Extension MV3 : https://github.com/Bradrien/weneed-companion-u/actions/runs/38053011918
+- Tests Node et syntaxe : https://github.com/Bradrien/weneed-companion-u/actions/runs/38053011854
+- Parcours mobile et préversion hébergée : https://github.com/Bradrien/weneed-companion-u/actions/runs/38053011850
+
+Le banc de test attend l'initialisation des API Chrome du worker avant d'ouvrir le popup ; les ressources internes de l'extension sont autorisées et les requêtes commerciales externes bloquées.
 
 ## Validation réelle encore nécessaire
 
