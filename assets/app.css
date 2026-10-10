@@ -73,3 +73,13 @@
 .client-odoo-order strong{font-size:13px}
 .client-odoo-order small{font-size:11px;color:#64806e}
 .client-odoo-order button{align-self:flex-start}
+
+.client-history-panel{margin-top:16px;padding:15px;border:1px solid #d7e7d8;border-radius:14px;background:#f8fbf8;display:flex;flex-direction:column;gap:9px}
+.client-history-panel h4{font-size:14px;font-weight:700;color:#214533;margin:0}
+.client-history-panel .secondary-button{align-self:flex-start}
+.client-history-summary{font-size:12px;color:#325e45;line-height:1.5;margin:0;font-weight:600}
+.client-history-year{border:1px solid #dde9df;border-radius:10px;background:#fff;padding:9px 12px}
+.client-history-year summary{cursor:pointer;color:#214b34;font-size:13px;font-weight:750}
+.client-history-order{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:9px 0;border-top:1px solid #e9efe9;margin-top:7px}
+.client-history-order strong{font-size:12px;color:#284733}
+.client-history-order small{font-size:11px;color:#607967}
