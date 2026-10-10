@@ -89,7 +89,18 @@ npm run check:app
 - Un workflow GitHub Actions exécute un **vrai navigateur Chromium en format mobile** avec des données **entièrement simulées** : propriétaire Supabase, accueil CRM, clients, commandes, commissions, déconnexion et diagnostic Odoo. Aucune requête commerciale réelle n'est utilisée.
 - Cette validation prouve la navigation intégrée et les interactions dans le navigateur **contre les réponses de test**, pas l'authentification du compte réel ni l'accès Odoo réel.
 - L'écran « Paramètres » possède désormais un diagnostic `odoo-read` qui appelle successivement `resource=ping` (authentification) et `resource=orders_probe` (droit de lecture). Le second ne retourne **aucun contenu de commande**.
-- Le contrôle du rôle **owner** de `companion-api` et une journalisation d'erreurs non sensibles pour `commission-catalog-review` sont préparés sous `supabase/functions/` **sans être déployés**. Le serveur en production reste inchangé à cette étape.
+- Le contrôle du rôle **owner** de `companion-api` et une journalisation d'erreurs non sensibles pour `commission-catalog-review` sont préparés sous `supabase/functions/` et **déployés le 10 octobre** après vérification : `companion-api` v11 (contrôle propriétaire) et `commission-catalog-review` v2 (journalisation du code d'erreur uniquement). Le reste de la logique métier reste inchangé.
 - Tests serveur et navigateur lancés automatiquement dans GitHub Actions. Pour diagnostiquer une erreur 502 réelle, attendre le résultat du diagnostic Odoo effectué après connexion propriétaire ; ne pas inférer la cause à partir du seul statut HTTP.
 
 **Conditions avant fusion/déploiement :** valider la connexion Safari authentifiée, les réponses réelles du CRM, le résultat du diagnostic Odoo, le rapprochement Kino et le fonctionnement de Kino Bridge en Chrome professionnel.
+
+## Préversion hébergée et tests du site réel
+
+**URL :** https://bradrien.github.io/weneed-companion-u/validation-v12/
+
+- Les fichiers statiques de la candidate sont copiés séparément dans `validation-v12/` sur la branche `main`. Le site racine n'a pas été remplacé.
+- La préversion utilise la même origine HTTPS que le site principal, sans CDN externe et sans intégration d'identifiants dans le code publié.
+- Le workflow Chromium vérifie la préversion réellement hébergée, les fichiers statiques, l'écran de connexion non authentifié et le refus d'accès aux API protégées sans session. La vérification connectée nécessite encore une session propriétaire.
+- Le navigateur de validation automatisé n'utilise que des données synthétiques et ne produit aucune écriture métier.
+- Les deux changements Edge Functions limités sont déployés : contrôle explicite de l'accès propriétaire et journalisation d'un code d'erreur en cas d'échec du rapprochement.
+- **À faire :** ouvrir la préversion dans un profil navigateur authentifié, tester les clients et exécuter « Vérifier l'accès Odoo » ; utiliser ensuite les journaux sécurisés pour le 502.
