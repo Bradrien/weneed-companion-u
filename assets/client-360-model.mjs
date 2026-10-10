@@ -50,6 +50,16 @@ export function proposePeriodOdooOrders(crmName,report){
   typeof o.reference==='string'&&o.reference.length>0)
   .slice(0,50).map(o=>({
    id:o.id,reference:str(o.reference,80),company:o.company,state:str(o.state,30),
+   partnerOdooId:Number.isSafeInteger(o.partner_odoo_id)&&o.partner_odoo_id>0?o.partner_odoo_id:null,
    date:str(o.date,40),amount:finite(o.amount_ht),currency:str(o.currency,8)
   }));
+}
+
+/** Diagnostic only: matching Odoo partner IDs does not verify that the CRM
+ * UUID denotes the same legal entity. Manual confirmation is required.
+ */
+export function assessOdooPartnerCandidates(orders){
+ const ids=[...new Set(orders.map(o=>o.partnerOdooId).filter(id=>Number.isSafeInteger(id)&&id>0))];
+ return {distinctPartnerIds:ids,missingPartnerIds:orders.filter(o=>o.partnerOdooId===null).length,
+   conflicting:ids.length>1,verified:false};
 }
