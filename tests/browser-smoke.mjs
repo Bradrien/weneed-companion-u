@@ -95,7 +95,7 @@ try{
    assert.equal(u.searchParams.get('partner_id'),'777');
    body={ok:true,data:{source:'odoo_partner_history_read_only',identity_verified:false,
     partner_odoo_id:777,period_from:u.searchParams.get('from'),period_to:u.searchParams.get('to'),
-    checked_at:'2026-10-10T16:30:00Z',partner:{id:777,name:'Boutique Test',email:'demo@example.test',phone:'',mobile:'',street:'12 rue Exemple',zip:'',city:'',parent_odoo_id:null},orders:[
+    checked_at:'2026-10-10T16:30:00Z',partner_diagnostic:'complete',partner:{id:777,name:'Boutique Test',email:'demo@example.test',phone:'',mobile:'',street:'12 rue Exemple',zip:'',city:'',parent_odoo_id:null},orders:[
      {id:987,reference:'TEST-ORDER',partner_odoo_id:777,company:'GTA',date:'2026-09-10',state:'sale',amount_ht:220,currency:'EUR'},
      {id:888,reference:'OLD-ORDER',partner_odoo_id:777,company:'TR',date:'2025-06-10',state:'cancel',amount_ht:150,currency:'EUR'}
     ]}};
