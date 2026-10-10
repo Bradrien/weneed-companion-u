@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizePartnerHistory} from '../assets/client-history-model.mjs';
+import {normalizePartnerHistory,assessPartnerIdentity} from '../assets/client-history-model.mjs';
 const candidate={
  source:'odoo_partner_history_read_only',identity_verified:false,partner_odoo_id:3277,
  period_from:'2023-10-01',period_to:'2026-10-10',checked_at:'2026-10-10T16:30:00Z',
@@ -40,4 +40,27 @@ test('History rejects malformed identity or over 250 rows',()=>{
  assert.throws(()=>normalizePartnerHistory({...candidate,orders:Array.from({length:251},(_,i)=>({
   ...candidate.orders[0],id:i+1
  }))},3277),/invalid_partner_history/);
+});
+
+test('Odoo partner identity evidence is read-only and never verified automatically',()=>{
+ const withPartner={...candidate,partner:{
+  id:3277,name:'Green Purple',email:'green-purple@orange.fr',
+  phone:'+33 6 83 10 44 06',mobile:'',street:'5 Allée des Tilleuls',
+  zip:'57130',city:'Jouy-aux-Arches',parent_odoo_id:null}};
+ const r=normalizePartnerHistory(withPartner,3277);
+ const assessment=assessPartnerIdentity({name:'Green Purple'},[{
+  channels:[{type:'email',value:'GREEN-PURPLE@ORANGE.FR'},{type:'phone',value:'06 83 10 44 06'}]}],r.partner);
+ assert.equal(assessment.nameMatch,true);
+ assert.equal(assessment.emailMatch,true);
+ assert.equal(assessment.phoneMatch,true);
+ assert.equal(assessment.verified,false);
+ assert.equal(r.identityVerified,false);
+ assert.throws(()=>normalizePartnerHistory({...withPartner,partner:{...withPartner.partner,id:999}},3277),/invalid_partner_history/);
+});
+test('name match alone never means verified company identity',()=>{
+ const assessment=assessPartnerIdentity({name:'Green Purple'},[],{
+  name:'Green Purple',email:'contact@different.test',phone:'',mobile:''});
+ assert.equal(assessment.nameMatch,true);
+ assert.equal(assessment.emailMatch,false);
+ assert.equal(assessment.verified,false);
 });
