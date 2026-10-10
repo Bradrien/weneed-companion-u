@@ -7,7 +7,13 @@ export function normalizePartnerHistory(input,partnerId){
   input.orders.length>250||typeof input.checked_at!=='string'||
   !Number.isFinite(Date.parse(input.checked_at)))
   throw Error('invalid_partner_history');
+ const allowedPartnerDiagnostics=new Set(['complete','partial','name_only','not_visible','odoo_partner_read_rejected','no_accessible_orders']);
+ const partnerDiagnostic=input.partner_diagnostic===undefined?'legacy_unknown':input.partner_diagnostic;
+ if(partnerDiagnostic!=='legacy_unknown'&&!allowedPartnerDiagnostics.has(partnerDiagnostic))
+  throw Error('invalid_partner_history');
  const p=input.partner;
+ if(p!==null&&p!==undefined&&!['complete','partial','name_only','legacy_unknown'].includes(partnerDiagnostic))
+  throw Error('invalid_partner_history');
  let partner=null;
  if(p!==null&&p!==undefined){
   if(typeof p!=='object'||p.id!==partnerId)throw Error('invalid_partner_history');
@@ -43,7 +49,7 @@ export function normalizePartnerHistory(input,partnerId){
  orders.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
  return {partnerOdooId:partnerId,orders,checkedAt:input.checked_at,
   from:input.period_from,to:input.period_to,identityVerified:false,
-  partner,
+  partner,partnerDiagnostic,
   statuses,totals:possibleCurrencies.size?null:totals};
 }
 
