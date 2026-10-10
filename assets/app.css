@@ -37,3 +37,5 @@
 .audit-candidate strong{overflow-wrap:anywhere}
 .audit-order-link{display:inline-flex;margin-top:10px;padding:9px 12px;min-height:40px;border-radius:9px;border:1px solid #c9dfce;background:#fff;color:#17683e;font-size:12px;font-weight:750;cursor:pointer}
 .audit-order-link:focus-visible{outline:2px solid #17683e;outline-offset:2px}
+
+.audit-verified{display:block;margin-top:7px;font-size:11px;font-weight:750;color:#156538;line-height:1.5}
