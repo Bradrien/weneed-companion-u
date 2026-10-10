@@ -20,3 +20,15 @@
 .client-profile{border-radius:16px;background:#133326;color:white;padding:20px}
 .client-profile strong{display:block;font-size:21px;overflow-wrap:anywhere}
 .client-profile span{display:block;font-size:12px;color:#c9ddcf;margin-top:9px;overflow-wrap:anywhere}
+
+/* D4: actionable review, visible only after an authenticated Odoo report */
+.audit-heading{margin-top:18px;display:flex;flex-direction:column;gap:5px}
+.audit-heading:first-child{margin-top:2px}
+.audit-heading h3{font-size:15px;line-height:1.35;margin:0;color:#173a2a}
+.audit-hint{font-size:12px;line-height:1.6;color:#5b7463;margin:0}
+.audit-line{padding:13px 15px;background:#fff;border:1px solid #e1ece2;border-radius:13px}
+.audit-line-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline}
+.audit-line-head span{font-size:11px;color:#5c7967}
+.audit-product{font-size:13px;font-weight:650;overflow-wrap:anywhere;margin-top:6px}
+.audit-note{font-size:12px;color:#667e6f;margin-top:6px;overflow-wrap:anywhere}
+.audit-ok{font-size:12px;color:#367b51;margin:0}
