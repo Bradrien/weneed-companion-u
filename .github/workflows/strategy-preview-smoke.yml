@@ -17,6 +17,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check preview module syntax
+        run: |
+          node --check validation-v12/assets/app-crm-d19.js
+          node --check validation-v12/assets/archives-d18.mjs
+          node --check validation-v12/assets/strategy-d19.mjs
+          node --check validation-v12/assets/strategy-model.mjs
+          node --check validation-v12/assets/whatsapp-brief-model.mjs
       - run: npm install --no-save --no-package-lock playwright@1.56.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/strategy-preview-smoke.mjs
