@@ -24,7 +24,7 @@ try{
  assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-crm-d11\.js/,'Old iPhone JS still referenced');
  assert.equal(await page.locator('#commission-audit').count(),1,'D4 audit panel missing');
  assert.equal(await page.locator('#commission-scenario').count(),1,'D7 conditional simulation panel missing');
- assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-crm-d9\.css/);
+ assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-crm-d11\.css/);
  assert.equal(await page.locator('#login-panel').isVisible(),true);
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.equal(await page.locator('#bottom-nav').isVisible(),false);
