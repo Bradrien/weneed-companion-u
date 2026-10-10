@@ -20,10 +20,11 @@ try{
  await page.waitForTimeout(500);
  assert.match(await page.title(),/préversion V1\.2/);
  assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
- assert.match(await page.locator('body').innerText(),/audit D6/,'Cache-busted preview marker not published');
- assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-reconciliation-d6\.js/,'Old iPhone JS still referenced');
+ assert.match(await page.locator('body').innerText(),/simulation D7/,'Cache-busted preview marker not published');
+ assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-commission-d7\.js/,'Old iPhone JS still referenced');
  assert.equal(await page.locator('#commission-audit').count(),1,'D4 audit panel missing');
- assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-reconciliation-d6\.css/);
+ assert.equal(await page.locator('#commission-scenario').count(),1,'D7 conditional simulation panel missing');
+ assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-commission-d7\.css/);
  assert.equal(await page.locator('#login-panel').isVisible(),true);
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.equal(await page.locator('#bottom-nav').isVisible(),false);
