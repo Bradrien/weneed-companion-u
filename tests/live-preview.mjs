@@ -20,11 +20,11 @@ try{
  await page.waitForTimeout(500);
  assert.match(await page.title(),/préversion V1\.2/);
  assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
- assert.match(await page.locator('body').innerText(),/commissions potentielles des devis D21/,'Cache-busted preview marker not published');
- assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-crm-d21\.js/,'Old iPhone JS still referenced');
+ assert.match(await page.locator('body').innerText(),/devis et facturation synchronisés Odoo D22/,'Cache-busted preview marker not published');
+ assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-crm-d22\.js/,'Old iPhone JS still referenced');
  assert.equal(await page.locator('#commission-audit').count(),1,'D4 audit panel missing');
  assert.equal(await page.locator('#commission-scenario').count(),1,'D7 conditional simulation panel missing');
- assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-crm-d21\.css/);
+ assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-crm-d22\.css/);
  assert.equal(await page.locator('#login-panel').isVisible(),true);
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.equal(await page.locator('#bottom-nav').isVisible(),false);
