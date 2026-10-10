@@ -44,36 +44,23 @@ try{
   if(u.pathname==='/auth/v1/token')data={access_token:'dummy-browser-only',refresh_token:'dummy-browser-only',expires_in:3600};
   else if(u.pathname==='/functions/v1/companion-profile')data={ok:true,role:'owner'};
   else if(u.pathname==='/functions/v1/strategy-portfolio')data={ok:true,data:portfolio};
-  else if(u.pathname==='/functions/v1/manual-commission-quotes'){
-   if(req.method()==='GET'){
-    if(u.searchParams.get('mode')==='catalog'){
-     assert.equal(u.searchParams.get('company'),'GTA');
-     data={ok:true,snapshot_id:'b495e665-e0ea-4036-85fa-7cf58aeff612',products:[{
-      row_index:8,sku:'ML/G',product_name:'1 Million',company:'GTA',tier:'B',
-      cost_eur:'0.65',list_price_eur:'1.20'}]};
-    }else data={ok:true,quotes:quoteRows,payable:false};
-   }else {
-    const input=req.postDataJSON();
-    assert.ok(['create','update'].includes(input.action));
-    const now=input.action==='create'?'2026-10-11T10:00:00Z':'2026-10-11T10:01:00Z';
-    const old=quoteRows.find(x=>x.id===input.id);
-    if(input.action==='update')assert.equal(input.expected_updated_at,old.updated_at);
-    const snapshotLine={snapshot_id:'b495e665-e0ea-4036-85fa-7cf58aeff612',
-      row_index:8,sku:'ML/G',product_name:'1 Million',company:'GTA',tier:'B',cost_eur:0.65,
-      quantity:1000,unit_price:1.3,sales_ht:1300,commission_estimate:100};
-    if(input.quote.mode==='automatic'){
-     assert.equal(input.quote.lines.length,1);
-     assert.equal(input.quote.lines[0].sku,'ML/G');
-    }
-    const quote={id:input.action==='create'&&input.quote.mode==='automatic'?
-      'fef12218-1111-4111-8111-bb011ac01ace':quoteId,...input.quote,
-     source_payload:{notes:input.quote.notes||'',products:input.quote.products||'',
-      mode:input.quote.mode,lines:input.quote.mode==='automatic'?[snapshotLine]:[]},
-     calculation_source:'manual_quote_d20',created_at:'2026-10-11T10:00:00Z',updated_at:now};
-    quoteRows=input.action==='update'?quoteRows.map(q=>q.id===quote.id?quote:q):
-     [...quoteRows,quote];
-    data={ok:true,quote};
-   }
+  else if(u.pathname==='/functions/v1/odoo-commission-pipeline'){
+   const make=(id,state,invoiceStatus)=>({
+    id,reference:'SO-'+id,date:'2026-10-09 09:00:00',company:'GTA',
+    client:'Boutique Test',state,invoice_status:invoiceStatus,
+    stage:['draft','sent'].includes(state)?'en_cours':invoiceStatus==='invoiced'?'facture':'confirme',
+    currency:'EUR',amount_ht:1000,forecast:75,matched_lines:1,unmatched_lines:0,
+    lines:[{line_id:id*10,sku:'ML/G',product:'1 Million',quantity:1000,unit:'g',
+      subtotal_ht:1000,commission_estimate:75,reason:'estimated_units_unverified'}]
+   });
+   data={ok:true,data:{version:'odoo_commission_pipeline_v1',
+    read_at:'2026-10-11T08:00:00Z',closed_window_from:'2025-10-11',
+    pending_scope:'all_pending_seller_orders',
+    invoicing_semantics:'sale.order.invoice_status_not_payment_status',
+    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
+    scope:'owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked',
+    orders:[make(1,'draft','no'),make(2,'sent','no'),
+     make(3,'sale','to invoice'),make(4,'done','invoiced')]}};
   }
   else if(u.pathname==='/functions/v1/companion-api/dashboard')data={ok:true,data:{stats:{clients_total:2},attention_clients:[],unassigned_actionable_tasks:[]}};
   else if(u.pathname==='/auth/v1/logout')data={};
@@ -110,41 +97,20 @@ try{
  await page.getByText('Hausse de volume nécessaire').waitFor({state:'visible'});
  assert.match(await page.locator('.strategy-outcome').innerText(),/25/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
- await page.locator('#manual-quotes-root').getByText('Devis commerciaux en cours').waitFor({state:'visible'});
- await page.getByRole('button',{name:'+ Ajouter un devis'}).click();
- await page.getByLabel('Référence unique du devis').fill('DEV-DEMO-2026');
- await page.getByLabel('Client / boutique').fill('Client fictif');
- await page.locator('#manual-quotes-root').getByLabel('Calcul de la commission').selectOption('manual');
- await page.getByLabel('Montant HT du devis (€)').fill('1450');
- await page.getByLabel('Commission prévue (€) — optionnel').fill('210');
- await page.locator('.quote-form button[type="submit"]').click();
- await page.locator('#manual-quotes-root').getByText('DEV-DEMO-2026 · GTA').waitFor({state:'visible'});
- assert.match(await page.locator('#manual-quotes-root').innerText(),/commission prévisionnelle/i);
- assert.match(await page.locator('#manual-quotes-root').innerText(),/210/);
- assert.equal(quoteRows.length,1);
- await page.locator('.quote-row button').first().click();
- await page.locator('#manual-quotes-root').getByLabel('Statut').selectOption('valide');
- await page.locator('.quote-form button[type="submit"]').click();
- await page.getByText('Validé · 1').waitFor({state:'visible'});
- assert.equal(quoteRows[0].status,'valide');
- await page.getByRole('button',{name:'+ Ajouter un devis'}).click();
- await page.getByLabel('Référence unique du devis').fill('AUTO-2026-001');
- await page.getByLabel('Client / boutique').fill('Client auto');
- await page.getByLabel('Rechercher une référence Kino').fill('ML');
- await page.getByRole('button',{name:/1 Million.*ML\/G/}).waitFor({state:'visible'});
- await page.getByRole('button',{name:/1 Million.*ML\/G/}).click();
- await page.getByLabel('Quantité de cette référence ML/G').fill('1000');
- await page.getByLabel('Prix HT par unité (€) ML/G').fill('1.3');
- const estimate=await page.locator('.quote-estimate-summary').innerText();
- assert.match(estimate,/Commission estimée/);
- assert.match(estimate,/CA potentiel HT/);
- await page.locator('.quote-form button[type="submit"]').click();
- await page.getByText('AUTO-2026-001 · GTA').waitFor({state:'visible'});
- assert.equal(quoteRows.length,2);
- assert.equal(quoteRows.find(q=>q.reference==='AUTO-2026-001').status,'en_cours');
- const q=quoteRows.find(q=>q.reference==='AUTO-2026-001');
- assert.ok(q.commission_amount>0);
- assert.equal(q.amount_ht,1300);
+ await page.locator('#odoo-quote-pipeline-root').getByText(
+   'Devis et commandes synchronisés depuis Odoo').waitFor({state:'visible'});
+ await page.getByRole('button',{name:'Devis en cours (2)'}).waitFor({state:'visible'});
+ await page.getByRole('button',{name:'Devis en cours (2)'}).click();
+ assert.equal(await page.locator('.pipeline-order').count(),2);
+ await page.getByRole('button',{name:'Facturées (statut Odoo) (1)'}).click();
+ assert.equal(await page.locator('.pipeline-order').count(),1);
+ await page.getByRole('button',{name:'Commandes confirmées non entièrement facturées (1)'}).click();
+ assert.equal(await page.locator('.pipeline-order').count(),1);
+ await page.getByRole('button',{name:'Tous (4)'}).click();
+ assert.equal(await page.locator('.pipeline-order').count(),4);
+ await page.locator('.pipeline-order-head').first().click();
+ assert.match(await page.locator('.pipeline-order-details').first().innerText(),/Commission potentielle/i);
+ assert.equal(await page.getByRole('button',{name:'+ Ajouter un devis'}).count(),0);
  assert.equal(errors.length,0,'Unexpected runtime errors: '+errors.join(' | '));
- console.log('D21 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
+ console.log('D22 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
