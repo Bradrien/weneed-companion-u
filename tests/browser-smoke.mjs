@@ -24,6 +24,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 const uuid='fef12218-1111-4111-8111-bb011ac01ac0';
 const crmCard={profile:{id:uuid,name:'Boutique Test',status:'ACTIVE',address:'12 rue Exemple',country:'France'},
+ odoo_partner_link:{partner_odoo_id:777,confirmed_by:'owner_explicit',confirmed_at:'2026-10-10T17:13:54Z'},
  memory:{summary:'Compte de démonstration, aucune donnée réelle.'},
  contacts:[{name:'Contact Démo',role:'Gérant',channels:[{type:'email',value:'demo@example.test'}]}],
  attention:{open_task_count:1,overdue_task_count:0,tasks:[{title:'Rappeler le gérant',due_at:'2026-10-15'}]},
@@ -127,6 +128,8 @@ try{
  assert.match(await page.locator('#client-detail').innerText(),/Dossier commercial/);
  assert.match(await page.locator('#client-detail').innerText(),/INV-DEMO/);
  assert.match(await page.locator('#client-detail').innerText(),/Conversations par source/);
+ assert.match(await page.locator('#client-detail .client-link-confirmed').innerText(),/partenaire Odoo #777/);
+ assert.equal(await page.locator('#client-detail .client-history-panel button').count(),1);
  const privateStorage=await page.evaluate(()=>Object.keys(sessionStorage));
  assert.deepEqual(privateStorage,['weneed_v1_ephemeral_session']);
  await page.locator('#bottom-nav [data-nav="orders"]').click();
@@ -142,11 +145,11 @@ try{
  assert.match(await page.locator('#client-detail .client-history-summary').innerText(),/1 annulée\(s\)/);
  assert.match(await page.locator('#client-detail .client-partner-evidence').innerText(),/nom identique/);
  assert.match(await page.locator('#client-detail .client-partner-evidence').innerText(),/e-mail identique/);
- assert.match(await page.locator('#client-detail .client-partner-evidence').innerText(),/NON VALIDÉ/);
+ assert.match(await page.locator('#client-detail .client-partner-evidence').innerText(),/lien confirmé par le propriétaire/);
  await page.locator('#client-detail .client-history-year').last().evaluate(el=>{el.open=true});
  assert.match(await page.locator('#client-detail .client-history-panel').innerText(),/OLD-ORDER/);
 
- assert.match(await page.locator('#client-detail .client-odoo').innerText(),/nom strictement identique/);
+ assert.match(await page.locator('#client-detail .client-odoo').innerText(),/Commandes du mois proposées par nom/);
  await page.locator('#client-detail .client-odoo .audit-order-link').first().click();
  await page.locator('#view-orders').waitFor({state:'visible'});
  assert.match(await page.locator('#order-search').inputValue(),/TEST-ORDER/);
