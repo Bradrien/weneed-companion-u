@@ -74,3 +74,11 @@ test('Odoo partner-history API is owner-only and cannot mutate Odoo or bind CRM 
  assert.ok(api.includes("['user_id','=',uid]"));
  assert.doesNotMatch(api,/\\b(create|write|unlink)\\b['"]\\s*,/);
 });
+
+test('Owner-scoped Odoo history retrieves partner identity only if sales are present',()=>{
+ const api=readFileSync(new URL('../supabase/functions/client-odoo-history/index.ts',import.meta.url),'utf8');
+ assert.match(api,/if\(!hasOrders\)return null/);
+ assert.match(api,/res\.partner/);
+ assert.match(api,/partner=await getPartnerIdentity\(c,uid,partnerId,orders\.length>0\)/);
+ assert.match(api,/identity_verified:false/);
+});
