@@ -249,8 +249,8 @@ try{
  await page.locator('#client-detail .client-link-action button').first().click();
  assert.match(await page.locator('#client-detail .client-link-action').innerText(),/Confirmer le rattachement permanent/);
  await page.locator('#client-detail .client-link-action button').first().click();
- await page.locator('#client-detail .client-link-confirmed').waitFor({state:'visible'});
- assert.match(await page.locator('#client-detail .client-link-confirmed').innerText(),/partenaire Odoo #778/);
+ await page.locator('#client-detail .client-odoo .client-link-confirmed').first().waitFor({state:'visible'});
+ assert.match(await page.locator('#client-detail .client-odoo .client-link-confirmed').first().innerText(),/partenaire Odoo #778/);
  assert.match(await page.locator('#client-detail .client-memory-digest').innerText(),/1 commandes confirmées/);
 
  await page.locator('#logout-top').click();
