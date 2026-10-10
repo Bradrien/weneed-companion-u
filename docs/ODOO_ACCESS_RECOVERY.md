@@ -1,0 +1,33 @@
+# Récupération de l'accès Odoo — WeNeed Companion
+
+## Diagnostic confirmé (10 octobre 2026)
+
+Le compte propriétaire Supabase fonctionne. La préversion Safari communique avec `odoo-read` v11 et le test `GET ?resource=ping` renvoie **HTTP 502 / `odoo_credentials_rejected`**.
+
+Le code serveur appelle Odoo `common.authenticate(ODOO_DB, ODOO_USERNAME, ODOO_API_KEY, {})`. La fonction refuse ici une réponse Odoo sans UID positif. Cela implique qu'une combinaison base / compte / clé ne permet pas à Odoo de reconnaître l'utilisateur. Le contrôle séparé `ODOO_UID_PIN` n'a pas encore été atteint : **ne pas supprimer/modifier ce contrôle comme première solution.**
+
+Historique : `odoo-read` a répondu avec succès le 9 octobre. La panne est constatée le 10 octobre, après résolution d'un problème CORS indépendant. Une clé API révoquée/expirée est une piste, non une conclusion établie.
+
+## Réparation sécurisée — propriétaire / administrateur
+
+1. Identifier le compte utilisateur dont le **login Odoo** figure dans la configuration sécurisée `ODOO_USERNAME`. Ce n'est pas nécessairement l'adresse e-mail de connexion à Companion. Ne pas copier ce login depuis un exemple non vérifié.
+2. Dans Odoo, avec **ce même compte**, ouvrir *Préférences / Mon profil → Sécurité du compte → Clés API*. Examiner si la clé dédiée à Companion est encore active et sa date d'expiration, ainsi que tout changement de compte/droits. Les clés existantes ne sont pas récupérables en clair.
+3. Dans Supabase → projet WeNeed Companion → **Edge Functions → Secrets**, vérifier **sans transmettre de valeur au chat** la présence des paramètres `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` et `ODOO_URL`. Ne modifier ni `ODOO_UID_PIN` ni `SUPABASE_*` par tâtonnement.
+4. Si la clé est invalide ou inaccessible, générer une clé API Odoo **pour le même utilisateur**, nommée « WeNeed Companion » ; copier sa valeur dans le secret de production `ODOO_API_KEY` **directement dans le Dashboard Supabase**, jamais dans GitHub, le chat ou un screenshot. Conserver l'ancienne clé jusqu'à validation de la nouvelle connexion, lorsqu'elle est encore active.
+5. Revenir sur https://bradrien.github.io/weneed-companion-u/validation-v12/ et lancer *Réglages → Vérifier l'accès Odoo en lecture seule*. Attendre **« Accès lecture validé »** avant de relancer le rapport septembre.
+6. Si le diagnostic devient `odoo_uid_pin_mismatch`, faire vérifier le compte choisi avant toute modification du contrôle d'identité. Ne pas désactiver le pin comme contournement.
+7. Après validation, retirer les anciennes clés inutilisées suivant la politique Odoo et les dépendances des autres systèmes.
+
+Les changements de secrets des Edge Functions Supabase sont appliqués sans redéploiement de leur code.
+
+Sources officielles :
+- https://www.odoo.com/documentation/19.0/developer/reference/external_rpc_api.html
+- https://www.odoo.com/documentation/19.0/developer/reference/external_api.html
+- https://supabase.com/docs/guides/functions/secrets
+
+## Invariants
+
+- Aucune donnée Odoo écrite par Companion.
+- Les fonctions restent limitées aux JWT des propriétaires.
+- Aucune valeur d'API key dans le dépôt, les fichiers de log ou les messages.
+- Ne pas confondre mot de passe de Companion et API key Odoo.
