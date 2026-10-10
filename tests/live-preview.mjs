@@ -20,8 +20,10 @@ try{
  await page.waitForTimeout(500);
  assert.match(await page.title(),/préversion V1\.2/);
  assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
- assert.match(await page.locator('body').innerText(),/diagnostic D3/,'Cache-busted preview marker not published');
- assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-credential-probe-20261010\.js/,'Old iPhone JS still referenced');
+ assert.match(await page.locator('body').innerText(),/audit D4/,'Cache-busted preview marker not published');
+ assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-reconciliation-d4\.js/,'Old iPhone JS still referenced');
+ assert.equal(await page.locator('#commission-audit').count(),1,'D4 audit panel missing');
+ assert.match(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),/app-reconciliation-d4\.css/);
  assert.equal(await page.locator('#login-panel').isVisible(),true);
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.equal(await page.locator('#bottom-nav').isVisible(),false);
