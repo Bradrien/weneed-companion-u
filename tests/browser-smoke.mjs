@@ -37,14 +37,17 @@ const dashboard={stats:{clients_total:131,clients_needing_attention:1,open_actio
 const report=(from,to)=>({source:'odoo_live_read_only',period_from:from,period_to:to,
  persisted:false,verified_commissions_eur:null,commissions_are_calculated:false,
  orders_count:1,catalog_snapshot:{products_total:1385,source_completed_at:'2026-10-10T00:35:35Z'},
- catalog_matching:{eligible:1,matched:1,not_found:0,missing_sku:0,ambiguous_sku:0,catalog_invalid_price:0,zero_cost:0,zero_list_price:0},
- line_kinds:{candidate:1,sample:0,shipping:0,anomaly:0},
+ catalog_matching:{eligible:2,matched:1,not_found:0,missing_sku:1,ambiguous_sku:0,catalog_invalid_price:0,zero_cost:0,zero_list_price:0},
+ line_kinds:{candidate:1,review:1,sample:0,shipping:0,anomaly:0},
  orders:[{id:987,reference:'TEST-ORDER',date:from,company:'GTA',client:'Boutique Test',salesperson:'Test Owner',
-  currency:'EUR',state:'sale',amount_ht:200,line_sum_ht:200,amount_difference:0,
+  currency:'EUR',state:'sale',amount_ht:220,line_sum_ht:220,amount_difference:0,
   commission_eur:null,issues:[],
   lines:[{id:1,sku:'SKU/TEST',product_name:'Produit Démo',quantity:100,unit_price:2,
    discount_pct:0,line_ht:200,kind:'candidate',commission_eur:null,
-   catalog_match:{status:'matched',tier:'A',category:'Indoor',cost_eur:1.5,list_price_eur:2,cost_zero:false,price_zero:false}}]}]});
+   catalog_match:{status:'matched',tier:'A',category:'Indoor',cost_eur:1.5,list_price_eur:2,cost_zero:false,price_zero:false}},
+  {id:2,sku:'',product_name:'[TT/G] Fictitious Tangie Tonic',quantity:1,unit_price:20,
+   discount_pct:0,line_ht:20,kind:'review',commission_eur:null,
+   catalog_match:{status:'missing_sku'}}]}]});
 const json=(payload,status=200)=>({status,contentType:'application/json',headers:{
  'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info',
  'access-control-allow-methods':'GET,POST,OPTIONS'},body:JSON.stringify(payload)});
@@ -116,6 +119,14 @@ try{
  await page.locator('#commission-audit .audit-heading').first().waitFor({state:'visible'});
  assert.match(await page.locator('#commission-audit').innerText(),/Références internes Odoo manquantes/);
  assert.match(await page.locator('#commission-audit').innerText(),/Classement par mot-clé/);
+ assert.match(await page.locator('#commission-audit').innerText(),/GTA · \[TT\/G\]/);
+ await page.locator('#commission-audit .audit-order-link').first().click();
+ await page.locator('#view-orders').waitFor({state:'visible'});
+ assert.match(await page.locator('#order-search').inputValue(),/TEST-ORDER/);
+ assert.equal(await page.locator('#orders-list .order-button').first().getAttribute('aria-expanded'),'true');
+ assert.match(await page.locator('#orders-list').innerText(),/Fictitious Tangie Tonic/);
+ await page.locator('#bottom-nav [data-nav="commissions"]').click();
+
  await page.locator('#bottom-nav [data-nav="settings"]').click();
  await page.locator('#odoo-probe').click();
  await page.waitForFunction(()=>document.getElementById('odoo-probe-status').textContent.includes('Connexion Odoo opérationnelle'));
