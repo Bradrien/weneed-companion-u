@@ -96,15 +96,21 @@ export function groupMissingSkuCandidates(report){
   const key=JSON.stringify([entry.order.company,candidate,currency]);
   let g=groups.get(key);
   if(!g){
-   g={company:entry.order.company,candidate,currency,count:0,total:0,amountComplete:true,entries:[]};
+   g={company:entry.order.company,candidate,currency,count:0,total:0,amountComplete:true,entries:[],catalogFound:0,catalogNames:new Set()};
    groups.set(key,g);
   }
   g.count++;
   g.entries.push(entry);
+  const proposed=entry.line.catalog_match?.candidate;
+  if(candidate&&proposed?.status==='found'&&proposed.sku===candidate){
+   g.catalogFound++;
+   if(proposed.catalog_name)g.catalogNames.add(proposed.catalog_name);
+  }
   if(typeof entry.line.line_ht==='number'&&Number.isFinite(entry.line.line_ht))g.total+=entry.line.line_ht;
   else g.amountComplete=false;
  }
- return [...groups.values()].sort((a,b)=>b.count-a.count || a.company.localeCompare(b.company) ||
+ return [...groups.values()].map(g=>({...g,catalogNames:[...g.catalogNames]}))
+  .sort((a,b)=>b.count-a.count || a.company.localeCompare(b.company) ||
   (a.candidate||'').localeCompare(b.candidate||''));
 }
 
@@ -126,6 +132,10 @@ export function renderReconciliationAudit(report,el,{empty,fmtNumber,onOpenOrder
      make('div','audit-product',line.product_name||'Produit non renseigné'),
      make('div','audit-note',
        (order.client||'Client non renseigné')+' · '+formatMoney(line.line_ht,order.currency||'EUR')));
+   if(line.catalog_match?.status==='missing_sku'&&
+       line.catalog_match?.candidate?.status==='found'){
+    card.append(make('div','audit-verified','Code présent dans Kino, mais absent du champ SKU de la fiche Odoo.'));
+   }
    if(typeof onOpenOrder==='function'){
     const open=make('button','audit-order-link','Ouvrir la commande');
     open.type='button';
@@ -143,13 +153,19 @@ export function renderReconciliationAudit(report,el,{empty,fmtNumber,onOpenOrder
  if(audit.missing.length){
   const candidates=groupMissingSkuCandidates(report);
   const candidateCount=new Set(candidates.filter(g=>g.candidate).map(g=>g.company+'|'+g.candidate)).size;
-  el.append(make('p','audit-hint',candidateCount+' code(s) candidat(s) extrait(s) des noms de produits. À vérifier dans Kino et Odoo, aucune correspondance automatique.'));
+  const confirmedCount=candidates.filter(g=>g.candidate&&g.catalogFound===g.count).length;
+  el.append(make('p','audit-hint',candidateCount+' code(s) candidat(s) extraits des descriptions. '+
+   confirmedCount+' groupe(s) retrouvé(s) exactement dans le catalogue Kino. Les références internes Odoo restent à compléter ; le compteur officiel de rapprochement ne change pas.'));
   for(const group of candidates){
    const box=make('div','audit-candidate');
    const code=group.candidate?'['+group.candidate+']':'Code non identifié dans la description';
    box.append(make('strong','',group.company+' · '+code),
      make('div','audit-note',fmtNumber(group.count)+' ligne(s) · '+
        (group.amountComplete&&group.currency?formatMoney(group.total,group.currency):'Montant HT non totalisable')));
+   const allFound=group.candidate&&group.catalogFound===group.count;
+   box.append(make('div',allFound?'audit-verified':'audit-note',
+    allFound?'Référence exacte trouvée dans Kino · Proposition à valider dans Odoo':
+    'Correspondance Kino non confirmée pour '+(group.count-group.catalogFound)+' ligne(s)'));
    el.append(box);
   }
   showEntries(audit.missing,20);
