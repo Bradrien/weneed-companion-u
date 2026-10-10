@@ -134,6 +134,20 @@ try{
      {id:888,reference:'OLD-ORDER',partner_odoo_id:777,company:'TR',date:'2025-06-10',state:'cancel',amount_ht:150,currency:'EUR'}
     ]}};
   }
+  else if(u.pathname==='/functions/v1/whatsapp-client-brief'){
+    if(u.searchParams.get('mode')==='overview')
+     body={ok:true,data:[{client_id:uuid,client_name:'Boutique Test',text_count:2,conversation_count:1,
+       last_at:'2026-10-08T10:00:00Z',last_message:{chat_pk:32,message_pk:101,
+        at:'2026-10-08T10:00:00Z',direction:'incoming',excerpt:'Commande test'}}]};
+    else body={ok:true,data:{client_id:u.searchParams.get('client_id'),status:'available',
+       method:'deterministic_keywords_v1_not_ai_summary',
+       scope:'verified_clients_and_approved_text_only',
+       coverage:{message_count:2,conversation_count:1,incoming_count:1,outgoing_count:1,
+        first_at:'2026-10-01T10:00:00Z',last_at:'2026-10-08T10:00:00Z'},
+       recent:[{chat_pk:32,message_pk:101,at:'2026-10-08T10:00:00Z',direction:'incoming',
+        excerpt:'Demande commerciale fictive',category:'commande_ou_prix'}],
+       highlights:[]}};
+   }
   else if(u.pathname==='/functions/v1/commission-catalog-review'){
    const from=u.searchParams.get('from'),to=u.searchParams.get('to');
    body={ok:true,data:report(from,to)};
