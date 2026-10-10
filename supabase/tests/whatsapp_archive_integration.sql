@@ -1,0 +1,30 @@
+-- No API calls or durable mutations; use against an activated archive.
+begin;
+do $$declare chosen record;rows jsonb;next_rows jsonb;last_row jsonb;a uuid;r jsonb;pid uuid;
+begin
+ if has_table_privilege('anon','public.whatsapp_archive_conversations','select') or has_table_privilege('authenticated','public.whatsapp_archive_conversations','select') then raise exception 'archive_direct_access_exposed';end if;
+ if has_function_privilege('anon','public.whatsapp_archive_messages(uuid,uuid,bigint,text,timestamptz,bigint)','execute') or has_function_privilege('authenticated','public.whatsapp_archive_reserve_transcription(uuid)','execute') then raise exception 'archive_rpc_exposed';end if;
+ if exists(select 1 from public.whatsapp_archive_conversations c join public.whatsapp_import_batches b on b.id=c.batch_id join public.whatsapp_import_exclusions x on x.source_key=b.source_key and x.chat_pk=c.chat_pk) then raise exception 'excluded_archive';end if;
+ select * into chosen from public.whatsapp_archive_conversations order by message_count desc limit 1;
+ if chosen is null then raise exception 'activate_archive_first';end if;
+ rows:=public.whatsapp_archive_messages(null,chosen.batch_id,chosen.chat_pk);
+ if jsonb_array_length(rows)<>61 then raise exception 'unexpected_page_size';end if;
+ last_row:=rows->59;
+ next_rows:=public.whatsapp_archive_messages(null,chosen.batch_id,chosen.chat_pk,'',(last_row->>'occurred_at')::timestamptz,(last_row->>'local_message_pk')::bigint);
+ if exists(select 1 from jsonb_array_elements(rows) with ordinality x(v,n) join jsonb_array_elements(next_rows) y(v) on x.v->>'id'=y.v->>'id' where x.n<=60) then raise exception 'pagination_overlap';end if;
+ if public.whatsapp_archive_messages(null,chosen.batch_id,-1)<>'[]'::jsonb then raise exception 'cross_conversation_leak';end if;
+ select p.id into pid from public.whatsapp_archive_pilots p where p.batch_id=chosen.batch_id;
+ select aa.id into a from public.whatsapp_import_audio_assets aa join public.whatsapp_import_staging s on s.id=aa.staged_message_id join public.whatsapp_archive_conversations ac on ac.batch_id=s.batch_id and ac.chat_pk=s.chat_pk where s.batch_id=chosen.batch_id and ac.client_id is not null and aa.archive_status='verified' and aa.transcription_status='skipped' and not exists(select 1 from public.whatsapp_archive_transcription_jobs j where j.audio_id=aa.id) limit 1;
+ if a is null or pid is null then raise exception 'pilot_validation_data_missing';end if;
+ insert into public.whatsapp_archive_transcription_jobs(audio_id,pilot_id) values(a,pid);
+ update public.whatsapp_archive_pilots set reserved_usd=reserve_limit_usd where id=pid;
+ r:=public.whatsapp_archive_reserve_transcription(a);
+ if r->>'error'<>'pilot_budget_reached' then raise exception 'budget_overrun';end if;
+ if (select status from public.whatsapp_archive_transcription_jobs where audio_id=a)<>'pending' then raise exception 'budget_rejection_changed_job';end if;
+ update public.whatsapp_archive_pilots set reserved_usd=0 where id=pid;
+ r:=public.whatsapp_archive_reserve_transcription(a);
+ if (r->>'ok')::boolean is distinct from true then raise exception 'reservation_failed';end if;
+ r:=public.whatsapp_archive_reserve_transcription(a);
+ if r->>'error'<>'job_not_pending' then raise exception 'duplicate_paid_attempt';end if;
+end $$;
+rollback;

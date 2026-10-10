@@ -7,11 +7,11 @@
  <meta name="apple-mobile-web-app-capable" content="yes">
  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
  <meta name="description" content="WeNeed Companion : commandes et commissions GTA / Trim Rocket">
- <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://gcirlrghjvumhkekrtmf.supabase.co; form-action 'self'; upgrade-insecure-requests">
+ <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; worker-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://gcirlrghjvumhkekrtmf.supabase.co; media-src https://gcirlrghjvumhkekrtmf.supabase.co; form-action 'self'; upgrade-insecure-requests">
  <link rel="manifest" href="manifest.webmanifest">
  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
  <link rel="apple-touch-icon" href="assets/icon-192.png">
- <link rel="stylesheet" href="assets/app-crm-d16.css">
+ <link rel="stylesheet" href="assets/app-crm-d17.css">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — préversion V1.2</title>
 </head>
@@ -21,7 +21,7 @@
    <div class="brand"><span class="brand-symbol" aria-hidden="true">W<span class="accent">.</span></span><span class="brand-name">WeNeed<br><strong>Companion</strong></span></div>
    <div class="header-right"><span id="conn-indicator" class="connection-indicator">Odoo · lecture seule</span><button type="button" id="logout-top" class="icon-button hidden" aria-label="Se déconnecter" title="Se déconnecter">⏻</button></div>
   </header>
-  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · stocks et notifications D16 — Essais uniquement. Le site principal reste inchangé. Aucune commission validée.</div>
+  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · archives WhatsApp et vocaux D17 — Essais uniquement. Le site principal reste inchangé. Aucune commission validée.</div>
    <section id="login-panel" class="login-screen">
     <div class="login-hero"><span class="eyebrow">ESPACE COMMERCIAL PRIVÉ</span><h1>Ton activité, au même endroit.</h1><p>Commandes Odoo GTA/TR et suivi des commissions. Des données consultables, des montants traçables.</p></div>
     <form id="login-form" class="login-card">
@@ -39,7 +39,7 @@
     <div id="notice" role="status" aria-live="polite" class="notice"><span id="notice-text">Connecté. Appuie sur « Charger les données » pour consulter Odoo.</span></div>
     <div id="loading" class="loading hidden"><span class="spinner"></span><span>Lecture des commandes Odoo en cours…</span></div>
     <div id="view-home" class="view">
-      <div id="metrics" class="metrics-grid"></div><button type="button" class="secondary-button" data-nav="stocks">Stocks TR / GTA · contrôle toutes les 5 min →</button>
+      <div id="metrics" class="metrics-grid"></div><button type="button" class="secondary-button" data-nav="archives">Archives WhatsApp · conversations et vocaux →</button><button type="button" class="secondary-button" data-nav="stocks">Stocks TR / GTA · contrôle toutes les 5 min →</button>
       <section class="section">
        <div class="section-heading"><div><p class="eyebrow">CRM · SUIVI</p><h2>Activité commerciale</h2></div><button id="reload-crm" type="button" class="inline-button" aria-label="Actualiser le CRM">Actualiser ↻</button></div>
        <div id="crm-stats" class="metrics-grid"></div>
@@ -60,7 +60,7 @@
       <section class="section"><div class="section-heading"><div><p class="eyebrow">AUDIT ODOO</p><h2>Lignes à vérifier avant calcul</h2></div></div><div id="commission-audit" class="stack"></div></section>
       <div class="disclaimer">Le chiffre d'affaires HT issu d'Odoo n'est pas ta commission. Les règles Kino, frais de livraison, échantillons et avoirs doivent être rapprochés avant tout paiement.</div>
     </div>
-    <div id="view-clients" class="view hidden">
+    <div id="view-clients" class="view hidden"><button type="button" class="secondary-button" data-nav="archives">Toutes les archives WhatsApp →</button>
       <div id="clients-filter" class="filter-panel">
         <label class="tiny-label" for="client-search">RECHERCHER UN CLIENT</label>
         <input id="client-search" type="search" placeholder="Boutique, client, société…" maxlength="120" autocapitalize="off" autocomplete="off">
@@ -70,7 +70,8 @@
       <div id="clients-list" class="stack"></div>
       <div id="client-detail" class="stack hidden"></div>
     </div>
-<div id="view-stocks" class="view hidden">
+<div id="view-archives" class="view hidden"><div id="archive-root"></div></div>
+    <div id="view-stocks" class="view hidden">
  <div class="section-heading"><h2>Stocks TR / GTA</h2><button id="stock-reload" type="button" class="inline-button">Actualiser ↻</button></div>
  <p id="stock-status" class="help" role="status" aria-live="polite"></p><div id="stock-summary" class="metrics-grid"></div>
  <section class="settings-card"><h3>Notifications sur cet appareil</h3><p id="stock-push-status" class="help" role="status" aria-live="polite"></p>
@@ -80,7 +81,7 @@
  <p id="stock-count" class="help"></p><div id="stock-list" class="stack"></div><div class="section-heading"><button id="stock-prev" type="button" class="inline-button" disabled>← Précédent</button><button id="stock-next" type="button" class="inline-button" disabled>Suivant →</button></div>
  <section class="section"><h2>Dernières alertes</h2><div id="stock-alerts" class="stack"></div></section>
  </div>
-    <div id="view-settings" class="view hidden"><section class="settings-card"><h2>Connexions</h2><button type="button" class="inline-button" data-nav="stocks">Stocks et notifications →</button><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import des historiques</span><strong>Non lancé</strong></div><div class="setting-row"><span>Transcription des anciens audios</span><strong>Non lancée</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée : aucune écriture Odoo, aucun import d'historique.</p></div>
+    <div id="view-settings" class="view hidden"><section class="settings-card"><h2>Connexions</h2><button type="button" class="inline-button" data-nav="archives">Archives WhatsApp et vocaux →</button><button type="button" class="inline-button" data-nav="stocks">Stocks et notifications →</button><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import des historiques</span><strong>Archives privées connectées</strong></div><div class="setting-row"><span>Transcription des anciens audios</span><strong>Premier lot · plafond 1 $</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée · archives WhatsApp consultables.</p></div>
    </section>
   </main>
   <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Navigation principale">
@@ -91,5 +92,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span>Réglages</span></button>
   </nav>
  </div>
- <script src="assets/app-crm-d16.js" type="module"></script>
+ <script src="assets/app-crm-d17.js" type="module"></script>
 </body></html>
