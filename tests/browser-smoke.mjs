@@ -47,7 +47,7 @@ const report=(from,to)=>({source:'odoo_live_read_only',period_from:from,period_t
    catalog_match:{status:'matched',tier:'A',category:'Indoor',cost_eur:1.5,list_price_eur:2,cost_zero:false,price_zero:false}},
   {id:2,sku:'',product_name:'[TT/G] Fictitious Tangie Tonic',quantity:1,unit_price:20,
    discount_pct:0,line_ht:20,kind:'review',commission_eur:null,
-   catalog_match:{status:'missing_sku'}}]}]});
+   catalog_match:{status:'missing_sku',candidate:{sku:'TT/G',status:'found',catalog_name:'Fictitious catalog',tier:'A',category:'GR'}}}]}]});
 const json=(payload,status=200)=>({status,contentType:'application/json',headers:{
  'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info',
  'access-control-allow-methods':'GET,POST,OPTIONS'},body:JSON.stringify(payload)});
@@ -120,6 +120,8 @@ try{
  assert.match(await page.locator('#commission-audit').innerText(),/Références internes Odoo manquantes/);
  assert.match(await page.locator('#commission-audit').innerText(),/Classement par mot-clé/);
  assert.match(await page.locator('#commission-audit').innerText(),/GTA · \[TT\/G\]/);
+ assert.match(await page.locator('#commission-audit').innerText(),/1 groupe\(s\) retrouvé\(s\) exactement/);
+ assert.match(await page.locator('#commission-audit .audit-verified').first().innerText(),/Référence exacte trouvée dans Kino/);
  await page.locator('#commission-audit .audit-order-link').first().click();
  await page.locator('#view-orders').waitFor({state:'visible'});
  assert.match(await page.locator('#order-search').inputValue(),/TEST-ORDER/);
