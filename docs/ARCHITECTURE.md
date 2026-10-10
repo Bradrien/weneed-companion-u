@@ -237,3 +237,20 @@ Le propriétaire a confirmé explicitement dans la conversation, après validati
 - Préversion privée D14 : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D14`.
 
 À venir : test sur iPhone avec authentification réelle pour confirmer l'affichage automatique du lien, puis généralisation des appariements **uniquement** après validation de chaque entreprise.
+
+## D15 — recherche de partenaires pour les autres clients et mémoire commerciale sourcée
+
+Données existantes au 10/10/2026 : **131 fiches clients CRM**, **26 mémoires commerciales** et **une liaison propriétaire CRM ↔ Odoo active et vérifiée**, Green Purple ↔ `res.partner #3277`. La validation d'un client ne prouve pas la validation des autres ; les liaisons ne sont jamais propagées par nom.
+
+Nouveau workflow `client-odoo-link` (fonction serveur JWT) :
+1. GET `?client_id=<uuid>` recherche les commandes **du vendeur Odoo authentifié** dont le partenaire possède le **nom exactement identique** à la fiche CRM. Résultats partiels (120 commandes maximum), identifiants proposés seulement, aucun lien écrit.
+2. L'utilisateur peut consulter l'historique trois ans du candidat via `client-odoo-history` et vérifier les coordonnées visibles.
+3. Une double confirmation côté interface envoie `POST {action:"confirm",client_id,partner_id,confirmation:"CONFIRMER_LIAISON"}`. Le backend revérifie séparément le JWT propriétaire, le compte actif, l'identité CRM courante, l'authentification Odoo, une commande rattachée au vendeur, le **nom exact** et au moins une concordance réelle e-mail/téléphone. Refus si association concurrente ou preuve insuffisante ; jamais de lien automatique.
+4. Deuxième confirmation possible pour `POST action:"revoke"` : désactive le lien via `status='revoked'` et `revoked_at`, sans supprimer l'audit ni modifier Odoo.
+5. Les anciens liens Green Purple restent inchangés, et les clients ne sont jamais fusionnés par le seul nom.
+
+Mémoire commerciale `assets/client-memory-model.mjs` : synthèse **déterministe, recalculée en lecture seule à partir des sources disponibles**, distinguant (a) commandes `sale/done/cancel` uniquement lorsque le lien Odoo propriétaire est confirmé, (b) activité CRM récente, (c) tâches en cours, (d) objets commerciaux documentaires non vérifiés par la comptabilité, (e) faits et anciennes pistes issus de l'extraction CRM, toujours marqués « à confirmer ». Le total HT de commandes confirmées n'est **ni une commission ni une preuve d'encaissement**. Pas d'écriture dans les mémoires CRM d'origine à ce stade.
+
+Limites : recherche Odoo par nom exact, partielle, pouvant manquer des noms commerciaux divergents ; association impossible sans commande accessible et nom + contact concordant. La confirmation explicite et la vérification humaine restent nécessaires pour chaque client. Dans D15, aucun nouveau client n'est automatiquement rattaché.
+
+Préversion isolée prévue : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D15`.
