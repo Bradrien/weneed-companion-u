@@ -47,11 +47,20 @@ export function simulateOdooReport(report){
  if(report.verified_commissions_eur!==null||
     report.commissions_are_calculated!==false||report.persisted!==false)
   throw new Error('simulation_requires_unverified_read_only_report');
+ // Prevent presenting figures from older gateway versions without a second Odoo status read.
+ if(report.source_order_status_rechecked!==true||
+    typeof report.source_order_status_checked_at!=='string'||
+    !Number.isFinite(Date.parse(report.source_order_status_checked_at)))
+  throw new Error('simulation_requires_rechecked_order_status');
  const byCompany={GTA:{company:'GTA',lineCount:0,simulated:0,commission:0,margin:0,sales:0,orders:new Set()},
                   TR:{company:'TR',lineCount:0,simulated:0,commission:0,margin:0,sales:0,orders:new Set()}};
- const ready=[],excluded=[],reasons={};
+ const ready=[],excluded=[],reasons={},cancelledOrders=[];
  for(const order of report.orders){
   if(!byCompany[order.company])throw new Error('unknown_company');
+  if(order.state==='cancel')cancelledOrders.push({
+   id:order.id,reference:order.reference,company:order.company,client:order.client,
+   amount_ht:order.amount_ht
+  });
   for(const line of order.lines||[]){
    const reason=checkLine(order,line);
    const row={order_id:order.id,reference:order.reference,company:order.company,
@@ -79,7 +88,8 @@ export function simulateOdooReport(report){
   company,lineCount:d.lineCount,orders:d.orders.size,
   sales:d.sales,margin:d.margin,commission:d.commission
  }]));
- return {companies:groups,ready,excluded,reasons,
+ return {companies:groups,ready,excluded,reasons,cancelledOrders,
+  sourceStatusCheckedAt:report.source_order_status_checked_at,
   eligibleMatched:report.catalog_matching?.matched??null,
   total:groups.GTA.commission+groups.TR.commission,
   simulatedLines:ready.length,
