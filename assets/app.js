@@ -4,6 +4,7 @@ import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClien
 import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from './client-360-model.mjs';
 import {normalizePartnerHistory,assessPartnerIdentity} from './client-history-model.mjs';
 import {buildCommercialMemory} from './client-memory-model.mjs';
+import {normalizeOdooCandidates} from './client-candidates-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -16,7 +17,7 @@ const clientRequests=createRequestGuard();
 const dashboardRequests=createRequestGuard();
 const odooProbeRequests=createRequestGuard();
 const dashboard={data:null,loading:false,error:''};
-const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,linkCandidate:null,linkSubmitting:false,linkError:'',loading:false,error:'',timer:null};
+const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,linkCandidate:null,linkSubmitting:false,linkError:'',candidates:null,candidateLoading:false,candidateError:'',candidatePartner:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
@@ -26,7 +27,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -254,7 +255,7 @@ async function loadClients(){
 async function openClient(clientId){
  if(!validClientId(clientId)||!state.access)return;
  const ticket=clientRequests.begin();
- clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.error='';clients.loading=true;renderClients();
+ clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.error='';clients.loading=true;renderClients();
  try{
   const [card,full]=await Promise.allSettled([
    companionGet('/clients/'+encodeURIComponent(clientId)+'/card'),
@@ -362,6 +363,65 @@ async function loadPartnerHistory(partnerId,clientId){
   }
  }
 }
+async function loadOdooCandidates(clientId){
+ if(!state.access||clients.selected!==clientId||clients.candidateLoading)return;
+ const ticket=clientRequests.begin();
+ clients.candidates=null;clients.candidateError='';clients.candidatePartner=null;clients.candidateLoading=true;
+ renderClients();
+ try{
+  const jwt=await ensureToken();
+  const res=await authFetch('/functions/v1/client-odoo-link?client_id='+encodeURIComponent(clientId),{
+   headers:{authorization:'Bearer '+jwt}
+  });
+  const data=await res.json();
+  if(!res.ok||data?.ok!==true)throw Error(data?.error||'candidate_discovery_unavailable');
+  const normalized=normalizeOdooCandidates(data.data,clientId);
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  clients.candidates=normalized;
+ }catch(e){
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  clients.candidateError='Recherche Odoo indisponible. Aucune liaison créée. Tu peux réessayer ou consulter le rapport mensuel.';
+ }finally{
+  if(clientRequests.isCurrent(ticket)&&clients.selected===clientId){
+   clients.candidateLoading=false;renderClients();
+  }
+ }
+}
+function clientCandidateDiscovery(){
+ const section=node('div','client-candidate-discovery');
+ section.append(node('h4','','Rechercher le partenaire Odoo · correspondances à vérifier'));
+ section.append(node('p','client-provenance',
+  'Recherche par nom strictement identique parmi les commandes de ton compte Odoo. Résultat partiel, jamais un lien automatique.'));
+ if(clients.candidateLoading){
+  section.append(node('p','client-quiet','Recherche des candidats dans Odoo…'));return section;
+ }
+ if(clients.candidateError)section.append(node('p','client-source-warning',clients.candidateError));
+ if(!clients.candidates){
+  const button=node('button','secondary-button','Rechercher dans mes commandes Odoo');
+  button.type='button';button.addEventListener('click',()=>loadOdooCandidates(clients.selected));
+  section.append(button);return section;
+ }
+ const matches=clients.candidates.candidates;
+ if(!matches.length)section.append(node('p','client-quiet',
+  'Aucun nom strictement identique trouvé dans les commandes interrogées. Ce résultat ne prouve pas l’absence de client Odoo.'));
+ for(const candidate of matches){
+  const item=node('div','client-candidate');
+  item.append(node('strong','','Partenaire #'+candidate.partnerId+' · '+candidate.name));
+  item.append(node('small','',candidate.exampleCount+' commande(s) repérée(s) dans l’échantillon · non vérifié'));
+  const button=node('button','secondary-button',
+   clients.candidatePartner===candidate.partnerId?'Masquer le dossier':'Examiner ce partenaire');
+  button.type='button';
+  button.addEventListener('click',()=>{
+   clients.candidatePartner=clients.candidatePartner===candidate.partnerId?null:candidate.partnerId;
+   clients.history=null;clients.historyPartner=null;clients.linkCandidate=null;renderClients();
+  });
+  item.append(button);
+  if(clients.candidatePartner===candidate.partnerId)item.append(clientHistoryPanel(candidate.partnerId));
+  section.append(item);
+ }
+ return section;
+}
+
 async function changeOdooLink(action,partnerId,clientId){
  if(!state.access||clients.selected!==clientId||clients.linkSubmitting||!validClientId(clientId))return;
  const ticket=clientRequests.begin();
@@ -563,6 +623,7 @@ function clientPeriodOrders(name){
  const section=node('section','client-section client-odoo');
  section.append(node('h3','','Commandes Odoo · historique client'));
  const verifiedLink=clients.detail?.odooPartnerLink;
+ if(!verifiedLink)section.append(clientCandidateDiscovery());
  if(verifiedLink){
   section.append(node('p','client-link-confirmed',
    'Lien confirmé par le propriétaire · partenaire Odoo #'+verifiedLink.partnerId+
@@ -632,7 +693,7 @@ function renderClients(){
  if(inDetail){
   count.textContent='';
   const back=node('button','secondary-button','← Retour aux clients');
-  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.loading=false;clients.error='';renderClients()});
+  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.loading=false;clients.error='';renderClients()});
   details.append(back);
   if(clients.loading){details.append(empty('Chargement de la fiche client…'));return}
   if(clients.error){details.append(empty(clients.error));return}
