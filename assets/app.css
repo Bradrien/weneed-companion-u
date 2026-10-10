@@ -39,3 +39,19 @@
 .audit-order-link:focus-visible{outline:2px solid #17683e;outline-offset:2px}
 
 .audit-verified{display:block;margin-top:7px;font-size:11px;font-weight:750;color:#156538;line-height:1.5}
+
+/* Provisional Kino simulator: deliberately distinct from validated remuneration. */
+.scenario-warning{padding:13px 15px;background:#fff3db;border:1px solid #ead4a6;border-radius:14px;color:#795627;font-size:12px;line-height:1.65;margin:0}
+.scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.scenario-metric{display:flex;flex-direction:column;gap:8px;min-width:0;background:#fff;border:1px solid #dfebdf;border-radius:15px;padding:15px}
+.scenario-label{font-size:11px;letter-spacing:.045em;font-weight:650;color:#617b69}
+.scenario-amount{font-size:25px;line-height:1.1;color:#244132;font-weight:760;overflow-wrap:anywhere}
+.scenario-small{font-size:11px;color:#708476;line-height:1.5}
+.scenario-explainer,.scenario-final{font-size:12px;line-height:1.65;color:#547361;margin:0}
+.scenario-final{border-top:1px solid #dbe9dd;padding-top:14px}
+.scenario-coverage{padding:14px 16px;background:#f1f6f0;border:1px solid #dfebdf;border-radius:13px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.scenario-exclusions{padding-left:19px;margin:0;line-height:1.6;color:#617668;font-size:12px}
+.scenario-subtitle{font-size:16px;line-height:1.35;color:#203c2d;margin:7px 0 0}
+.scenario-order{border:1px solid #dfe9df;border-radius:13px;padding:14px 15px;background:#fff;display:flex;flex-direction:column;gap:5px}
+.scenario-order-line{display:flex;justify-content:space-between;gap:15px;align-items:center;flex-wrap:wrap;font-size:13px}
+@media(max-width:700px){.scenario-grid{grid-template-columns:1fr}.scenario-metric{gap:5px;padding:12px 15px}.scenario-amount{font-size:23px}}
