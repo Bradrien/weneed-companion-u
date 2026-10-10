@@ -3,6 +3,7 @@ import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
+import {renderCommissionScenario} from './commission-scenario-ui.mjs';
 import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
 const $=x=>document.getElementById(x);
 const state={access:null,refresh:null,exp:0,report:null,view:'home',period:prevCompleteMonth(),company:'ALL',orderState:'all',query:'',page:1,expanded:new Set(),loading:false,refreshTimer:null};
@@ -186,7 +187,7 @@ function openAuditOrder(order){
  document.querySelectorAll('[data-company]').forEach(button=>button.classList.toggle('active',button.dataset.company==='ALL'));
  navigate('orders');
 }
-function renderCommissions(){renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber});renderReconciliationAudit(state.report,$('commission-audit'),{empty,fmtNumber,onOpenOrder:openAuditOrder})}
+function renderCommissions(){renderCommissionScenario(state.report,$('commission-scenario'),{onOpenOrder:openAuditOrder});renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber});renderReconciliationAudit(state.report,$('commission-audit'),{empty,fmtNumber,onOpenOrder:openAuditOrder})}
 
 
 async function loadDashboard(){
