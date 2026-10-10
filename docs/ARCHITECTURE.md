@@ -112,3 +112,19 @@ npm run check:app
 - Régressions Node : origine autorisée, origine malveillante bloquée, absence de JWT, ping fictif valide et ancienne origine locale.
 - Test HTTP sur la vraie fonction : prévol CORS désormais **204** au lieu de 403 ; la plateforme Supabase peut générer un en-tête CORS générique pour la requête `OPTIONS`, distinct de celui de la fonction métier.
 - Un nouveau test depuis **Safari iPhone authentifié** reste nécessaire pour déterminer si les identifiants Odoo ou `ODOO_UID_PIN` sont refusés. Ce second problème est indépendant du CORS et n'est pas résolu par ce déploiement.
+
+## Audit Odoo/Kino D4 — septembre 2026
+
+Lors du premier rapprochement en lecture seule, l'application a montré **74 commandes** (24 GTA confirmées, 28 TR confirmées, 22 hors calcul), **71 lignes rapprochées sur 77 éligibles** et **6 lignes dont le produit Odoo ne fournit aucun SKU**. Aucune référence avec SKU n'est indiquée comme absente de Kino. Ces six lignes peuvent appartenir à moins de six produits distincts.
+
+Le rapport indique aussi **460 lignes détectées par mots-clés « sample » / « échantillon »** et **50 lignes de livraison**, comptées sur **tous les statuts** (confirmées, brouillons, annulées). Ces chiffres ne prouvent pas l'exclusion contractuelle de ces lignes des commissions. Le code serveur classe d'abord les libellés « sample » / « livraison » avant de consulter les montants ; une ligne facturée peut donc être classée « sample ». **Un audit de cette classification est obligatoire avant calcul.**
+
+Le nouveau module `assets/reconciliation.mjs` propose des détails directement sur la page *Commissions* :
+- commandes, noms de produits et montants des lignes éligibles sans SKU ;
+- sous-ensemble d'échantillons dans les commandes confirmées et d'échantillons avec HT positif, avec exemples ;
+- lignes de livraison confirmées et facturées, à confronter aux règles Kino ;
+- commandes confirmées à 0 €.
+
+Aucune modification d'Odoo ni calcul de commission dans ces fonctions de présentation. Tests Node purs et validation navigateur Chromium ajoutés. Une préversion isolée est publiée sous `validation-v12/?build=D4`, avec fichiers JS/CSS versionnés.
+
+**À valider ensuite :** relire les six lignes concrètes et confirmer que les produits sans SKU sont réellement vendus et non des erreurs de ligne ; distinguer la politique d'échantillons de la détection par mot-clé ; obtenir la méthode de calcul officielle GTA/TR, avec frais, avoirs et plafonds, avant toute estimation de rémunération.
