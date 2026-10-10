@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeClient360,proposePeriodOdooOrders} from '../assets/client-360-model.mjs';
+import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from '../assets/client-360-model.mjs';
 const id='fef12218-1111-4111-8111-bb011ac01ac0';
 const detail={profile:{id},business_objects:[{id:'obj-1',type:'invoice',key:'INV-1',status:'sent',amount:120,currency:'EUR'}],
   conversations:[{id:'c-1',source:'gmail',title:'Test conversation',last_event_at:'2026-09-25'}],
@@ -29,4 +29,28 @@ test('propose only exact normalized Odoo names, never child shops',()=>{
 });
 test('missing monthly report does not imply historical absence',()=>{
  assert.deepEqual(proposePeriodOdooOrders('Green Purple',null),[]);
+});
+
+test('partner id is read only evidence, not an automatic verified CRM link',()=>{
+ const orders={orders:[
+  {id:11,reference:'S111',company:'GTA',client:'Green Purple',state:'sale',partner_odoo_id:350},
+  {id:12,reference:'T222',company:'TR',client:'Green Purple',state:'cancel',partner_odoo_id:350},
+  {id:13,reference:'S333',company:'GTA',client:'Green Purple',state:'sale',partner_odoo_id:920}
+ ]};
+ const rows=proposePeriodOdooOrders('Green Purple',orders);
+ assert.equal(rows[0].partnerOdooId,350);
+ assert.equal(rows[1].partnerOdooId,350);
+ assert.equal(rows[1].state,'cancel');
+ const a=assessOdooPartnerCandidates(rows);
+ assert.equal(a.verified,false);
+ assert.equal(a.conflicting,true);
+ assert.deepEqual(a.distinctPartnerIds,[350,920]);
+});
+test('absent Odoo partner id never establishes a verified CRM link',()=>{
+ const rows=proposePeriodOdooOrders('Green Purple',{orders:[{
+  id:7,reference:'SO7',company:'GTA',client:'Green Purple',state:'sale',partner_odoo_id:null
+ }]});
+ assert.equal(rows[0].partnerOdooId,null);
+ assert.equal(assessOdooPartnerCandidates(rows).missingPartnerIds,1);
+ assert.equal(assessOdooPartnerCandidates(rows).verified,false);
 });
