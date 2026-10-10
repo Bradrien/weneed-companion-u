@@ -166,13 +166,15 @@ Deno.serve(async req=>{
      qty=Number(l.product_uom_qty),price=Number(l.price_unit),discount=Number(l.discount),
      sub=Number(l.price_subtotal),k=company+'|'+sku.toUpperCase(),matchedRow=catalog.get(k);
     let reason='not_eligible',est:null|number=null;
-    const eligible=!l.display_type&&sku&&qty>0&&price>=0&&sub>0&&
+    const billable=!l.display_type&&Number.isFinite(qty)&&qty>0&&
+      Number.isFinite(sub)&&sub>0&&
      !/sample|samples|échantillon|échantillons|delivery|shipping|livraison|transport/i.test(
        txt(product?.name)+' '+txt(l.name));
-    if(eligible){
+    if(billable){
      reason='missing_kino_match';unmatched++;
      const expected=qty*price*(1-discount/100);
-     if(!catalogAvailable)reason='catalog_unavailable';
+     if(!sku)reason='missing_odoo_sku';
+     else if(!catalogAvailable)reason='catalog_unavailable';
      else if(dupes.has(k))reason='ambiguous_sku';
      else if(!matchedRow)reason='missing_kino_match';
      else if(!['A','B'].includes(txt(matchedRow.tier)))reason='invalid_kino_tier';
@@ -197,8 +199,8 @@ Deno.serve(async req=>{
    const currency=name(o.currency_id);
    return {id:o.id,reference:txt(o.name).slice(0,100),date:txt(o.date_order).slice(0,19),
     company,client:name(o.partner_id).slice(0,140),state,invoice_status:invoiceStatus,
-    stage:status,currency,amount_ht:Number.isFinite(Number(o.amount_untaxed))?
-      Number(o.amount_untaxed):null,
+    stage:status,currency,amount_ht:typeof o.amount_untaxed==='number'&&Number.isFinite(o.amount_untaxed)?
+      o.amount_untaxed:null,
     forecast:matched>0&&currency==='EUR'?round2(sumCommission):null,
     matched_lines:matched,unmatched_lines:unmatched,lines:presented};
   });
