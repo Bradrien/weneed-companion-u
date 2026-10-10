@@ -60,3 +60,17 @@ test('Odoo commission gateway double-checks source states before returning offic
  assert.match(source,/new SafeError\('odoo_order_status_unverifiable',409\)/);
  assert.match(source,/source_order_status_rechecked:true,source_order_status_checked_at:statusCheckedAt/);
 });
+
+test('Odoo partner-history API is owner-only and cannot mutate Odoo or bind CRM identities',()=>{
+ const api=readFileSync(new URL('../supabase/functions/client-odoo-history/index.ts',import.meta.url),'utf8');
+ assert.match(api,/auth\.getUser\(jwt\)/);
+ assert.match(api,/acl\?\.role!=='owner'/);
+ assert.match(api,/acl\?\.is_active!==true/);
+ assert.match(api,/req\.method!=='GET'/);
+ assert.match(api,/partner_id/);
+ assert.match(api,/odoo_order_state_changed/);
+ assert.match(api,/identity_verified:false/);
+ assert.match(api,/\\['partner_id','=',partnerId\\]/);
+ assert.match(api,/\\['user_id','=',uid\\]/);
+ assert.doesNotMatch(api,/\\b(create|write|unlink)\\b['"]\\s*,/);
+});
