@@ -2,6 +2,7 @@ import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model.mjs';
 import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} from './client-360-model.mjs';
+import {normalizePartnerHistory} from './client-history-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -14,7 +15,7 @@ const clientRequests=createRequestGuard();
 const dashboardRequests=createRequestGuard();
 const odooProbeRequests=createRequestGuard();
 const dashboard={data:null,loading:false,error:''};
-const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',loading:false,error:'',timer:null};
+const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
 const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
@@ -24,7 +25,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -252,7 +253,7 @@ async function loadClients(){
 async function openClient(clientId){
  if(!validClientId(clientId)||!state.access)return;
  const ticket=clientRequests.begin();
- clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.error='';clients.loading=true;renderClients();
+ clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.error='';clients.loading=true;renderClients();
  try{
   const [card,full]=await Promise.allSettled([
    companionGet('/clients/'+encodeURIComponent(clientId)+'/card'),
@@ -321,6 +322,97 @@ function client360Section(full,error,crmName){
   full.staleTasks.map(t=>[t.title,[t.description,t.reason].filter(Boolean).join(' · ')]));
  return section;
 }
+
+function historyBounds(){
+ const today=new Date();
+ const to=today.toISOString().slice(0,10);
+ const from=new Date(Date.UTC(today.getUTCFullYear()-3,today.getUTCMonth(),1)).toISOString().slice(0,10);
+ return {from,to};
+}
+async function loadPartnerHistory(partnerId,clientId){
+ if(!state.access||!clients.selected||clients.selected!==clientId||
+   !Number.isSafeInteger(partnerId)||partnerId<=0||clients.historyLoading)return;
+ const ticket=clientRequests.current();
+ clients.historyPartner=partnerId;clients.history=null;clients.historyError='';clients.historyLoading=true;
+ renderClients();
+ try{
+  const {from,to}=historyBounds();
+  const jwt=await ensureToken();
+  const path='/functions/v1/client-odoo-history?partner_id='+partnerId+
+   '&from='+encodeURIComponent(from)+'&to='+encodeURIComponent(to);
+  const res=await authFetch(path,{headers:{authorization:'Bearer '+jwt}});
+  let body;try{body=await res.json()}catch{throw Error('invalid_response')}
+  if(!res.ok||body?.ok!==true)throw Error(body?.error||'history_unavailable');
+  const data=normalizePartnerHistory(body.data,partnerId);
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId||
+      clients.historyPartner!==partnerId)return;
+  clients.history=data;
+ }catch(error){
+  if(!clientRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  const codes={history_limit_exceeded:'Historique trop volumineux pour une seule consultation.',
+   odoo_order_state_changed:'Une commande a changé de statut. Réessaie.',
+   odoo_order_status_unverifiable:'Impossible de revérifier les statuts. Réessaie.',
+   odoo_auth_failed:'Identifiants du connecteur Odoo à vérifier.',
+   invalid_partner_history:'Historique reçu incohérent ; aucun montant n’est affiché.'};
+  clients.historyError=codes[error?.message]||'Historique Odoo indisponible pour le moment.';
+ }finally{
+  if(clientRequests.isCurrent(ticket)&&clients.selected===clientId){
+   clients.historyLoading=false;renderClients();
+  }
+ }
+}
+function clientHistoryPanel(partnerId){
+ const box=node('div','client-history-panel');
+ box.append(node('h4','','Historique des commandes · partenaire Odoo #'+partnerId));
+ box.append(node('p','client-provenance',
+  'Lecture des trois dernières années, limitée aux commandes de ton compte commercial GTA/TR. Correspondance CRM ↔ Odoo non encore validée. Aucun montant de commission calculé.'));
+ if(clients.historyPartner===partnerId&&clients.historyLoading){
+  box.append(node('p','client-quiet','Consultation de l’historique Odoo en cours…'));
+  return box;
+ }
+ if(clients.historyPartner===partnerId&&clients.historyError){
+  box.append(node('p','client-source-warning',clients.historyError));
+ }
+ const h=clients.historyPartner===partnerId?clients.history:null;
+ if(!h){
+  const btn=node('button','secondary-button','Consulter les commandes sur 3 ans');
+  btn.type='button';btn.addEventListener('click',()=>loadPartnerHistory(partnerId,clients.selected));
+  box.append(btn);
+  return box;
+ }
+ const summary=node('p','client-history-summary',
+  h.orders.length+' commande(s) · '+h.statuses.confirmed+' confirmée(s) · '+
+  h.statuses.cancelled+' annulée(s) · '+h.statuses.other+' autres · vérifié le '+
+  new Date(h.checkedAt).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}));
+ box.append(summary);
+ if(h.totals)box.append(node('p','client-provenance',
+  'Ventes HT confirmées dans cet historique : GTA '+formatMoney(h.totals.GTA,'EUR')+
+  ' · TR '+formatMoney(h.totals.TR,'EUR')+'. Ni encaissements ni commissions.'));
+ else box.append(node('p','client-source-warning',
+  'Total HT non affiché : certaines commandes ont une devise ou un montant manquant.'));
+ if(!h.orders.length){box.append(node('p','client-quiet','Aucune commande trouvée pour cet identifiant dans la période.'));return box}
+ const byYear=new Map();
+ for(const row of h.orders){
+  const year=row.date.slice(0,4);
+  if(!byYear.has(year))byYear.set(year,[]);
+  byYear.get(year).push(row);
+ }
+ for(const [year,orders] of byYear){
+  const group=node('details','client-history-year');
+  if(byYear.size===1||year===h.orders[0].date.slice(0,4))group.open=true;
+  group.append(node('summary','',year+' · '+orders.length+' commande(s)'));
+  for(const row of orders){
+   const item=node('article','client-history-order');
+   item.append(node('strong','',row.reference+' · '+row.company+' · '+statusText(row.state)));
+   item.append(node('small','',
+    [shortDate(row.date),row.amount!==null&&row.currency?formatMoney(row.amount,row.currency):'Montant absent'].join(' · ')));
+   group.append(item);
+  }
+  box.append(group);
+ }
+ return box;
+}
+
 function clientPeriodOrders(name){
  const section=node('section','client-section client-odoo');
  section.append(node('h3','','Commandes Odoo · période analysée'));
@@ -354,6 +446,8 @@ function clientPeriodOrders(name){
   btn.type='button';btn.addEventListener('click',()=>openAuditOrder(o));
   entry.append(btn);section.append(entry);
  }
+ if(!identity.conflicting&&identity.missingPartnerIds===0&&identity.distinctPartnerIds.length===1)
+  section.append(clientHistoryPanel(identity.distinctPartnerIds[0]));
  return section;
 }
 
@@ -369,7 +463,7 @@ function renderClients(){
  if(inDetail){
   count.textContent='';
   const back=node('button','secondary-button','← Retour aux clients');
-  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.loading=false;clients.error='';renderClients()});
+  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.loading=false;clients.error='';renderClients()});
   details.append(back);
   if(clients.loading){details.append(empty('Chargement de la fiche client…'));return}
   if(clients.error){details.append(empty(clients.error));return}
