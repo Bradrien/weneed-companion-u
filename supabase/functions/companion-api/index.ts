@@ -136,7 +136,16 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       if (!data) return json({ ok: false, error: "client_not_found" }, 404);
 
-      return json({ ok: true, data });
+      const { data: links, error: linkError } = await sb
+        .from("crm_odoo_partner_links")
+        .select("partner_odoo_id,confirmed_at,confirmed_by")
+        .eq("client_id", clientId)
+        .eq("status", "active")
+        .limit(2);
+      if (linkError) throw linkError;
+      if ((links?.length ?? 0) > 1) return json({ ok: false, error: "client_odoo_link_conflict" }, 409);
+      const link = links?.[0] ?? null;
+      return json({ ok: true, data: { ...data, odoo_partner_link: link } });
     }
 
     if (route[0] === "clients" && route.length === 2) {
