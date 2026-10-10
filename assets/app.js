@@ -332,7 +332,7 @@ function historyBounds(){
 async function loadPartnerHistory(partnerId,clientId){
  if(!state.access||!clients.selected||clients.selected!==clientId||
    !Number.isSafeInteger(partnerId)||partnerId<=0||clients.historyLoading)return;
- const ticket=clientRequests.current();
+ const ticket=clientRequests.begin();
  clients.historyPartner=partnerId;clients.history=null;clients.historyError='';clients.historyLoading=true;
  renderClients();
  try{
