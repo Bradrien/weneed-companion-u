@@ -59,3 +59,11 @@ Le propriétaire confirme que **l'ancien Cockpit continue à actualiser les comm
 - L'ancien dépôt contient un identifiant sensible en clair. Prévoir rotation et retrait de ce secret de l'historique du dépôt, avec vérification de toutes les dépendances avant suppression ; le vieux script désactive également la validation du certificat SSL, ce qui exige une correction séparée.
 
 Préversion D3 : https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D3-20261010
+
+## Conclusion diagnostic D3 et empreintes des secrets (10 octobre 2026)
+
+La préversion D3 a renvoyé `ping: odoo_credentials_rejected (502)`, puis `credential_probe: odoo_pinned_read_rejected (502)` après configuration de l'UID PIN à 13. Le premier résultat confirme qu'Odoo ne résout pas l'authentification `common.authenticate`. Le second confirme que la lecture `sale.order.search_read` avec l'UID 13 et la clé Supabase échoue aussi, sans distinguer une clé invalide de permissions insuffisantes dans le détail de l'erreur.
+
+Les empreintes SHA-256 affichées par le Dashboard Supabase ont été comparées localement aux valeurs de référence de l'URL, de la base `weneedweed`, du login `ah@weneedweed.eu`, de la clé transmise par le propriétaire et de l'UID PIN `13`. **Les cinq correspondances sont exactes.** Aucun secret brut ni aucune empreinte de clé n'est publié dans ce document. La faute de frappe dans les secrets Supabase peut être écartée ; cela ne prouve pas la validité de la clé dans Odoo.
+
+L'ancien Cockpit utilise une authentification différente : UID 13 et mot de passe en clair, avec `execute_kw` direct. Son succès continu n'établit donc pas que la clé API Supabase est acceptée. Ne pas reprendre le mot de passe dans une nouvelle application. La prochaine étape utile est **la création d'une clé API neuve rattachée au compte utilisateur Odoo correct**, sa mise en place uniquement dans le secret `ODOO_API_KEY` de Supabase, puis un test `ping` et `orders_probe`. Si cela échoue, examiner le login réel et les droits du compte. Le domaine, la base et l'UID n'ont pas à être modifiés par tâtonnement.
