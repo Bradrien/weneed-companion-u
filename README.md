@@ -60,3 +60,16 @@ L'interface invalide les réponses de rapports antérieurs lors d'un changement 
 
 Si un message d'erreur apparaît, conserver le texte pour diagnostic. Les tests réels nécessitent le JWT de la session utilisateur, non communicable dans le chat.
 
+
+## CRM mobile — branche de validation
+
+Cette branche ajoute, en **lecture seule et derrière Supabase Auth**, un onglet « Clients » :
+recherche de boutiques, fiches commerciales (contacts, mémoire, actions à suivre, activité récente) et panneau CRM indépendant d'Odoo sur l'accueil.
+
+Les données CRM sont récupérées depuis `companion-api` avec le jeton de la session propriétaire et ne sont pas conservées dans `localStorage`. Les valeurs métier sont affichées comme texte, sans injection HTML. L'API serveur vérifie l'accès avant d'utiliser les fonctions SQL privées.
+
+Les contrôles automatiques comprennent les scénarios de déconnexion pendant le renouvellement de session, les données CRM incohérentes, les références des éléments HTML et les gardes de commissions. Exécuter `npm run check:app` en plus de `npm test` et `npm run check:bridge`.
+
+**Ce n'est pas encore la version GitHub Pages en production.** L'interface CRM nécessite une validation sur Safari iPhone avec le compte propriétaire avant fusion. L'extension Kino 0.7 reste également candidate.
+
+[Cartographie de l'architecture et plan de validation](docs/ARCHITECTURE.md).
