@@ -3,7 +3,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2';
 const env=(key:string)=>Deno.env.get(key)||'';
 const CORS={'access-control-allow-origin':'https://bradrien.github.io','vary':'Origin',
- 'access-control-allow-methods':'POST,OPTIONS',
+ 'access-control-allow-methods':'GET,POST,OPTIONS',
  'access-control-allow-headers':'authorization,apikey,content-type,x-client-info'};
 const HEAD={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'};
 const UUID=/^[\da-f]{8}-[\da-f]{4}-[1-5][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i;
@@ -78,10 +78,12 @@ Deno.serve(async req=>{
  const send=(status:number,data:unknown)=>new Response(JSON.stringify(data),{status,headers});
  if(origin&&origin!=='https://bradrien.github.io')return send(403,{ok:false,error:'origin_not_allowed'});
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
- if(req.method!=='POST')return send(405,{ok:false,error:'method_not_allowed'});
- if(req.headers.get('content-type')?.split(';')[0]?.trim()!=='application/json')
-  return send(415,{ok:false,error:'json_required'});
- if(Number(req.headers.get('content-length')||0)>2500)return send(413,{ok:false,error:'payload_too_large'});
+ if(req.method!=='POST'&&req.method!=='GET')return send(405,{ok:false,error:'method_not_allowed'});
+ if(req.method==='POST'){
+  if(req.headers.get('content-type')?.split(';')[0]?.trim()!=='application/json')
+   return send(415,{ok:false,error:'json_required'});
+  if(Number(req.headers.get('content-length')||0)>2500)return send(413,{ok:false,error:'payload_too_large'});
+ }
  const token=req.headers.get('authorization')?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
  if(!token)return send(401,{ok:false,error:'session_required'});
  const base=env('SUPABASE_URL');let keyBag:Record<string,string>={};
@@ -97,6 +99,41 @@ Deno.serve(async req=>{
    .select('role,is_active').eq('email',auth.user.email.toLowerCase()).maybeSingle();
   if(ownerError||owner?.role!=='owner'||owner?.is_active!==true)
    return send(403,{ok:false,error:'owner_only'});
+  if(req.method==='GET'){
+   const url=new URL(req.url);
+   for(const name of url.searchParams.keys())
+    if(name!=='client_id'||url.searchParams.getAll(name).length!==1)
+     return send(400,{ok:false,error:'invalid_query'});
+   const clientId=url.searchParams.get('client_id');
+   if(!clientId||!UUID.test(clientId))return send(400,{ok:false,error:'invalid_client_id'});
+   const {data:client,error:clientError}=await sb.from('clients')
+    .select('canonical_name').eq('id',clientId).maybeSingle();
+   if(clientError||!client)return send(404,{ok:false,error:'client_not_found'});
+   const exactName=client.canonical_name;
+   const c=cfg(),uid=await rpc(c,'common','authenticate',[c.db,c.login,c.pass,{}]);
+   if(!id(uid)||(env('ODOO_UID_PIN')&&String(uid)!==env('ODOO_UID_PIN')))
+    throw new SafeError('odoo_auth_failed',502);
+   // Exact Odoo partner name, never fuzzy or substring. Results are proposals only.
+   const rows=await rpc(c,'object','execute_kw',[c.db,uid,c.pass,'sale.order',
+    'search_read',[[['user_id','=',uid],['partner_id.name','=',exactName]]],
+    {fields:['id','partner_id','date_order'],order:'date_order desc',limit:120}]);
+   if(!Array.isArray(rows)||rows.length>120)throw new SafeError('invalid_odoo_candidates',502);
+   const grouped=new Map<number,{partner_odoo_id:number,name:string,examples:number,last_date:string}>();
+   for(const row of rows){
+    if(!id(row?.id)||!Array.isArray(row.partner_id)||!id(row.partner_id[0])||
+     typeof row.partner_id[1]!=='string')continue;
+    if(canon(row.partner_id[1])!==canon(exactName))continue;
+    const n=row.partner_id[0];let item=grouped.get(n);
+    if(!item){item={partner_odoo_id:n,name:row.partner_id[1].slice(0,160),examples:0,
+     last_date:String(row.date_order||'').slice(0,10)};grouped.set(n,item)}
+    item.examples++;
+   }
+   return send(200,{ok:true,data:{
+    client_id:clientId,candidates:[...grouped.values()].slice(0,12),
+    matching:'exact_partner_name_and_salesperson_orders',
+    complete:false,verified:false,
+    sampled_orders:rows.length}});
+  }
   let input:any;
   try{
    const raw=await req.text();
