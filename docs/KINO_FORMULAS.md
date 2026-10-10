@@ -63,3 +63,18 @@ Les neuf tests de régression couvrent ces montants, catégories A/B, plafonds, 
 5. Garder la commission de septembre au statut **simulation non validée** tant que la traçabilité des commandes et l'alignement sur les règles serveur ne sont pas établis.
 
 Aucune modification d'Odoo et aucun calcul de paiement n'ont été déclenchés par l'extraction.
+
+## D7 — Scénario hypothétique sur les lignes Odoo rapprochées
+
+Une première connexion entre le moteur de simulation navigateur Kino et les commandes Odoo existe **uniquement dans le navigateur du propriétaire connecté**, et **ne nécessite aucune écriture Odoo**.
+
+- Moteur : `assets/commission-scenario.mjs`. Présentation DOM sûre : `assets/commission-scenario-ui.mjs`.
+- Affichage par **GTA**, **TR**, total théorique partiel, nombre de lignes simulées, motifs et décompte de lignes écartées, montant par commande et accès à la commande source.
+- Ne simule que les lignes des commandes `sale` / `done`, `kind='candidate'`, `catalog_match.status='matched'`, catégorie A/B et coût / prix de catalogue strictement positifs. Les commandes au total source incohérent sont exclues.
+- **Prix de vente effectif** = sous-total HT Odoo / quantité Odoo. Contrôle la cohérence avec prix unitaire × (1 − remise/100) × quantité, tolérance maximale 0,03 €.
+- La **même unité** est **supposée** pour le coût du catalogue Kino et la quantité Odoo : le snapshot courant du catalogue ne contient ni unité de facturation ni coefficient de conversion. **Cette condition n'est pas vérifiée**, d'où le titre « Simulation conditionnelle — non acquise ». Des écarts potentiellement majeurs existent si le coût est par gramme et le prix par lot.
+- Le SPIFF reste désactivé. Les 6 lignes sans SKU Odoo, les échantillons et livraisons, les commandes à 0 €, celles hors vente confirmée, les devises non EUR et les chiffres incohérents restent hors du scénario.
+- Les montants sont agrégés **avant tout arrondi** conformément au calculateur Kino. Le total scénario n’est ni un montant validé, ni un paiement ou une dette.
+- Les fonctions Kino serveur `importOdooSales` et `recalcBatch` restent inaccessibles ; les avoirs, commissions acquises, validation commerciale, et le traitement officiel des frais / échantillons ne sont pas reproduits.
+
+**Prérequis à une rémunération suffisamment fiable :** relever les unités de facturation et les poids dans Kino, ainsi que l'unité Odoo, tester leur compatibilité par SKU et vérifier les règles serveur Kino. La préversion D7 ne modifie jamais les valeurs `commission_eur:null` du rapport source.
