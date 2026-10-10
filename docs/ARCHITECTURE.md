@@ -141,3 +141,13 @@ La lecture réelle de septembre 2026 indique six lignes sans SKU réparties sur 
 - Préversion sur GitHub Pages : `validation-v12/?build=D5`, scripts et styles versionnés pour contourner le cache iOS.
 
 Les informations détaillées des clients et les descriptions commerciales restent dans le rapport privé de la session navigateur ; elles ne sont pas copiées dans le dépôt public.
+
+## D6 — vérification de codes candidats dans le vrai catalogue Kino
+
+- Vérification SQL, snapshot Kino complet daté du 10 octobre : les quatre codes candidats `GTA:TT/G`, `TR:PEB/G/TR/250`, `TR:TT/+/G/TR/250` et `TR:TT/+/G/TR/50` existent exactement dans le catalogue de leur société.
+- Les six lignes Odoo restent **officiellement sans SKU**, pour **3 000 € HT de ventes Odoo concernées** ; la correspondance dans la description produit ne remplace pas la référence interne Odoo et ne prouve pas la commission due.
+- `commission-catalog-review` **v5**, déployée, retourne pour chaque ligne sans SKU une **suggestion exacte de catalogue** uniquement si la description commence par `[SKU]`. La recherche vérifie la société et les doublons, et ne change pas `catalog_matching` ni `commission_eur:null`.
+- L'audit mobile affiche la suggestion « référence exacte trouvée dans Kino », ou l'incertitude si elle n'est pas retrouvée. Aucun SKU et aucun montant de commission ne sont modifiés côté Odoo.
+- Préversion isolée D6 : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D6`. Navigation vers les commandes conservée.
+- Les règles de calcul Kino GTA/TR, la politique d'échantillons et les éventuels avoirs restent **à valider** avant tout montant de commission.
+
