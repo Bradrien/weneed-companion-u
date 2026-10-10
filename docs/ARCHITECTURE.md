@@ -104,3 +104,11 @@ npm run check:app
 - Le navigateur de validation automatisé n'utilise que des données synthétiques et ne produit aucune écriture métier.
 - Les deux changements Edge Functions limités sont déployés : contrôle explicite de l'accès propriétaire et journalisation d'un code d'erreur en cas d'échec du rapprochement.
 - **À faire :** ouvrir la préversion dans un profil navigateur authentifié, tester les clients et exécuter « Vérifier l'accès Odoo » ; utiliser ensuite les journaux sécurisés pour le 502.
+
+### Incident CORS Odoo sur iPhone (10 octobre 2026)
+
+- L'écran D2 montrait `ping · network_error`. Les journaux `odoo-read` v9 ont confirmé des requêtes `OPTIONS` rejetées avec **403**, avant toute authentification Odoo.
+- Correction chirurgicale déployée dans **`odoo-read` v10** : autorisation de l'origine exacte `https://bradrien.github.io` pour la préversion et le site principal, sans `*` dans le code métier, et en conservant les vérifications JWT propriétaire et le mode lecture seule. Aucun secret Odoo n'a été modifié.
+- Régressions Node : origine autorisée, origine malveillante bloquée, absence de JWT, ping fictif valide et ancienne origine locale.
+- Test HTTP sur la vraie fonction : prévol CORS désormais **204** au lieu de 403 ; la plateforme Supabase peut générer un en-tête CORS générique pour la requête `OPTIONS`, distinct de celui de la fonction métier.
+- Un nouveau test depuis **Safari iPhone authentifié** reste nécessaire pour déterminer si les identifiants Odoo ou `ODOO_UID_PIN` sont refusés. Ce second problème est indépendant du CORS et n'est pas résolu par ce déploiement.
