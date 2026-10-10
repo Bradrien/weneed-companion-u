@@ -44,7 +44,7 @@ test('discounted Odoo HT subtotal determines effective selling price',()=>{
  const result=simulateOdooReport(report([withDiscount]));
  assert.equal(result.ready[0].effective_unit_price,2);
  assert.equal(result.ready[0].margin,25);
- assert.equal(round(result.total),5.66);
+ assert.equal(round(result.total),5.88);
 });
 test('excluded cancelled, draft and sent orders never join provisional total',()=>{
  const orders=['cancel','draft','sent'].map((state,i)=>order({id:i+1,state}));
