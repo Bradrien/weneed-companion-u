@@ -51,3 +51,12 @@ test('catalogue gateway only suggests bracket-prefixed SKUs when official Odoo S
  assert.match(source,/matching\[catalog_match\.status\]\+\+/);
  assert.match(source,/verified_commissions_eur:null,commissions_are_calculated:false/);
 });
+
+test('Odoo commission gateway double-checks source states before returning official report',()=>{
+ const source=readFileSync(new URL('../supabase/functions/commission-catalog-review/index.ts',import.meta.url),'utf8');
+ assert.match(source,/const latest=await readPages\(cfg,uid,'sale\.order'/);
+ assert.match(source,/orders\.some\(order=>states\.get\(order\.id\)!==order\.state\)/);
+ assert.match(source,/new SafeError\('odoo_order_state_changed',409\)/);
+ assert.match(source,/new SafeError\('odoo_order_status_unverifiable',409\)/);
+ assert.match(source,/source_order_status_rechecked:true,source_order_status_checked_at:statusCheckedAt/);
+});
