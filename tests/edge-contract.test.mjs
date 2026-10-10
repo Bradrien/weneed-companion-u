@@ -40,3 +40,14 @@ test('Odoo login diagnostic distinguishes pin mismatch without logging user IDs 
  assert.match(source,/const credentialsAccepted=Number\.isSafeInteger\(uid\)&&uid>0/);
  assert.doesNotMatch(source,/console\.error\('commission_odoo_auth_reason',[^;]*\buid\b/);
 });
+
+test('catalogue gateway only suggests bracket-prefixed SKUs when official Odoo SKU is missing',()=>{
+ const source=readFileSync(new URL('../supabase/functions/commission-catalog-review/index.ts',import.meta.url),'utf8');
+ assert.match(source,/function candidateFromDescription\(company,productName,catalog\)/);
+ assert.match(source,/catalog\.byKey\.get\(k\)/);
+ assert.match(source,/status:'found'/);
+ assert.match(source,/if\(catalog_match\.status==='missing_sku'\)/);
+ assert.match(source,/catalog_match\.candidate=candidate/);
+ assert.match(source,/matching\.matched/);
+ assert.match(source,/verified_commissions_eur:null,commissions_are_calculated:false/);
+});
