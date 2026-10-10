@@ -243,7 +243,7 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   };
   searchInput.oninput=()=>{search=searchInput.value;draw()};
   filterSelect.onchange=()=>{filter=filterSelect.value;draw()};
-  divider.append(searchInput,filterSelect,counter,list);host.append(divider);
+  divider.append(searchInput,filterSelect,counter,list);host.append(divider);draw();
   const found=derived.clients.find(p=>p.id===selected);
   if(found)host.append(detail(found));
   else host.append(el('p','strategy-note','Sélectionne une fiche pour lire son diagnostic détaillé et tester une remise.'));
