@@ -12,10 +12,19 @@ test('Link writes require verified owner, explicit confirmation and source order
 });
 test('Link endpoint does not modify source Odoo and allows only POST',()=>{
  const s=read();
- assert.match(s,/req.method!=='POST'/);
+ assert.match(s,/req.method!=='POST'&&req.method!=='GET'/);
  assert.match(s,/crm_odoo_partner_links/);
  assert.match(s,/res\.partner/);
  assert.doesNotMatch(s,/['"](?:write|unlink|create)['"]\s*,/);
  assert.match(s,/status:'revoked'/);
  assert.match(s,/cache-control':'no-store'/);
+});
+
+test('Candidate discovery is GET and must scope Odoo matches to the salesperson and exact partner name',()=>{
+ const s=read();
+ assert.match(s,/req.method==='GET'/);
+ assert.ok(s.includes("['partner_id.name','=',exactName]"));
+ assert.ok(s.includes("['user_id','=',uid]"));
+ assert.match(s,/matching:'exact_partner_name_and_salesperson_orders'/);
+ assert.match(s,/complete:false,verified:false/);
 });
