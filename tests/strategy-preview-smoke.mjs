@@ -104,7 +104,7 @@ try{
  assert.match(await page.locator('#manual-quotes-root').innerText(),/210/);
  assert.equal(quoteRows.length,1);
  await page.locator('.quote-row button').first().click();
- await page.getByLabel('Statut').selectOption('valide');
+ await page.locator('#manual-quotes-root').getByLabel('Statut').selectOption('valide');
  await page.locator('.quote-form button[type="submit"]').click();
  await page.getByText('Validé · 1').waitFor({state:'visible'});
  assert.equal(quoteRows[0].status,'valide');
