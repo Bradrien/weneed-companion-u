@@ -146,7 +146,7 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   }else box.append(el('p','strategy-note','Pas assez de données Odoo attribuées pour calculer le mix TR/GTA.'));
   box.append(item('Tendance récente',
    p.verifiedOdooLink&&p.odooAvailable?'CA 90 derniers jours '+cash(p.salesRecent90)+
-   ' · 90 jours précédents '+cash(p.salesPrior90)+' (ne constitue pas une prévision)':'Indéterminée')),
+   ' · 90 jours précédents '+cash(p.salesPrior90)+' (ne constitue pas une prévision)':'Indéterminée'),
    item('Activité relationnelle',p.lastWhatsappAt?
     p.whatsappTexts+' messages texte approuvés · dernier '+date(p.lastWhatsappAt):
     'Aucun texte WhatsApp vérifié relié à cette fiche'),
