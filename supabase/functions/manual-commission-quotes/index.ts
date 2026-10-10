@@ -44,7 +44,7 @@ function clean(raw:unknown){
  return {reference,client_name:clientName,client_id:raw.client_id||null,
   company,quote_date:raw.quote_date,expected_decision_at:raw.expected_decision_at||null,
   status,amount_ht:amountHT,commission_amount:estimated,calculation_source:'manual_quote_d20',
-  source_payload:{notes,products:productSummary,origin:'manual_entry',commission_estimate_verified:false}};
+  source_payload:{notes,products:productSummary,origin:'manual_entry',commission_estimate_verified:false} as Record<string,unknown>};
 }
 
 type SB = ReturnType<typeof createClient>;
