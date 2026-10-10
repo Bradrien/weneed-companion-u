@@ -20,8 +20,8 @@ try{
  await page.waitForTimeout(500);
  assert.match(await page.title(),/préversion V1\.2/);
  assert.match(await page.locator('body').innerText(),/PRÉVERSION V1\.2/);
- assert.match(await page.locator('body').innerText(),/diagnostic D2/,'Cache-busted preview marker not published');
- assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-diagnostic-20261010-1239\.js/,'Old iPhone JS still referenced');
+ assert.match(await page.locator('body').innerText(),/diagnostic D3/,'Cache-busted preview marker not published');
+ assert.match(await page.locator('script[type="module"]').getAttribute('src'),/app-credential-probe-20261010\.js/,'Old iPhone JS still referenced');
  assert.equal(await page.locator('#login-panel').isVisible(),true);
  assert.equal(await page.locator('#app-panel').isVisible(),false);
  assert.equal(await page.locator('#bottom-nav').isVisible(),false);
