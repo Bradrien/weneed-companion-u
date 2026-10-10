@@ -89,3 +89,17 @@ test('six missing order lines collapse to four company-scoped SKU candidates',()
  assert.equal(groups.find(g=>g.candidate==='PEB/G/TR/250').count,2);
  assert.equal(groups.some(g=>g.currency!=='EUR'),false);
 });
+
+test('catalogue suggestions count only validated exact candidate metadata, not missing-SKU matches',()=>{
+ const o=make('sale','GTA',80,[{id:42,kind:'review',line_ht:80,
+   product_name:'[TT/G] Fictitious product',catalog_match:{
+     status:'missing_sku',candidate:{sku:'TT/G',status:'found',catalog_name:'Fictitious Kino match',tier:'A',category:'GR'}
+   }}],'SO-FAKE');
+ const [g]=groupMissingSkuCandidates({orders:[o]});
+ assert.equal(g.count,1);
+ assert.equal(g.catalogFound,1);
+ assert.deepEqual(g.catalogNames,['Fictitious Kino match']);
+ const mismatched=structuredClone(o);
+ mismatched.lines[0].catalog_match.candidate.sku='NOT-TT/G';
+ assert.equal(groupMissingSkuCandidates({orders:[mismatched]})[0].catalogFound,0);
+});
