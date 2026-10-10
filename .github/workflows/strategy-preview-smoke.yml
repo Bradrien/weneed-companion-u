@@ -1,0 +1,22 @@
+name: Strategy D19 mobile preview
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'validation-v12/**'
+      - 'tests/strategy-preview-smoke.mjs'
+      - '.github/workflows/strategy-preview-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  strategy-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/strategy-preview-smoke.mjs
