@@ -140,7 +140,11 @@ export function buildStrategy(data,months=12,now=new Date().toISOString()){
   gta=positive.filter(o=>o.company==='GTA').reduce((x,o)=>x+o.amount_ht,0),
   tr=sum-gta,wa=waMap.get(c.id),mem=memMap.get(c.id),
   hasLink=[...verifiedByPartner.values()].includes(c.id);
+  const candidateOdooPartners=!hasLink?[...unlinked.values()].filter(u=>
+   norm(u.partnerName)===norm(c.canonical_name)).slice(0,5).map(u=>({
+    partnerId:u.partnerId,partnerName:u.partnerName,proposedOnly:true})):[];
   const p={id:c.id,name:String(c.canonical_name||'Client sans nom').slice(0,150),
+   candidateOdooPartners,
    crmStatus:String(c.status||''),verifiedOdooLink:hasLink,odooAvailable,
    verifiedOrderCount:positive.length,nonPositiveOrderCount:rows.length-positive.length,
    revenueHT:odooAvailable&&hasLink?money(sum):null,
