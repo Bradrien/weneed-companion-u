@@ -1,0 +1,36 @@
+name: Mobile browser smoke test
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'assets/**'
+      - 'tests/browser-smoke.mjs'
+      - '.github/workflows/browser-smoke.yml'
+  push:
+    branches: [main, 'codex/**']
+    paths:
+      - 'index.html'
+      - 'assets/**'
+      - 'tests/browser-smoke.mjs'
+      - '.github/workflows/browser-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  mobile-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p artifacts && node tests/browser-smoke.mjs
+      - name: Upload synthetic mobile screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-smoke-screenshot
+          path: artifacts/companion-mobile-smoke.png
+          if-no-files-found: ignore
