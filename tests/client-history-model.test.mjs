@@ -64,3 +64,23 @@ test('name match alone never means verified company identity',()=>{
  assert.equal(assessment.emailMatch,false);
  assert.equal(assessment.verified,false);
 });
+
+test('Odoo partner diagnostics are explicit but never validate CRM identity',()=>{
+ const unavailable=normalizePartnerHistory({...candidate,partner:null,
+  partner_diagnostic:'odoo_partner_read_rejected'},3277);
+ assert.equal(unavailable.partner,null);
+ assert.equal(unavailable.partnerDiagnostic,'odoo_partner_read_rejected');
+ assert.equal(unavailable.identityVerified,false);
+ assert.equal(unavailable.orders.length,3);
+ const partial=normalizePartnerHistory({...candidate,partner:{id:3277,name:'Green Purple'},
+  partner_diagnostic:'name_only'},3277);
+ assert.equal(partial.partner.name,'Green Purple');
+ assert.equal(partial.partnerDiagnostic,'name_only');
+ assert.equal(partial.partner.email,'');
+ for(const diagnostic of ['injected_status','owner_only','ok']){
+  assert.throws(()=>normalizePartnerHistory({...candidate,partner_diagnostic:diagnostic},3277),
+   /invalid_partner_history/);
+ }
+ assert.throws(()=>normalizePartnerHistory({...candidate,partner_diagnostic:'not_visible',
+  partner:{id:3277,name:'Green Purple'}},3277),/invalid_partner_history/);
+});
