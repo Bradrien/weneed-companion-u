@@ -78,3 +78,16 @@ Une première connexion entre le moteur de simulation navigateur Kino et les com
 - Les fonctions Kino serveur `importOdooSales` et `recalcBatch` restent inaccessibles ; les avoirs, commissions acquises, validation commerciale, et le traitement officiel des frais / échantillons ne sont pas reproduits.
 
 **Prérequis à une rémunération suffisamment fiable :** relever les unités de facturation et les poids dans Kino, ainsi que l'unité Odoo, tester leur compatibilité par SKU et vérifier les règles serveur Kino. La préversion D7 ne modifie jamais les valeurs `commission_eur:null` du rapport source.
+
+## D8 — Contrôle renforcé des statuts Odoo et commandes annulées
+
+Le propriétaire a signalé des commandes considérées comme « Annulées » dans l'interface Odoo alors qu'elles semblent figurer dans la simulation de septembre. Le code D7 incluait déjà exclusivement les commandes dont `sale.order.state` était `sale` ou `done`. Sans référence précise ni copie du statut de la fiche Odoo, la cause de l'incohérence n'est **pas déterminée**. Une annulation peut intervenir après la lecture, ou le statut observé peut être celui de la facture/livraison plutôt que de la commande.
+
+- La passerelle `commission-catalog-review` **v6** lit une seconde fois `sale.order` (`id`, `state`) **après** le chargement des lignes et des produits. Si une commande manque, change de statut ou renvoie des statuts impossibles à vérifier, la passerelle refuse le rapport avec une erreur contrôlée `odoo_order_state_changed` ou `odoo_order_status_unverifiable` (HTTP 409). Aucun état financier n'est calculé.
+- Lorsqu'une relecture cohérente réussit, le rapport indique `source_order_status_rechecked:true` et `source_order_status_checked_at`. Cette vérification est **ponctuelle**, pas une garantie permanente : une annulation ultérieure peut survenir.
+- Le simulateur ne montre des montants que si ces deux champs existent et sont valides. Les rapports antérieurs sans preuve de relecture n'affichent plus de scénario chiffré.
+- La préversion **D8** affiche l'horodatage de la vérification Odoo et la liste des commandes dont le statut source est `cancel`, toujours exclues des montants. Le statut des commandes intégrées est présenté comme confirmé à la date de lecture.
+- Tests : rejet sans preuve de relecture, exclusion des commandes annulées, invariance du rapport source, contrôle statique de la passerelle, test Chromium mobile.
+- Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D8`.
+
+**À investiguer avec le propriétaire :** recueillir 1 à 3 références de commandes qu'il voit comme annulées dans Odoo, cliquer sur « Voir la commande » dans D8 après ↻, comparer les champs `sale.order.state` et les dates de dernière modification. Les remboursements ou avoirs sur une commande encore au statut `sale` nécessitent un contrôle distinct des factures et écritures comptables ; D8 ne le fait pas.
