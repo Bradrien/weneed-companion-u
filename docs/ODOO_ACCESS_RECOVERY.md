@@ -31,3 +31,13 @@ Sources officielles :
 - Les fonctions restent limitées aux JWT des propriétaires.
 - Aucune valeur d'API key dans le dépôt, les fichiers de log ou les messages.
 - Ne pas confondre mot de passe de Companion et API key Odoo.
+
+## Nouvel indice — clé potentiellement valable un jour
+
+- L'utilisateur confirme le 10 octobre que la clé API renseignée dans Supabase était déjà celle de la configuration initiale ; **remplacer le secret par la même chaîne n'apporterait aucune correction**.
+- Les journaux de `odoo-read` affichent **36 GET 200 le 9 octobre 2026 entre 12:30 et 14:00 UTC**. Le 10 octobre, `odoo-read` v11 renvoie `odoo_credentials_rejected` après résolution des requêtes CORS 403.
+- D'après la documentation officielle Odoo 19, la durée de validité d'une clé est choisie lors de sa génération ; **une durée d'un jour est explicitement recommandée pour l'usage interactif** et la limite standard est de trois mois. **Si une durée d'un jour a été choisie la veille**, l'expiration expliquerait précisément la chronologie observée, mais n'est pas encore démontrée.
+- **Priorité :** vérifier dans Odoo **Mon profil → Sécurité du compte → Clés API** la date d'expiration de la clé utilisée par Companion avant de modifier des secrets ou les noms de base/login. Si expirée, créer une nouvelle clé dédiée pour le même utilisateur avec une validité adaptée à l'intégration et prévoir sa rotation, puis l'enregistrer uniquement dans le secret `ODOO_API_KEY` via Supabase Dashboard.
+- Ne pas publier ou coller la nouvelle clé dans ChatGPT, GitHub ou la documentation.
+
+Référence : https://www.odoo.com/documentation/19.0/developer/reference/external_api.html#api-keys
