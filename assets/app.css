@@ -89,3 +89,20 @@
 .client-partner-evidence p{font-size:12px;overflow-wrap:anywhere;line-height:1.5;margin:0}
 
 .client-link-confirmed{font-size:13px;font-weight:650;color:#246a43;background:#edf7ef;border:1px solid #cce5d1;padding:11px 12px;border-radius:10px;line-height:1.6;margin:9px 0}
+
+/* D15 — audited CRM/Odoo candidate workflow and source-based memory */
+.client-candidate-discovery{background:#f8fbf8;border:1px solid #d6e4d8;border-radius:12px;padding:14px;margin:12px 0;display:flex;flex-direction:column;gap:10px}
+.client-candidate-discovery h4,.client-memory-sub h4{font-size:14px;color:#23513a;margin:0}
+.client-candidate-discovery p{margin:0;line-height:1.5}
+.client-candidate{background:#fff;border:1px solid #d8e6dd;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.client-candidate strong{font-size:13px}
+.client-candidate small{font-size:12px;color:#5d7564}
+.client-candidate button{align-self:flex-start}
+.client-link-action{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.client-link-action button{max-width:100%;align-self:flex-start}
+.client-link-revoke{background:transparent;color:#88634b;border:1px solid #e5d1ba;border-radius:9px;padding:9px 14px;text-align:center;font-size:12px;align-self:flex-start}
+.client-memory-digest{display:flex;flex-direction:column;gap:12px}
+.client-memory-sub{display:flex;flex-direction:column;gap:6px;border-top:1px solid #e3eee4;padding-top:10px}
+.client-memory-entry{display:flex;flex-direction:column;gap:4px;padding:7px 0;border-bottom:1px solid #ebf1eb}
+.client-memory-entry strong{font-size:13px;overflow-wrap:anywhere}
+.client-memory-entry small{font-size:12px;line-height:1.55;color:#597465;overflow-wrap:anywhere}
