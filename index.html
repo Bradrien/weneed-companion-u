@@ -39,6 +39,11 @@
     <div id="loading" class="loading hidden"><span class="spinner"></span><span>Lecture des commandes Odoo en cours…</span></div>
     <div id="view-home" class="view">
       <div id="metrics" class="metrics-grid"></div>
+      <section class="section">
+       <div class="section-heading"><div><p class="eyebrow">CRM · SUIVI</p><h2>Activité commerciale</h2></div><button id="reload-crm" type="button" class="inline-button" aria-label="Actualiser le CRM">Actualiser ↻</button></div>
+       <div id="crm-stats" class="metrics-grid"></div>
+       <div id="crm-attention" class="stack"></div>
+      </section>
       <section class="section"><div class="section-heading"><div><p class="eyebrow">COMMANDES RÉCENTES</p><h2>Dernières commandes</h2></div><button type="button" class="inline-button" data-nav="orders">Tout voir →</button></div><div id="recent-orders" class="stack"></div></section>
       <section class="section"><div class="section-heading"><div><p class="eyebrow">À CONTRÔLER</p><h2>Points de vigilance</h2></div></div><div id="review-cues" class="stack"></div></section>
     </div>
@@ -47,17 +52,30 @@
       <div id="orders-count" class="result-count"></div><div id="orders-list" class="stack"></div><button id="load-more" class="secondary-button hidden" type="button">Afficher 15 commandes supplémentaires</button>
     </div>
     <div id="view-commissions" class="view hidden">
-      <div class="commission-hero"><span class="eyebrow">COMMISSIONS GTA + TR</span><h2>Calcul en attente</h2><p>Les règles du calculateur Kino ne sont pas encore intégrées. Aucun montant de commission n'est estimé ni présenté comme acquis.</p><span class="status-pill">Validation Kino requise</span></div>
+      <div class="commission-hero"><span class="eyebrow">COMMISSIONS GTA + TR</span><h2>Simulation sous conditions</h2><p>Les formules du simulateur Kino sont reproduites. Les montants théoriques supposent des unités compatibles entre Odoo et Kino. Aucune commission n’est validée ou payable.</p><span class="status-pill">Validation serveur Kino requise</span></div>
       <div id="commission-facts" class="metrics-grid"></div>
+      <section class="section"><div class="section-heading"><div><p class="eyebrow">HYPOTHÈSE DE CALCUL</p><h2>Simulation provisoire GTA et TR</h2></div></div><div id="commission-scenario" class="stack" role="region" aria-label="Simulation de commissions non validées"></div></section>
       <section class="section"><div class="section-heading"><div><p class="eyebrow">TRAÇABILITÉ</p><h2>Réconciliation des commandes</h2></div></div><div id="commission-review" class="stack"></div></section>
+      <section class="section"><div class="section-heading"><div><p class="eyebrow">AUDIT ODOO</p><h2>Lignes à vérifier avant calcul</h2></div></div><div id="commission-audit" class="stack"></div></section>
       <div class="disclaimer">Le chiffre d'affaires HT issu d'Odoo n'est pas ta commission. Les règles Kino, frais de livraison, échantillons et avoirs doivent être rapprochés avant tout paiement.</div>
     </div>
-    <div id="view-settings" class="view hidden"><section class="settings-card"><h2>Connexions</h2><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import automatique</span><strong>Désactivé</strong></div><div class="setting-row"><span>Transcription audio</span><strong>Désactivée</strong></div></section><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée : aucune écriture Odoo, aucun import d'historique.</p></div>
+    <div id="view-clients" class="view hidden">
+      <div id="clients-filter" class="filter-panel">
+        <label class="tiny-label" for="client-search">RECHERCHER UN CLIENT</label>
+        <input id="client-search" type="search" placeholder="Boutique, client, société…" maxlength="120" autocapitalize="off" autocomplete="off">
+        <p class="help">Recherche dans le CRM privé. Lecture seule, 20 résultats maximum.</p>
+      </div>
+      <div id="clients-count" class="result-count" role="status" aria-live="polite"></div>
+      <div id="clients-list" class="stack"></div>
+      <div id="client-detail" class="stack hidden"></div>
+    </div>
+    <div id="view-settings" class="view hidden"><section class="settings-card"><h2>Connexions</h2><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import automatique</span><strong>Désactivé</strong></div><div class="setting-row"><span>Transcription audio</span><strong>Désactivée</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée : aucune écriture Odoo, aucun import d'historique.</p></div>
    </section>
   </main>
   <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Navigation principale">
    <button type="button" data-nav="home" class="nav-button active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7"/></svg><span>Accueil</span></button>
    <button type="button" data-nav="orders" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Commandes</span></button>
+   <button type="button" data-nav="clients" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 11a3 3 0 1 0 0-6M18 15a5 5 0 0 1 3 5v1"/></svg><span>Clients</span></button>
    <button type="button" data-nav="commissions" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 15h10M7 11h10M9 7h6"/></svg><span>Commissions</span></button>
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span>Réglages</span></button>
   </nav>

@@ -1,0 +1,20 @@
+KINO BRIDGE 0.7.0 — VERSION CANDIDATE
+
+Cette version est dérivée du bridge 0.5.0 installé localement. L'archive 0.6 a été récupérée et comparée le 10 octobre : ses variantes de suggestions et diagnostics locaux sont intégrés avec les protections de la 0.7. Voir docs/KINO_BRIDGE_VALIDATION.md.
+Les tests Node utilisent un DOM simulé ; le test Chromium charge la véritable extension sur une page synthétique. La validation dans Chrome avec Kino reste obligatoire avant utilisation régulière.
+
+Installation de validation
+1. Conserver le dossier de l'extension précédente pour pouvoir revenir en arrière.
+2. Dans le profil Chrome professionnel connecté à Kino, ouvrir chrome://extensions.
+3. Désactiver l'ancienne extension pour éviter deux bridges concurrents.
+4. Charger ce dossier kino-bridge avec « Charger l'extension non empaquetée » (mode développeur).
+5. Vérifier la version 0.7.0 et recharger l'onglet Kino.
+6. Se connecter au compte Companion dans le popup si nécessaire. Ne pas transmettre les identifiants dans un rapport de test.
+7. Dans le simulateur Kino, laisser le champ d'ajout de produit vide. Choisir dans le popup un SKU réellement visible dans Kino, puis lancer « Tester la recherche ».
+8. Vérifier que les résultats contiennent uniquement des produits SKU + GTA/TR + nom, que le champ est vidé et qu'aucun produit n'est ajouté au simulateur.
+9. Vérifier une recherche sans résultat, puis une recherche Kino déjà remplie : le bridge doit refuser d'écraser cette dernière.
+10. Confirmer le catalogue et les deux sociétés avant de considérer la version validée.
+
+Retour arrière : désactiver la version candidate, réactiver l'ancienne extension et recharger Kino. Ne jamais laisser les deux versions actives ensemble.
+
+Le test de recherche local ne sélectionne aucun produit, ne modifie ni prix ni quantité et n'envoie aucun résultat au serveur. Une demande distante autorisée transmet son résultat au Companion. Le bridge conserve ses permissions storage/alarms et ses accès aux seuls domaines Kino et Supabase déjà utilisés. Ne pas ajouter de permissions pour contourner une erreur.

@@ -26,6 +26,21 @@ Adresse hébergée : https://bradrien.github.io/weneed-companion-u/
 - L'application conserve les jetons Supabase en `sessionStorage` et nettoie la session à la déconnexion. Ne pas utiliser sur un poste partagé.
 - `commission-catalog-review` et `commission-review` sont en lecture seule.
 
+## Développement et version candidate
+
+Node 20 ou plus récent, sans dépendances à installer :
+
+```sh
+npm test
+npm run check:bridge
+```
+
+Le dossier `kino-bridge/` contient une version **0.7.0 candidate**, dérivée de la version 0.5.0 installée. L'archive 0.6 a été récupérée et comparée le 10 octobre : ses variantes de suggestions et ses diagnostics locaux sont repris avec la classification stricte et la protection de saisie de la 0.7. Voir `docs/KINO_BRIDGE_VALIDATION.md`. Voir `kino-bridge/INSTALLATION.txt` pour la validation et le retour arrière.
+
+La recherche filtre les suggestions par SKU et société, ignore les filtres du catalogue, protège une saisie utilisateur concurrente et permet de choisir le SKU testé. Les tests utilisent un DOM simulé : ils ne remplacent pas une validation Chrome/React. Le bridge n'automatise pas la sélection d'un produit ni les simulations de vente.
+
+L'interface invalide les réponses de rapports antérieurs lors d'un changement de mois ou d'une déconnexion. Les commissions restent non calculées.
+
 ## Vérifications
 
 - 1 385/1 385 produits Kino importés dans la base privée : 571 GTA, 814 TR.
@@ -44,3 +59,17 @@ Adresse hébergée : https://bradrien.github.io/weneed-companion-u/
 6. S'assurer que les commissions restent « À vérifier ».
 
 Si un message d'erreur apparaît, conserver le texte pour diagnostic. Les tests réels nécessitent le JWT de la session utilisateur, non communicable dans le chat.
+
+
+## CRM mobile — branche de validation
+
+Cette branche ajoute, en **lecture seule et derrière Supabase Auth**, un onglet « Clients » :
+recherche de boutiques, fiches commerciales (contacts, mémoire, actions à suivre, activité récente) et panneau CRM indépendant d'Odoo sur l'accueil.
+
+Les données CRM sont récupérées depuis `companion-api` avec le jeton de la session propriétaire et ne sont pas conservées dans `localStorage`. Les valeurs métier sont affichées comme texte, sans injection HTML. L'API serveur vérifie l'accès avant d'utiliser les fonctions SQL privées.
+
+Les contrôles automatiques comprennent les scénarios de déconnexion pendant le renouvellement de session, les données CRM incohérentes, les références des éléments HTML et les gardes de commissions. Exécuter `npm run check:app` en plus de `npm test` et `npm run check:bridge`.
+
+**Ce n'est pas encore la version GitHub Pages en production.** L'interface CRM nécessite une validation sur Safari iPhone avec le compte propriétaire avant fusion. L'extension Kino 0.7 reste également candidate.
+
+[Cartographie de l'architecture et plan de validation](docs/ARCHITECTURE.md).
