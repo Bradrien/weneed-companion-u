@@ -5,6 +5,7 @@ import {normalizeClient360,proposePeriodOdooOrders,assessOdooPartnerCandidates} 
 import {normalizePartnerHistory,assessPartnerIdentity} from './client-history-model.mjs';
 import {buildCommercialMemory} from './client-memory-model.mjs';
 import {normalizeOdooCandidates} from './client-candidates-model.mjs';
+import {normalizeWhatsappBrief,normalizeWhatsappOverview,whatsappTopicLabel} from './whatsapp-brief-model.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui.mjs';
@@ -16,6 +17,10 @@ const reportRequests=createRequestGuard();
 const clientRequests=createRequestGuard();
 const dashboardRequests=createRequestGuard();
 const odooProbeRequests=createRequestGuard();
+const whatsappRequests=createRequestGuard();
+const whatsappOverviewRequests=createRequestGuard();
+const whatsApp={selected:null,detail:null,loading:false,error:''};
+const waOverview={rows:null,loading:false,error:''};
 const dashboard={data:null,loading:false,error:''};
 const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,linkCandidate:null,linkSubmitting:false,linkError:'',candidates:null,candidateLoading:false,candidateError:'',candidatePartner:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
@@ -27,7 +32,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){whatsappRequests.invalidate();whatsappOverviewRequests.invalidate();whatsApp.selected=null;whatsApp.detail=null;whatsApp.loading=false;whatsApp.error='';waOverview.rows=null;waOverview.loading=false;waOverview.error='';refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -147,7 +152,7 @@ async function loadReport(){
 }
 function changeMonth(delta){reportRequests.invalidate();loading(false);const y=Number(state.period.from.slice(0,4)),m=Number(state.period.from.slice(5,7))-1;state.period=monthOf(new Date(y,m+delta,1));state.report=null;state.page=1;state.expanded.clear();updatePeriod();renderViews();setNotice('Période changée. Appuie sur ↻ pour consulter Odoo.');}
 function updatePeriod(){$('period-label').textContent=state.period.label}
-function navigate(view){if(!['home','orders','clients','commissions','settings'].includes(view))return;state.view=view;const names={home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['CRM PRIVÉ','Clients','Contacts, tâches et historique commercial en lecture seule.'],commissions:['RÉMUNÉRATION','Commissions','Préparation et réconciliation avant Kino.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='clients'&&clients.rows===null&&!clients.loading&&!clients.selected)loadClients();if(view==='home'&&dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard()}
+function navigate(view){if(!['home','orders','clients','commissions','settings'].includes(view))return;state.view=view;const names={home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['CRM PRIVÉ','Clients','Contacts, tâches et historique commercial en lecture seule.'],commissions:['RÉMUNÉRATION','Commissions','Préparation et réconciliation avant Kino.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='clients'&&clients.rows===null&&!clients.loading&&!clients.selected)loadClients();if(view==='clients'&&waOverview.rows===null&&!waOverview.loading)loadWhatsappOverview();if(view==='home'&&dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard()}
 function metric(label,value,sub,{dark=false,small=false}={}){const el=node('article','metric'+(dark?' dark':''));el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));return el}
 function renderStats(){const list=state.report?.orders||[],stats=deriveStats(list);const grid=$('metrics');clear(grid);grid.append(metric('Commandes GTA/TR',state.report?String(stats.visible):'—','Sur la période'),metric('Commandes confirmées',state.report?String(stats.confirmed):'—','Statuts sale et done'),metric('Montant HT confirmé',state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Chiffre d’affaires, pas commission',{small:true}),metric('Commissions', 'À vérifier','Attente des règles Kino',{dark:true,small:true}));
  const c=$('commission-facts');clear(c);c.append(metric('GTA • confirmées',state.report?String(list.filter(o=>o.company==='GTA'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('TR • confirmées',state.report?String(list.filter(o=>o.company==='TR'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('À exclure',state.report?String(stats.excluded):'—','Annulées, brouillons et autres'),metric('Commissions validées','—','Rapprochement Kino requis',{dark:true,small:true}));
@@ -255,6 +260,7 @@ async function loadClients(){
 async function openClient(clientId){
  if(!validClientId(clientId)||!state.access)return;
  const ticket=clientRequests.begin();
+ whatsappRequests.invalidate();whatsApp.selected=clientId;whatsApp.detail=null;whatsApp.loading=false;whatsApp.error='';
  clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.error='';clients.loading=true;renderClients();
  try{
   const [card,full]=await Promise.allSettled([
@@ -271,8 +277,116 @@ async function openClient(clientId){
  }catch(error){
   if(!clientRequests.isCurrent(ticket))return;
   clients.error='Impossible de charger la fiche client. Retourne à la liste et réessaie.';
- }finally{if(clientRequests.isCurrent(ticket)){clients.loading=false;renderClients()}}
+ }finally{if(clientRequests.isCurrent(ticket)){clients.loading=false;renderClients();if(clients.detail)loadWhatsappBrief(clientId)}}
 }
+
+async function loadWhatsappBrief(clientId){
+ if(!state.access||clients.selected!==clientId||!validClientId(clientId))return;
+ const ticket=whatsappRequests.begin();
+ whatsApp.selected=clientId;whatsApp.detail=null;whatsApp.error='';whatsApp.loading=true;renderClients();
+ try{
+  const jwt=await ensureToken();
+  const url='/functions/v1/whatsapp-client-brief?client_id='+encodeURIComponent(clientId);
+  const response=await authFetch(url,{headers:{authorization:'Bearer '+jwt}});
+  const body=await response.json();
+  if(!response.ok||body?.ok!==true)throw Error(body?.error||'whatsapp_unavailable');
+  const data=normalizeWhatsappBrief(body.data,clientId);
+  if(!whatsappRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  whatsApp.detail=data;
+ }catch(e){
+  if(!whatsappRequests.isCurrent(ticket)||clients.selected!==clientId)return;
+  whatsApp.error='Historique WhatsApp indisponible pour le moment. Les autres sources CRM restent consultables.';
+ }finally{
+  if(whatsappRequests.isCurrent(ticket)&&clients.selected===clientId){
+   whatsApp.loading=false;renderClients();
+  }
+ }
+}
+async function loadWhatsappOverview(){
+ if(!state.access||waOverview.loading)return;
+ const ticket=whatsappOverviewRequests.begin();
+ waOverview.loading=true;waOverview.error='';renderClients();
+ try{
+  const jwt=await ensureToken();
+  const response=await authFetch('/functions/v1/whatsapp-client-brief?mode=overview',
+   {headers:{authorization:'Bearer '+jwt}});
+  const data=await response.json();
+  if(!response.ok||data?.ok!==true)throw Error('whatsapp_overview_unavailable');
+  const rows=normalizeWhatsappOverview(data.data);
+  if(!whatsappOverviewRequests.isCurrent(ticket))return;
+  waOverview.rows=rows;
+ }catch(e){
+  if(!whatsappOverviewRequests.isCurrent(ticket))return;
+  waOverview.error='Vue WhatsApp indisponible. Aucun lien client n’a été modifié.';
+ }finally{if(whatsappOverviewRequests.isCurrent(ticket)){waOverview.loading=false;renderClients()}}
+}
+function whatsappEntry(item,topic=false){
+ const element=node('article','whatsapp-entry');
+ const label=(topic&&item.category?whatsappTopicLabel[item.category]+' · ':'')+
+  (item.direction==='outgoing'?'Envoyé':'Reçu')+' · '+
+  new Date(item.at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
+ element.append(node('strong','',label));
+ element.append(node('p','',item.excerpt));
+ element.append(node('small','', 'Archive WhatsApp · conversation #'+item.chatPk+
+  ' · message #'+item.messagePk));
+ return element;
+}
+function whatsappSection(){
+ const section=node('section','client-section whatsapp-brief');
+ section.append(node('h3','','WhatsApp · derniers échanges et moments à relire'));
+ section.append(node('p','client-provenance',
+  'Messages texte de l’archive, correspondance client vérifiée. Classement automatique par mots-clés : les extraits ne prouvent ni commande validée ni paiement reçu.'));
+ if(whatsApp.loading){section.append(node('p','client-quiet','Lecture privée des échanges approuvés…'));return section}
+ if(whatsApp.error){section.append(node('p','client-source-warning',whatsApp.error));return section}
+ const v=whatsApp.detail;
+ if(!v){section.append(node('p','client-quiet','Historique non chargé.'));return section}
+ if(v.status!=='available'){
+  section.append(node('p','client-quiet','Aucune conversation WhatsApp historique confirmée pour ce client. Aucun rapprochement automatique.'));
+  return section;
+ }
+ section.append(node('p','client-provenance',
+  v.coverage.messageCount+' messages texte approuvés · '+v.coverage.conversationCount+
+  ' conversation(s) · dernière activité '+(v.coverage.lastAt?shortDate(v.coverage.lastAt):'inconnue')+'.'));
+ for(const [title,entries,topic] of [
+  ['Derniers messages',v.recent,false],
+  ['Moments commerciaux repérés · à interpréter',v.highlights,true]
+ ]){
+  const details=node('details','whatsapp-group');
+  if(!topic)details.open=true;
+  details.append(node('summary','',title+' ('+entries.length+')'));
+  if(!entries.length)details.append(node('p','client-quiet','Aucun passage identifié.'));
+  for(const item of entries)details.append(whatsappEntry(item,topic));
+  section.append(details);
+ }
+ return section;
+}
+function whatsappOverviewSection(){
+ const panel=node('details','whatsapp-overview');
+ const rowCount=Array.isArray(waOverview.rows)?waOverview.rows.length:null;
+ panel.append(node('summary','',
+  'WhatsApp · '+(rowCount===null?'aperçu en cours':rowCount+' clients couverts')+
+  ' · dernière activité'));
+ if(waOverview.loading)panel.append(node('p','client-quiet','Lecture des conversations approuvées…'));
+ if(waOverview.error){
+  panel.append(node('p','client-source-warning',waOverview.error));
+  const retry=node('button','secondary-button','Réessayer');retry.type='button';
+  retry.addEventListener('click',loadWhatsappOverview);panel.append(retry);
+ }
+ if(Array.isArray(waOverview.rows)){
+  panel.append(node('p','client-provenance',
+   'Tri par date de dernier message. Extraits d’archive vérifiée, pas de synthèse IA ni de commande automatiquement confirmée.'));
+  for(const row of waOverview.rows.slice(0,15)){
+   const entry=node('button','whatsapp-overview-row');entry.type='button';
+   entry.append(node('strong','',row.clientName));
+   entry.append(node('small','',row.textCount+' messages · '+shortDate(row.lastAt)));
+   if(row.lastMessage)entry.append(node('span','',row.lastMessage.excerpt));
+   entry.addEventListener('click',()=>openClient(row.clientId));
+   panel.append(entry);
+  }
+ }
+ return panel;
+}
+
 function clientSection(title,items){
  const section=node('section','client-section');
  section.append(node('h3','',title));
@@ -693,7 +807,7 @@ function renderClients(){
  if(inDetail){
   count.textContent='';
   const back=node('button','secondary-button','← Retour aux clients');
-  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.loading=false;clients.error='';renderClients()});
+  back.type='button';back.addEventListener('click',()=>{clientRequests.invalidate();whatsappRequests.invalidate();whatsApp.selected=null;whatsApp.detail=null;whatsApp.loading=false;whatsApp.error='';clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.loading=false;clients.error='';renderClients()});
   details.append(back);
   if(clients.loading){details.append(empty('Chargement de la fiche client…'));return}
   if(clients.error){details.append(empty(clients.error));return}
@@ -702,6 +816,7 @@ function renderClients(){
   header.append(node('strong','',d.profile.name),node('span','',[d.profile.status,d.profile.address,d.profile.country].filter(Boolean).join(' · ')||'CRM propriétaire'));
   details.append(header);
   details.append(clientPeriodOrders(d.profile.name));
+  details.append(whatsappSection());
   details.append(clientMemoryPanel(d,clients.full,clients.history));
   if(d.memory)details.append(clientSection('Mémoire commerciale · synthèse automatique non vérifiée',[
    ['Synthèse conservée dans sa langue d’origine',d.memory],
@@ -714,6 +829,7 @@ function renderClients(){
   if(d.profile.notes)details.append(clientSection('Notes client',[['Notes',d.profile.notes]]));
   return;
  }
+ listing.append(whatsappOverviewSection());
  if(clients.loading){count.textContent='Recherche en cours…';listing.append(empty('Lecture du CRM privé…'));return}
  if(clients.error){count.textContent='Connexion CRM indisponible';listing.append(empty(clients.error));const retry=node('button','secondary-button','Réessayer');retry.type='button';retry.addEventListener('click',loadClients);listing.append(retry);return}
  if(clients.rows===null){count.textContent='Recherche non chargée';listing.append(empty('Ouvre cette rubrique pour consulter le CRM.'));return}
