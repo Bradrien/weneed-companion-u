@@ -9,6 +9,7 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  ambiguous_sku:'SKU ambigu dans Kino',invalid_kino_tier:'Catégorie Kino inconnue',
  missing_kino_cost:'Coût Kino absent',line_price_mismatch:'Montant et remise Odoo incohérents',
  invalid_quantity:'Quantité invalide',invalid_calculation:'Simulation impossible',
+ missing_odoo_sku:'SKU absent dans Odoo : rapprochement nécessaire',
  not_eligible:'Échantillon, livraison ou ligne non éligible',
  estimated_units_unverified:'Unité Odoo / Kino à vérifier'};
 export function createOdooQuotePipeline({request,isActive,isAuthenticated}){
