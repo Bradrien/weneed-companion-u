@@ -179,3 +179,18 @@ La capture propriétaire D9 de Green Purple a validé la présence de trois comm
 - Tests unitaires de conflits entre IDs, de non-fusion et d'absence d'ID ; préversion isolée `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D10`.
 
 **Prochaine étape** : vérifier manuellement que les identifiants Odoo de Green Purple désignent bien cette société (puis ses éventuelles boutiques), enregistrer un lien autorisé seulement après confirmation, et interroger les historiques sans limitations au mois courant. Les factures/avoirs doivent être recoupés séparément.
+
+## D11 — Historique client Odoo sur trois ans, lecture seule
+
+Après les captures Green Purple D10, les commandes S03515, T01981 et S03591 utilisent toutes `res.partner.id = 3277`. Cela prouve un identifiant partenaire unique **pour ces trois commandes**, mais pas à lui seul la correspondance légale entre `clients.id` (UUID CRM) et le partenaire Odoo.
+
+L'examen Supabase montre que la fiche CRM Green Purple possède une identité e-mail liée à Gmail et une identité téléphone issue d'un import Odoo, mais **aucun mapping vérifié `client_id ↔ res.partner.id`**. Aucun lien automatique n'a été inséré.
+
+- `supabase/functions/client-odoo-history/index.ts` : nouvelle fonction GET, exige JWT Supabase confirmé + `app_access_users.role='owner'` actif et autorisation d'origine. Recherche **en lecture seule** de `sale.order` sur trois années glissantes, avec domaine exact `partner_id = N`, `user_id = UID`, période bornée et plafonnement à 250 commandes.
+- N'autorise aucune écriture Odoo, ne renvoie aucune clé API. En cas de basculement du statut d'une commande pendant la lecture, l'historique est refusé plutôt que présenté comme cohérent. Les commandes GTA/TR sont séparées, les annulations restent visibles.
+- `assets/client-history-model.mjs` vérifie strictement le `partner_id` de chaque ligne, son caractère non validé, les doublons et les devises ; chiffre d'affaires HT des seules commandes confirmées si EUR cohérent. Aucun calcul des commissions ni preuve de paiement.
+- Dans D11, l'utilisateur peut demander explicitement « Consulter les commandes sur 3 ans » **uniquement si toutes les commandes du mois au nom exact correspondent à un unique partenaire Odoo valide**. Aucun rapprochement par numéro ou nom approximatif ; pas de fusion permanente. Regroupement visuel des années, statuts et montants.
+- La fonction a été déployée avec vérification JWT activée. Tests unitaires, contractuels et smoke Chromium mobile avec données inventées ; la lecture **réelle du compte #3277 reste à tester par le propriétaire** sur le site hébergé.
+- Préversion : `https://bradrien.github.io/weneed-companion-u/validation-v12/?build=D11`.
+
+La suite sera de comparer les coordonnées de `res.partner(3277)` aux identités CRM/import Odoo puis de demander une confirmation de rattachement ; un futur historique multi-mois durable ne devrait plus dépendre de la présence d'une commande dans la période affichée.
