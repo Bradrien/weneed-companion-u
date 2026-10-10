@@ -10,6 +10,7 @@ const STORE='weneed_v1_ephemeral_session';
 const reportRequests=createRequestGuard();
 const clientRequests=createRequestGuard();
 const dashboardRequests=createRequestGuard();
+const odooProbeRequests=createRequestGuard();
 const dashboard={data:null,loading:false,error:''};
 const clients={rows:null,query:'',selected:null,detail:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
@@ -21,7 +22,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -42,9 +43,37 @@ async function ensureToken(){if(!state.access)throw Error('no_session');if(state
 async function ownerCheck(){const jwt=await ensureToken();const res=await authFetch('/functions/v1/companion-profile',{headers:{'authorization':`Bearer ${jwt}`}});if(res.status===401||res.status===403)throw Error('owner_only');if(!res.ok)throw Error('profile_unavailable');const data=await res.json();if(data.ok!==true||data.role!=='owner')throw Error('owner_only')}
 async function login(email,password){forget();const res=await authFetch('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});if(!res.ok)throw Error('invalid_credentials');const data=await res.json();if(!data.access_token||!data.refresh_token)throw Error('invalid_session');saveSession(data);try{await ownerCheck()}catch(e){forget();throw e}}
 async function signOut(){const jwt=state.access;forget();showLogin();if(jwt)try{await authFetch('/auth/v1/logout',{method:'POST',headers:{authorization:`Bearer ${jwt}`}})}catch{}}
+async function checkOdooReadAccess(){
+ if(!state.access)return;
+ const ticket=odooProbeRequests.begin();
+ const button=$('odoo-probe'),status=$('odoo-probe-status');
+ button.disabled=true;status.textContent='Vérification de l’authentification Odoo…';
+ try{
+  const jwt=await ensureToken();
+  async function check(resource){
+   const response=await authFetch('/functions/v1/odoo-read?resource='+encodeURIComponent(resource),{headers:{authorization:`Bearer ${jwt}`}});
+   let data;try{data=await response.json()}catch{throw Error('invalid_odoo_response')}
+   if(!response.ok||data?.ok!==true)throw Error(data?.error||'odoo_unreachable');
+   return data.data;
+  }
+  const auth=await check('ping');
+  if(!odooProbeRequests.isCurrent(ticket))return;
+  if(auth?.connected!==true||auth?.mode!=='read_only')throw Error('invalid_odoo_response');
+  status.textContent='Authentification Odoo validée. Vérification des droits de lecture…';
+  const result=await check('orders_probe');
+  if(!odooProbeRequests.isCurrent(ticket))return;
+  if(result?.readable!==true||result?.returned_order_data!==false)throw Error('invalid_odoo_response');
+  $('odoo-state').textContent='Accès lecture validé';
+  status.textContent='Connexion Odoo opérationnelle : authentification et autorisation de lecture validées, sans récupération du contenu des commandes.';
+ }catch(error){
+  if(!odooProbeRequests.isCurrent(ticket))return;
+  $('odoo-state').textContent='Vérification échouée';
+  status.textContent='Diagnostic : '+readableError(error.message);
+ }finally{if(odooProbeRequests.isCurrent(ticket))button.disabled=false}
+}
 function showLogin(){$('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');$('bottom-nav').classList.add('hidden');$('logout-top').classList.add('hidden')}
 function showApp(){$('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');$('bottom-nav').classList.remove('hidden');$('logout-top').classList.remove('hidden');navigate(state.view)}
-function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',invalid_odoo_configuration:'Configuration de l’accès Odoo invalide côté Supabase.',odoo_unreachable:'Odoo ne répond pas pour le moment.',odoo_http_error:'La passerelle Odoo a refusé la requête HTTP. Code de diagnostic : odoo_http_error.',odoo_remote_error:'Odoo a renvoyé une erreur lors de la lecture. Code de diagnostic : odoo_remote_error.',review_unavailable:'Le rapport n’a pas pu être généré côté serveur. Code : review_unavailable.',odoo_auth_failed:'Ta connexion Companion est valide, mais la connexion serveur à Odoo est refusée. Vérifie la configuration Odoo côté Supabase (compte, clé API et identité attendue). Changer le mot de passe Companion ne résoudra pas ce problème.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',report_period_mismatch:'La réponse Odoo concerne une autre période. Aucune donnée affichée : recharge le mois.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
+function readableError(code){return ({owner_only:'Le compte connecté ne dispose pas de l’accès propriétaire.',invalid_credentials:'Identifiants refusés. Vérifie le mot de passe Companion.',invalid_session:'Session incomplète.',session_expired:'Ta session a expiré. Reconnecte-toi.',no_session:'Session absente.',profile_unavailable:'Vérification de l’accès propriétaire indisponible.',invalid_period:'Période incorrecte (maximum 94 jours).',source_record_limit_exceeded:'Trop de commandes ou de lignes pour cette période : choisis une période plus courte.',invalid_odoo_configuration:'Configuration de l’accès Odoo invalide côté Supabase.',odoo_unreachable:'Odoo ne répond pas pour le moment.',origin_not_allowed:'Origine du navigateur non autorisée pour la passerelle Odoo.',diagnostic_unavailable:'Diagnostic Odoo indisponible.',odoo_http_error:'La passerelle Odoo a refusé la requête HTTP. Code de diagnostic : odoo_http_error.',odoo_remote_error:'Odoo a renvoyé une erreur lors de la lecture. Code de diagnostic : odoo_remote_error.',review_unavailable:'Le rapport n’a pas pu être généré côté serveur. Code : review_unavailable.',odoo_auth_failed:'Ta connexion Companion est valide, mais la connexion serveur à Odoo est refusée. Vérifie la configuration Odoo côté Supabase (compte, clé API et identité attendue). Changer le mot de passe Companion ne résoudra pas ce problème.',odoo_not_configured:'Paramètres Odoo manquants côté Supabase.',invalid_odoo_response:'Réponse Odoo inattendue.',unmatched_order_line:'Une ligne Odoo n’a pas pu être rattachée à sa commande.',invalid_report:'Rapport invalide.',incomplete_report:'Rapport incomplet.',unverified_commissions_guard:'Rapport de commissions inattendu ; affichage bloqué par sécurité.',report_period_mismatch:'La réponse Odoo concerne une autre période. Aucune donnée affichée : recharge le mois.',catalog_unavailable:'Catalogue Kino indisponible, Odoo seul reste consultable.',catalog_incomplete:'Capture Kino incomplète.',catalog_invalid:'Produit Kino invalide.',invalid_orders:'Commandes incohérentes.'})[code]||'La lecture a échoué. Réessaie ou consulte les journaux Supabase.'}
 async function loadReport(){
  if(!state.access||state.loading)return;
  const {from,to}=state.period;
@@ -262,6 +291,7 @@ async function boot(){
 }
 $('login-form').addEventListener('submit',async ev=>{ev.preventDefault();const email=$('login-email').value.trim(),password=$('login-password').value;const btn=$('login-button');btn.disabled=true;$('login-error').classList.add('hidden');try{await login(email,password);$('login-password').value='';showApp();setNotice('Connexion propriétaire confirmée. Appuie sur ↻ pour charger les commandes.')}catch(err){forget();$('login-error').textContent=readableError(err.message);$('login-error').classList.remove('hidden')}finally{btn.disabled=false;password.length&&($('login-password').value='')}});
 $('logout-top').addEventListener('click',signOut);$('logout-bottom').addEventListener('click',signOut);
+$('odoo-probe').addEventListener('click',checkOdooReadAccess);
 $('reload').addEventListener('click',loadReport);$('reload-crm').addEventListener('click',loadDashboard);$('prev-month').addEventListener('click',()=>changeMonth(-1));$('next-month').addEventListener('click',()=>changeMonth(1));
 document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.nav)));
 document.querySelectorAll('[data-company]').forEach(b=>b.addEventListener('click',()=>{state.company=b.dataset.company;state.page=1;document.querySelectorAll('[data-company]').forEach(x=>x.classList.toggle('active',x===b));renderOrders()}));
