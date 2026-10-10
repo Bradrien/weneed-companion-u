@@ -43,12 +43,14 @@ export function normalizeOdooPipeline(input){
  return {orders,readAt:input.read_at,closedWindowFrom:input.closed_window_from,
   pendingScope:input.pending_scope,catalogSnapshotAt:input.catalog_snapshot_at};
 }
-export function filterOdooPipeline(data,{stage='all',company='all',query=''}={}){
+export function filterOdooPipeline(data,{stage='all',stages=null,company='all',query=''}={}){
  if(!data)return [];
  if(stage!=='all'&&!STAGES.includes(stage))throw Error('invalid_filter');
+ const active=stages===null?null:new Set(stages);
+ if(active&&(active.size!==stages.length||stages.some(x=>!STAGES.includes(x))))throw Error('invalid_filter');
  if(company!=='all'&&!['GTA','TR'].includes(company))throw Error('invalid_filter');
  const q=query.trim().toLocaleLowerCase('fr-FR');
- return data.orders.filter(o=>(stage==='all'||o.stage===stage)&&
+ return data.orders.filter(o=>(active?active.has(o.stage):(stage==='all'||o.stage===stage))&&
   (company==='all'||o.company===company)&&(!q||[o.reference,o.client,o.company,
    ...o.lines.map(l=>l.product+' '+l.sku)].join(' ').toLocaleLowerCase('fr-FR').includes(q)));
 }
