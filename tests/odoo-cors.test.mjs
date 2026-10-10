@@ -60,3 +60,24 @@ test('legacy local-origin allowance remains scoped to known resources',async()=>
   {method:'OPTIONS',headers:{origin:'null'}}));
  assert.equal(blocked.status,403);
 });
+
+test('rejected Odoo credentials return a bounded owner-only diagnostic code',async()=>{
+ const fetchImpl=async()=>new Response(JSON.stringify({jsonrpc:'2.0',id:1,result:false}),
+  {status:200,headers:{'content-type':'application/json'}});
+ const g=createHandler({env,authenticateCaller:async()=>true,fetchImpl});
+ const r=await g(new Request(address,{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,502);
+ assert.deepEqual(await r.json(),{ok:false,error:'odoo_credentials_rejected'});
+});
+test('valid Odoo authentication but wrong pinned ID has a distinct safe code',async()=>{
+ const g=createHandler({env:{...env,ODOO_UID_PIN:'99'},authenticateCaller:async()=>true,fetchImpl:fakeFetch});
+ const r=await g(new Request(address,{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,502);
+ assert.deepEqual(await r.json(),{ok:false,error:'odoo_uid_pin_mismatch'});
+});
+test('valid pinned identity still permits owner-only read-only ping',async()=>{
+ const g=createHandler({env:{...env,ODOO_UID_PIN:'32'},authenticateCaller:async()=>true,fetchImpl:fakeFetch});
+ const r=await g(new Request(address,{headers:{origin,authorization:'Bearer fake-owner-token'}}));
+ assert.equal(r.status,200);
+ assert.equal((await r.json()).data.connected,true);
+});
