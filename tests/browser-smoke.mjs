@@ -14,9 +14,9 @@ const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=u
 const server=createServer(async(req,res)=>{
  try{
   const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-  const path=resolve(root,'.'+pathname);
+  const path=pathname==='/'?join(root,'index.html'):resolve(root,'.'+pathname);
   if(path!==root&&!path.startsWith(root+sep)){res.writeHead(403).end();return}
-  const content=await readFile(path.endsWith(sep)?join(path,'index.html'):path);
+  const content=await readFile(path);
   res.writeHead(200,{'content-type':mime[extname(path)]||'application/octet-stream','cache-control':'no-store'}).end(content);
  }catch{res.writeHead(404).end('not found')}
 });
@@ -51,6 +51,7 @@ try{
  browser=await chromium.launch({headless:true});
  const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
  const page=await context.newPage();
+ page.setDefaultTimeout(10000);
  const errors=[];
  page.on('pageerror',err=>errors.push(err.message));
  await page.route('https://gcirlrghjvumhkekrtmf.supabase.co/**',async route=>{
