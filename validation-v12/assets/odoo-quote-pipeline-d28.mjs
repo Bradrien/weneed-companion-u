@@ -224,6 +224,10 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
   const label=el('strong','',labelCommissionMonth(month));
   const body=el('div','commission-month-body');
   function changeMonth(nextMonth){
+   if(nextMonth!==month){
+    // Never present the prior month's Odoo snapshot as the newly selected month.
+    data=null;fallbackData=null;fallbackMonth=null;fallbackError='';
+   }
    month=nextMonth;select.value=month;label.textContent=labelCommissionMonth(month);drawMonthly(body);
    load(true);
   }
