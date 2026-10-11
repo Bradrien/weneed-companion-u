@@ -1,4 +1,4 @@
-name: Companion D36 client tasks and sources
+name: Companion D37 confirmation and return deductions
 on:
   push:
     branches: [main]
@@ -49,6 +49,8 @@ jobs:
           node --check validation-v12/assets/archives-d35.mjs
           node --check validation-v12/assets/task-model-d36.mjs
           node --check validation-v12/assets/tasks-d36.mjs
+          node --check validation-v12/assets/commission-rules-d37.mjs
+          node --check validation-v12/assets/commission-returns-d37.mjs
           node --check supabase/functions/odoo-invoice-evidence/core.mjs
           node --check supabase/functions/odoo-commission-pipeline/calculation.mjs
           node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs
@@ -76,8 +78,12 @@ jobs:
       - run: node --test tests/*.test.mjs supabase/functions/companion-tasks/core.test.mjs supabase/functions/apple-reminders-sync/core.test.mjs supabase/functions/_shared/*.test.mjs
       - run: node --test supabase/tests/google-connectors-sql.test.mjs
       - run: node --test supabase/tests/whatsapp-archive-coverage-sql.test.mjs
+      - run: node --test supabase/tests/commission-returns-sql.test.mjs
+        env:
+          CONNECTOR_TEST_PGLITE_URL: '@electric-sql/pglite'
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/tasks-preview-smoke.mjs
+      - run: node tests/commission-returns-preview-d37.mjs
       - run: node tests/tasks-preview-d36.mjs
       - run: node tests/commission-pipeline-smoke.mjs
       - run: node tests/monthly-commission-preview-d25.mjs

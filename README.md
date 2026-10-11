@@ -16,7 +16,7 @@ La préversion en cours est disponible sur [validation-v12](https://bradrien.git
 - Dossier CSV ciblé des contrôles de source et exclusions à confirmer, avec le même mois, la même société et la même recherche que le bilan. Actions proposées et liens vers les pièces Odoo, sans modifier les sources.
 - Accès au détail d'une commande depuis le bilan et liens directs vers la commande, ses factures et ses avoirs dans Odoo.
 
-Les simulations utilisent une capture du catalogue actuel et restent provisoires. Les coûts historiques, le SPIFF et les exclusions contractuelles ne sont pas validés. Les factures et avoirs présentent leurs montants complets : une facture peut couvrir plusieurs commandes, aucune allocation ni déduction de commission n'est faite. Le statut facturé Odoo ne constitue pas une preuve de règlement ; même l'indication payé ne valide pas la rémunération. Aucun montant n'est déclaré acquis ou payable.
+Les simulations utilisent une capture du catalogue actuel et restent provisoires. Les coûts historiques, le SPIFF et les exclusions contractuelles ne sont pas validés. Le déclenchement à la confirmation et la déduction des commissions de retour sont établis ; les pièces enregistrées sont présentées séparément. Les factures et avoirs présentent leurs montants complets : une facture peut couvrir plusieurs commandes, aucune allocation ni déduction de commission n'est faite. Le statut facturé Odoo ne constitue pas une preuve de règlement ; même l'indication payé ne valide pas la rémunération. Aucun montant n'est déclaré acquis ou payable.
 
 ## Sources et archives — D35
 
@@ -30,6 +30,12 @@ Les archives WhatsApp présentent leur période, leurs conversations approuvées
 
 La fiche client ouvre ses tâches avec un filtre sur son identifiant exact. Les créations préselectionnent la fiche choisie et les compteurs CRM sont relus après une modification. Les pages et acquittements vérifient leurs identifiants et versions ; les réponses tardives restent liées à leur session et la reprise d'un enregistrement non confirmé conserve sa demande d'origine. Les statuts et dates Rappels restent des informations de synchronisation, avec les motifs connus de non-envoi.
 
+## Confirmation et retours — D37
+
+La commande confirmée déclenche la commission. Les commissions des retours se déduisent du total final, suivant les pièces Excel vérifiées. Le bilan montre séparément la base estimée des commandes confirmées, les déductions enregistrées dans le mois et le solde estimé après ces déductions. Les retours de commandes plus anciennes peuvent rendre ce solde négatif. Les sources indiquent le fichier, l’onglet et les cellules de déduction.
+
+La lecture porte sur les déductions enregistrées, sans garantir le rapprochement de tous les retours Odoo. Une liste vide ne confirme pas l’absence de retour. Une recherche ciblée ou une lecture non revérifiée suspend le solde du mois. Les coûts historiques et le SPIFF restent à vérifier.
+
 ## Sécurité
 
 Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de données commerciales ne doit y être ajouté. La clé Supabase publiable du navigateur est publique par conception ; les secrets Odoo et les clés de service restent côté serveur. Les tables catalogue sont privées et ne sont lues qu'après contrôle propriétaire. Aucune commande Odoo n'est modifiée.
@@ -38,4 +44,4 @@ Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de don
 
 Le workflow GitHub vérifie la syntaxe, les modèles et fonctions avec des données synthétiques, les contrôles SQL isolés et les parcours Chromium sur écran mobile. Les validations réelles des données se font par les API authentifiées, sans publier leurs réponses ni leurs jetons.
 
-Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md), [D35_CHANGELOG.md](D35_CHANGELOG.md) et [D36_CHANGELOG.md](D36_CHANGELOG.md).
+Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md), [D35_CHANGELOG.md](D35_CHANGELOG.md) [D36_CHANGELOG.md](D36_CHANGELOG.md) et [D37_CHANGELOG.md](D37_CHANGELOG.md).

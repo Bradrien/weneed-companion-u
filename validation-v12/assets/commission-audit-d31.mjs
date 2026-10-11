@@ -1,5 +1,5 @@
 /** Authenticated monthly source export. Missing/blocked values remain blank. */
-import {filterOdooPipeline,statusLabels} from './odoo-commission-model-d30.mjs?v=calculation-8';
+import {filterOdooPipeline,statusLabels} from './odoo-commission-model-d30.mjs?v=rules-1';
 export function selectedCommissionOrders(data,{month,company='all',query=''}={}){
  if(typeof month!=='string'||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('invalid_month');
  return filterOdooPipeline(data,{company,query}).filter(o=>o.date.slice(0,7)===month);

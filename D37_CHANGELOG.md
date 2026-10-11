@@ -1,0 +1,15 @@
+# D37 — Confirmation et déduction des retours
+
+Le propriétaire a établi deux règles le 11 octobre 2026 : la commande confirmée déclenche la commission ; la commission correspondant à un retour est retirée de la commission finale. Les devis restent dans leur catégorie potentielle et le déclenchement est indépendant du règlement.
+
+Le contrôle des classeurs transmis retrouve des déductions de commission explicites et les formules qui les soustraient au total mensuel. Le montant déduit est une commission documentée. Le montant HT d'un avoir ne sert pas de commission de retour. Les corrections de facturation, montants fixes et autres notes ne sont pas importés comme retours.
+
+Trois déductions TR disposent d'un libellé de retour, d'une référence de commande, d'un montant explicite, d'un mois et d'une formule de total concordante. Elles sont conservées côté serveur avec l'empreinte du classeur, l'onglet et les cellules de montant et de total. Aucune donnée commerciale de ces fichiers n'est ajoutée au dépôt public. La règle s'applique à GTA et TR ; le mois de déduction des pièces importées reste celui indiqué dans leur fichier, même lorsque la commande initiale est antérieure.
+
+Le nouveau service propriétaire `commission-returns` expose uniquement une lecture mensuelle bornée de ces déductions. Il requiert un JWT, une identité confirmée et l'accès propriétaire. Les tables et RPC ne sont pas accessibles directement aux utilisateurs anonymes ou authentifiés. Les mêmes cellules source ne peuvent être importées deux fois.
+
+Le bilan présente les commandes confirmées estimées, les déductions enregistrées et l'estimation après ces déductions. Un solde négatif reste négatif. Les devis ne s'ajoutent pas à cette base. Les sociétés restent filtrées ; une recherche ciblée suspend le solde mensuel pour éviter de soustraire toutes les déductions à quelques ventes seulement. Une lecture ancienne, échouée, hors du mois demandé ou non revérifiée suspend le solde. Les réponses tardives après un changement de mois ou de session sont ignorées.
+
+La couverture signifie « déductions enregistrées uniquement ». Une liste vide ne certifie pas l'absence de retours, et cette lecture ne recherche pas tous les avoirs Odoo du mois. Le montant après déductions renseignées ne devient donc pas automatiquement une commission finale exhaustive. Les coûts historiques, le SPIFF et le rapprochement des pièces manquantes restent distincts des deux règles maintenant confirmées. L'export CSV des ventes conserve les estimations avant déduction des retours, ce qui est indiqué dans le texte de l’export.
+
+Validation : lecture des libellés, montants, cellules et formules des fichiers source ; rapprochement arithmétique indépendant des trois déductions ; contrôles SQL isolés des périmètres et droits ; tests de confirmation, sociétés, montants manquants, doublons, recherches, retours de commandes antérieures et soldes négatifs ; parcours mobile et lectures réelles authentifiées. Aucun document Odoo n'est modifié.

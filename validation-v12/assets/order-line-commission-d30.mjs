@@ -1,6 +1,6 @@
 // D20: share the already guarded Kino simulation with the Orders product detail.
 // Never infer "owed" commission from Odoo, or treat missing SKU as payable.
-import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=calculation-8';
+import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=rules-1';
 import {sumCents} from './commission-integrity-d24.mjs';
 const safe=(v)=>typeof v==='number'&&Number.isFinite(v);
 export function buildOrderLineCommissions(report){

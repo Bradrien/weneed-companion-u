@@ -1,5 +1,6 @@
 // D22: Odoo stage is authoritative; invoice_status is NOT proof of payment.
-import {cents,sumCents,sourceAmountIssues,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
+import {cents,sumCents,sourceAmountIssues} from './commission-integrity-d24.mjs';
+import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
 import {calculateKinoLine} from './kino-calculation-d31.mjs';
 const STAGES=['en_cours','confirme','facture'];
 export const statusLabels=Object.freeze({

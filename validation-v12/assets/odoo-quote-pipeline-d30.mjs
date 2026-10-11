@@ -1,8 +1,10 @@
-import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=calculation-8';
-import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=review-1';
+import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=rules-1';
+import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=rules-1';
 import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=review-1';
 import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
-import {COMMISSION_ISSUES,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
+import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
+import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
+import {createCommissionReturns} from './commission-returns-d37.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
 const el=(tag,cls='',s)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(s!==undefined)n.textContent=String(s);return n};
@@ -26,16 +28,17 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  estimated_units_unverified:'Coût fondé sur les prix unitaires Kino actuels, historique à valider',
  unverified_unit_scale:'Coût au gramme ou au sachet non identifiable : estimation suspendue',
  missing_kino_price:'Prix de référence Kino manquant'};
-export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,isActive,isAuthenticated}){
+export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,isActive,isAuthenticated}){
  let data=null,fallbackData=null,fallbackMonth=null,fallbackLoading=false,fallbackError='',loading=false,error='',stages=new Set(filters),company='all',search='',month=currentCommissionMonth(),epoch=0,expanded=new Set(),failedCode='';
  const host=()=>document.getElementById('odoo-quote-pipeline-root');
+ const returnDeductions=createCommissionReturns({request:returnDeductionsRequest,isAuthenticated,onUpdated:()=>render()});
  const invoiceEvidence=typeof invoiceEvidenceRequest==='function'?
   createInvoiceEvidenceView({request:invoiceEvidenceRequest,isAuthenticated}):null;
- function reset(){epoch++;invoiceEvidence?.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
+ function reset(){epoch++;invoiceEvidence?.reset();returnDeductions.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
  async function load(force=false){
   if(!isAuthenticated()||loading)return;
   if((data||fallbackData)&&!force){render();return}
-  const ticket=++epoch;invoiceEvidence?.reset();loading=true;error='';render();
+  const ticket=++epoch;invoiceEvidence?.reset();loading=true;error='';void returnDeductions.load(month);render();
   try{
    const selectedMonth=month;
    const response=await request(selectedMonth);
@@ -185,7 +188,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    extra.append(body);panel.append(extra);
   }
   if(!review.points.length)panel.append(el('p','commission-month-detail',
-   'Aucun point technique détecté. Coûts historiques, SPIFF, règles de rémunération et traitement des avoirs restent à valider. Aucune commission acquise.'));
+   'Aucun point technique détecté. Déclenchement à la confirmation et déduction des retours confirmés. Coûts historiques, SPIFF et exhaustivité des déductions restent à vérifier.'));
   target.append(panel);
  }
  function sourceOrderLink(id){
@@ -231,13 +234,13 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    (data.sourceInputsRechecked?'Prix, remises, montants et statuts Odoo revérifiés pendant la lecture.':
     'La réponse disponible ne confirme pas la seconde lecture Odoo.')+
    ' Lecture : '+timestamp(info.readAt)+'. Calcul hors SPIFF, arrondi au centime par ligne. '+
-   'Coûts historiques, exclusions, avoirs et paiement restent à confirmer.'));
+   'Déclenchement confirmé : commande confirmée. Les commissions des retours sont déduites du total final. Coûts historiques, SPIFF et pièces de déduction restent à rapprocher.'));
   panel.append(body);target.append(panel);
   const exportPanel=el('div','commission-export-controls'),button=el('button','','Exporter le bilan CSV');
   button.type='button';button.disabled=loading||!!error||!data.sourceInputsRechecked||!orders.length;
   const status=el('small','commission-month-detail',
    'Export du mois sélectionné avec les filtres société et recherche : '+orders.length+
-   ' document(s), devis et commandes séparés. Les montants manquants ou suspendus restent vides.');
+   ' document(s), devis et commandes séparés. Estimations des ventes avant déduction des retours ; les montants manquants ou suspendus restent vides.');
   status.setAttribute('role','status');
   button.onclick=()=>{
    if(loading||error||!isAuthenticated())return;
@@ -370,14 +373,15 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    monthlyMetric('Devis non confirmés · potentiels',summary.pending,
     'Sous réserve de confirmation Odoo.'),
    monthlyMetric('Commandes confirmées · prévisionnelles',summary.confirmed,
-    'Comprend les commandes facturées ; ne signifie pas payé.')
+    'Déclenchement à la confirmation ; comprend les commandes facturées, avant déduction des retours.')
   );
   const validated=el('article','commission-month-metric');
-  validated.append(el('span','','Commissions validées · acquises'),
+  validated.append(el('span','','Commission finale · après tous les retours'),
    el('strong','','Non disponible'),
-   el('small','','Aucune validation officielle de rémunération accessible. Les états de paiement Odoo se consultent dans le détail et ne valident pas une commission.'));
+   el('small','','Règles de confirmation et de déduction des retours établies. Le montant final attend le rapprochement des coûts, du SPIFF et de toutes les pièces de retour.'));
   grid.append(validated);
   target.append(grid);
+  target.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh:!!data&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&data.sourceInputsRechecked&&!loading&&!error,pipelineReadAt:monthlyData.readAt}));
   if(data){drawCompanyBreakdown(target,selected);drawAuditControls(target,selected)}
   if(data)drawReconciliation(target,[...summary.pending.orders,...summary.confirmed.orders]);
   const groups=[
@@ -418,7 +422,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   const panel=el('section','commission-monthly-panel');
   panel.append(el('span','eyebrow','BILAN COMMERCIAL MENSUEL'),
    el('h2','','Devis, commandes et commissions'),
-   el('p','','Prévisionnel exclusivement basé sur les documents Odoo accessibles à ton compte. Aucune commission acquise supposée.'));
+   el('p','','La confirmation déclenche la commission. Les devis restent potentiels ; la commission des retours est déduite du total final.'));
   const toolbar=el('div','commission-month-toolbar');
   const previous=el('button','','‹');previous.type='button';
   previous.setAttribute('aria-label','Mois précédent du bilan commissions');
@@ -435,7 +439,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   function changeMonth(nextMonth){
    if(nextMonth!==month){
     // Never present the prior month's Odoo snapshot as the newly selected month.
-    epoch++;invoiceEvidence?.reset();loading=false;fallbackLoading=false;expanded.clear();
+    epoch++;invoiceEvidence?.reset();returnDeductions.reset();loading=false;fallbackLoading=false;expanded.clear();
     data=null;fallbackData=null;fallbackMonth=null;fallbackError='';
    }
    month=nextMonth;select.value=month;label.textContent=labelCommissionMonth(month);drawMonthly(body);

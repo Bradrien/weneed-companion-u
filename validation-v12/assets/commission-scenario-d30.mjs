@@ -4,7 +4,8 @@
  * Historical costs and Kino server rules remain unverified. Never payable.
  */
 import {calculateKinoLine} from './kino-calculation-d31.mjs';
-import {sourceAmountIssues,COMMISSION_RULE_STATUS,sumCents} from './commission-integrity-d24.mjs';
+import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
+import {sourceAmountIssues,sumCents} from './commission-integrity-d24.mjs';
 import {reconcileKinoUnit} from './kino-unit-basis-d30.mjs';
 
 const CONFIRMED=new Set(['sale','done']);

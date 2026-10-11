@@ -1,8 +1,8 @@
 import {createConnectorStatus} from './connectors-d34.mjs';
 import {createTasks} from './tasks-d36.mjs';
 import {createArchives} from './archives-d35.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=review-1';
-import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=calculation-8';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=rules-1';
+import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs';
 import {createStocks} from './stocks-d34.mjs';
 import {createRequestGuard} from './request-guard.mjs';
@@ -14,7 +14,7 @@ import {buildCommercialMemory} from './client-memory-d15.mjs';
 import {normalizeOdooCandidates} from './client-candidates-d15.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation-d7.mjs';
-import {renderCommissionScenario} from './commission-scenario-ui-d30.mjs?v=calculation-8';
+import {renderCommissionScenario} from './commission-scenario-ui-d30.mjs?v=rules-1';
 import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
 const $=x=>document.getElementById(x);
 const state={access:null,refresh:null,exp:0,report:null,view:(()=>{const v=new URL(location.href).searchParams.get('view');return ['home','orders','clients','commissions','stocks','archives','strategy','tasks','settings'].includes(v)?v:'home'})(),period:prevCompleteMonth(),company:'ALL',orderState:'all',query:'',page:1,expanded:new Set(),loading:false,refreshTimer:null};
@@ -40,6 +40,12 @@ const archives=createArchives({briefRequest:async(suffix)=>{
 archives.setClientRenderer(()=>{if(state.view==='clients'&&clients.selected)renderClients()});
 const odooQuotes=createOdooQuotePipeline({isAuthenticated:()=>!!state.access,
  isActive:()=>state.view==='commissions',
+ returnDeductionsRequest:async(month)=>{
+  const jwt=await ensureToken();
+  const response=await authFetch('/functions/v1/commission-returns?month='+encodeURIComponent(month),{headers:{authorization:'Bearer '+jwt}});
+  let json;try{json=await response.json()}catch{throw Error('return_deductions_unavailable')}
+  if(!response.ok||json?.ok!==true)throw Error('return_deductions_unavailable');return json;
+ },
  invoiceEvidenceRequest:async(orderId)=>{
   if(!Number.isSafeInteger(orderId)||orderId<1)throw Error('invalid_order_id');
   const jwt=await ensureToken();
@@ -226,7 +232,7 @@ function changeMonth(delta){reportRequests.invalidate();loading(false);const y=N
 function updatePeriod(){$('period-label').textContent=state.period.label}
 function navigate(view){if(!['home','orders','clients','commissions','stocks','archives','strategy','tasks','settings'].includes(view))return;if(view!==state.view)archives.close();state.view=view;document.querySelector('.month-toolbar').classList.toggle('hidden',['stocks','archives','strategy','tasks'].includes(view));$('notice').classList.toggle('hidden',['stocks','archives','strategy','tasks'].includes(view));const names={tasks:['ACTIONS','Tâches et rappels','Créer, reporter et terminer tes actions commerciales.'],strategy:['PILOTAGE','Stratégie clients','Panier moyen, TR/GTA, rythme d’achat et plans d’action.'],archives:['WHATSAPP','Archives clients','Vos conversations archivées, avec les vocaux originaux.'],stocks:['DISPONIBILITÉ','Stocks','Stocks TR / GTA et alertes sur ton téléphone.'],home:['ACCUEIL','Vue d’ensemble','Le suivi de ton activité GTA et Trim Rocket.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['CRM PRIVÉ','Clients','Contacts, tâches et historique commercial en lecture seule.'],commissions:['RÉMUNÉRATION','Commissions','Devis Odoo, commandes confirmées et facturation : gains potentiels.'],settings:['COMPTE','Paramètres','Statut des connexions et sécurité.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='settings')connectorStatus.open();if(view==='tasks')tasks.open();if(view==='stocks')stocks.open();if(view==='archives')archives.open();if(view==='strategy')strategy.open();if(view==='commissions')odooQuotes.load();if(view==='clients'&&!clients.loading){if(clients.selected&&!clients.detail)openClient(clients.selected);else if(!clients.selected&&clients.rows===null)loadClients();}if(view==='home'&&dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard()}
 function metric(label,value,sub,{dark=false,small=false}={}){const el=node('article','metric'+(dark?' dark':''));el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));return el}
-function renderStats(){const list=state.report?.orders||[],stats=deriveStats(list);const grid=$('metrics');clear(grid);grid.append(metric('Commandes GTA/TR',state.report?String(stats.visible):'—','Sur la période'),metric('Commandes confirmées',state.report?String(stats.confirmed):'—','Statuts sale et done'),metric('Montant HT confirmé',state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Chiffre d’affaires, pas commission',{small:true}),metric('Commissions', 'À vérifier','Attente des règles Kino',{dark:true,small:true}));
+function renderStats(){const list=state.report?.orders||[],stats=deriveStats(list);const grid=$('metrics');clear(grid);grid.append(metric('Commandes GTA/TR',state.report?String(stats.visible):'—','Sur la période'),metric('Commandes confirmées',state.report?String(stats.confirmed):'—','Statuts sale et done'),metric('Montant HT confirmé',state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Chiffre d’affaires, pas commission',{small:true}),metric('Commissions', 'À vérifier','Coûts et retours à rapprocher',{dark:true,small:true}));
  const c=$('commission-facts');clear(c);c.append(metric('GTA • confirmées',state.report?String(list.filter(o=>o.company==='GTA'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('TR • confirmées',state.report?String(list.filter(o=>o.company==='TR'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('À exclure',state.report?String(stats.excluded):'—','Annulées, brouillons et autres'),metric('Commissions validées','—','Rapprochement Kino requis',{dark:true,small:true}));
 }
 function orderCard(order){const outer=node('article','order-card');const btn=node('button','order-button');btn.type='button';btn.setAttribute('aria-expanded',state.expanded.has(String(order.id))?'true':'false');btn.setAttribute('aria-label',`Voir les lignes de ${order.reference||'commande'}`);
@@ -249,7 +255,7 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
  const comm=node('div','order-line-commission'+(estimate.status==='simulated'?' estimated':' pending'),commText);
  left.append(comm);
  if(estimate.status==='simulated')left.append(node('small','order-commission-flag',
-   'Simulation Kino · coût par unité supposé · non acquise et non facturée'));
+   'Estimation Kino avant retours · coût catalogue actuel'));
  row.append(left,right);detail.append(row)}
  const foot=node('div','detail-footer');
  foot.append(node('div','',`Total Odoo : ${formatMoney(order.amount_ht,order.currency||'EUR')} · Somme des lignes : ${formatMoney(order.line_sum_ht,order.currency||'EUR')}`));
@@ -270,7 +276,7 @@ function renderOrders(){const list=$('orders-list');clear(list);const subset=fil
  if(!subset.length)list.append(empty('Aucune commande correspondant à ces filtres.'));
  for(const o of subset.slice(0,15*state.page))list.append(orderCard(o));$('load-more').classList.toggle('hidden',subset.length<=15*state.page)}
 function warningInFrench(v){return ({
- 'Kino rules have not been verified: NO commission calculation':'Règles Kino non vérifiées : aucun calcul de commission',
+ 'Kino rules have not been verified: NO commission calculation':'Rapport de contrôle sans calcul final ; consulter le bilan Kino et les déductions de retour',
  'Source order totals are not commissions owed':'Les montants Odoo ne sont pas des commissions acquises',
  'All orders filtered to authenticated Odoo salesperson':'Commandes filtrées sur le commercial Odoo authentifié',
  'Missing product SKU mappings require review':'Références SKU manquantes : vérification nécessaire',

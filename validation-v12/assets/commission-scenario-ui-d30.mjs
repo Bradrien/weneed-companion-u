@@ -1,6 +1,6 @@
 /** Read-only presentation of a provisional scenario; no server writes or validation claims. */
 import {formatMoney} from './model.mjs';
-import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=calculation-8';
+import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=rules-1';
 import {sumCents} from './commission-integrity-d24.mjs';
 const el=(tag,cls,value)=>{
  const n=document.createElement(tag);
