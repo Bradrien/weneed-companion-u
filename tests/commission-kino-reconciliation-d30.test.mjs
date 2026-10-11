@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {reconcileKinoUnit} from '../supabase/functions/odoo-commission-pipeline/unit-basis.mjs';
 import {calculateOdooOrder} from '../supabase/functions/odoo-commission-pipeline/core.mjs';
+import {normalizeOdooPipeline} from '../validation-v12/assets/odoo-commission-model-d30.mjs';
 import {normalizeOdooPipeline} from '../validation-v12/assets/odoo-commission-model-d24.mjs';
 
 // Synthetic Odoo source figures based on the separately checked CBW quote lines.
@@ -81,4 +82,23 @@ test('implausible catalog price ratio or missing cost never produces an invented
   {sku:'BG/TR/250',productName:'Bacio Gelato 250-TR',cost:0,listedPrice:900,odooUnitPrice:800},
   {sku:'SL/I',productName:'Slurp',cost:1.4,listedPrice:0,odooUnitPrice:2.5}
  ])assert.equal(reconcileKinoUnit(args).ok,false);
+});
+
+test('D30 client normalizer preserves Kino unit audit and rejects forged unit metadata',()=>{
+ const tr=result('TR');
+ const report={version:'odoo_commission_pipeline_v1',read_at:'2026-10-11T10:00:00Z',
+  closed_window_from:'2026-10-01',
+  scope:'owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked',
+  invoicing_semantics:'sale.order.invoice_status_not_payment_status',
+  formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
+  source_lines_rechecked:true,source_amounts_rechecked:true,orders:[tr]};
+ const valid=normalizeOdooPipeline(report).orders[0];
+ assert.equal(valid.forecast,99.13);
+ assert.equal(valid.lines[2].effectiveUnitCostEur,440);
+ assert.equal(valid.lines[2].packSizeG,250);
+ assert.equal(valid.lines[2].kinoTier,'A');
+ assert.equal(valid.lines[2].unitBasis,'catalog_price_matches_odoo_unit');
+ const tampered=structuredClone(report);
+ tampered.orders[0].lines[2].effective_unit_cost_eur=-440;
+ assert.throws(()=>normalizeOdooPipeline(tampered),/invalid_odoo_unit_basis/);
 });
