@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {reconcileKinoUnit} from '../supabase/functions/odoo-commission-pipeline/unit-basis.mjs';
 import {calculateOdooOrder} from '../supabase/functions/odoo-commission-pipeline/core.mjs';
 import {normalizeOdooPipeline} from '../validation-v12/assets/odoo-commission-model-d30.mjs';
-import {normalizeOdooPipeline} from '../validation-v12/assets/odoo-commission-model-d24.mjs';
+
 
 // Synthetic Odoo source figures based on the separately checked CBW quote lines.
 // These are regression benchmarks, NOT a live claim that Odoo documents are confirmed/paid.
