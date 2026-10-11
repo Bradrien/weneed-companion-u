@@ -31,6 +31,10 @@ jobs:
           node --check validation-v12/assets/app-crm-d30.js
           node --check validation-v12/assets/odoo-quote-pipeline-d30.mjs
           node --check validation-v12/assets/odoo-commission-model-d30.mjs
+          node --check validation-v12/assets/commission-scenario-d30.mjs
+          node --check validation-v12/assets/commission-scenario-ui-d30.mjs
+          node --check validation-v12/assets/order-line-commission-d30.mjs
+          node --check validation-v12/assets/kino-unit-basis-d30.mjs
           node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs
           node --check supabase/functions/odoo-commission-pipeline/scope.mjs
           node --check validation-v12/assets/app-crm-d27.js

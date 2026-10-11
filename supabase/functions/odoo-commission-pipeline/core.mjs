@@ -42,8 +42,10 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
   let reason='not_eligible',estimate=null,unitBasis=null,unitCost=null,packSizeG=null,catalogPrice=null,tier=null;
   const candidate=!line.display_type&&quantity!==null&&quantity>0&&subtotal!==null&&subtotal>0;
   // A name filter is a provisional scope filter, not an approved compensation policy.
-  const namedExclusion=/sample|samples|échantillon|échantillons|delivery|shipping|livraison|transport/i.test(
-   text(product?.name)+' '+text(line.name));
+  // Product identity is authoritative. Invoice notes can mention samples/shipping
+  // without turning a sold product into an excluded sample or delivery charge.
+  const identity=(text(product?.name)||text(line.name).split('\n')[0])+' '+sku;
+  const namedExclusion=/(?:^|[^\p{L}\p{N}_])(?:samples?|échantillons?|delivery|shipping|livraison|transport|freight|port)(?=$|[^\p{L}\p{N}_])/iu.test(identity);
   if(!line.display_type&&(quantity===null||subtotal===null))reason='invalid_amount';
   else if(!line.display_type&&quantity>0&&
    (price===null||price<0||discount===null||discount<0||discount>100))reason='invalid_amount';

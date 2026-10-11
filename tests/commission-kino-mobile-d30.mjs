@@ -49,6 +49,20 @@ try{
   window.pipeline=createOdooQuotePipeline({request:async()=>({data}),isActive:()=>true,
    isAuthenticated:()=>true});
   await window.pipeline.load();
+  // The same synthetic packs sold as grams must agree in scenario and Orders.
+  const {renderCommissionScenario}=await import('/assets/commission-scenario-ui-d30.mjs');
+  const {buildOrderLineCommissions,lineCommission}=await import('/assets/order-line-commission-d30.mjs');
+  const report={verified_commissions_eur:null,commissions_are_calculated:false,persisted:false,
+   source_order_status_rechecked:true,source_order_status_checked_at:data.read_at,
+   catalog_matching:{matched:3},orders:[{id:1,reference:'TEST-TR',client:'Client synthétique',
+    company:'TR',state:'sale',currency:'EUR',amount_ht:1020,commission_eur:null,issues:[],
+    lines:order.lines.map(l=>({id:l.line_id,sku:l.sku,product_name:l.product,kind:'candidate',
+     quantity:l.pack_size_g,unit_price:l.price_unit/l.pack_size_g,discount_pct:0,
+     line_ht:l.subtotal_ht,commission_eur:null,catalog_match:{status:'matched',catalog_name:l.product,
+      tier:l.kino_tier,cost_eur:l.effective_unit_cost_eur,list_price_eur:l.catalog_unit_price_eur}}))}]};
+  const target=document.createElement('section');target.id='scenario-consistency';document.body.append(target);
+  renderCommissionScenario(report,target);
+  window.orderLineEstimates=report.orders[0].lines.map(l=>lineCommission(buildOrderLineCommissions(report),1,l.id));
  });
  await page.locator('.commission-month-toolbar input[type=month]').fill('2026-10');
  assert.match(await page.locator('.commission-monthly-panel').innerText(),/99,13/);
@@ -60,6 +74,9 @@ try{
  assert.match(await details.innerText(),/Sachet Kino 250 g/);
  assert.match(await details.innerText(),/Coût historique à confirmer/);
  assert.match(await details.innerText(),/99,13\s*€/);
+ assert.match(await page.locator('#scenario-consistency').innerText(),/99,13\s*€/);
+ assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.commission)),[15.75,14.43,68.95]);
+ assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.costPerAssumedUnit)),[1,1.06,1.76]);
  assert.deepEqual(errors,[]);
  console.log('D30 Kino drill-down mobile passed: three independent line costs, pack units and pending forecast.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok))}

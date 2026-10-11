@@ -77,7 +77,7 @@ test('owner Odoo edge guards and repeated reads',async t=>{
   await t.test('successful response performs bounded repeat reads and stays nonpayable',async()=>{
    const response=await handler(request()),body=await response.json();
    assert.equal(response.status,200);assert.equal(body.ok,true);
-   assert.equal(lineReads,2);assert.equal(body.data.revision,5);
+   assert.equal(lineReads,2);assert.equal(body.data.revision,6);
    assert.equal(body.data.period_from,new Date().toISOString().slice(0,7)+'-01');
    assert.equal(body.data.source_lines_rechecked,true);assert.equal(body.data.source_amounts_rechecked,true);
    assert.equal(body.data.uncertainties.payable,false);

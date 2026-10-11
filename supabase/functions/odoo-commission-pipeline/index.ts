@@ -1,4 +1,4 @@
-// D28 / revision 5 — owner-only bounded monthly pipeline, repeated financial source reads.
+// D30 / revision 6 — product-identity exclusions and reconciled Kino billing units.
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {assertUnchangedRows,calculateOdooOrder,PIPELINE_UNCERTAINTIES} from './core.mjs';
 import {parseOdooPeriod,odooPeriodDomain} from './scope.mjs';
@@ -180,7 +180,7 @@ Deno.serve(async req=>{
    period_from:from,period_to:to,
    invoicing_semantics:'sale.order.invoice_status_not_payment_status',
    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
-   revision:5,source_lines_rechecked:true,source_amounts_rechecked:true,
+   revision:6,source_lines_rechecked:true,source_amounts_rechecked:true,
    read_consistency:'two_read_windows_not_atomic_snapshot',
    calculation_guards:'signed_amounts_price_discount_subtotals_v1',
    uncertainties:PIPELINE_UNCERTAINTIES,

@@ -86,7 +86,9 @@ test('missing or ambiguous catalogue cannot turn into an assumed zero commission
  }
 });
 test('keyword exclusion remains a visible scope filter with uncertain business policy',()=>{
- const out=calculateOdooOrder(order(),[line({name:'Livraison synthétique'})],options());
+ const opts=options();
+ opts.products.get(100).name='Livraison synthétique';
+ const out=calculateOdooOrder(order(),[line({name:'Livraison synthétique'})],opts);
  assert.equal(out.forecast,null);
  assert.equal(out.excluded_lines,1);
  assert.equal(out.lines[0].reason,'not_eligible');
