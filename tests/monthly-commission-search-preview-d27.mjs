@@ -77,10 +77,7 @@ try{
  assert.match(await panel.innerText(),/Non disponible/);
  assert.match(await panel.innerText(),/estimations de commissions suspendues/);
  assert.equal(await page.locator('.commission-month-row').count(),3);
- const boxes=await page.locator('.pipeline-filter input[type=checkbox]').evaluateAll(nodes=>
-  nodes.map(n=>({w:n.getBoundingClientRect().width,h:n.getBoundingClientRect().height})));
- assert.equal(boxes.length,3);
- assert.ok(boxes.every(x=>x.w<=24&&x.h<=24),'Status checkboxes must stay compact: '+JSON.stringify(boxes));
+ assert.equal(await page.locator('.pipeline-filter').count(),0,'Hide detailed-only filters during Odoo fallback');
  await month.fill('2026-09');
  await page.waitForFunction(()=>window.monthlyRequests.includes('2026-09'));
  assert.equal(await page.locator('.commission-month-row').count(),3);
