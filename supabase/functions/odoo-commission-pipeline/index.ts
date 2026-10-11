@@ -1,6 +1,7 @@
-// D24 / revision 4 — owner-only read-only pipeline, repeated financial source reads.
+// D28 / revision 5 — owner-only bounded monthly pipeline, repeated financial source reads.
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {assertUnchangedRows,calculateOdooOrder,PIPELINE_UNCERTAINTIES} from './core.mjs';
+import {parseOdooPeriod,odooPeriodDomain} from './scope.mjs';
 const ORIGIN='https://bradrien.github.io';
 const COMPANY={'Global Trust Agriculture SA':'GTA','Trim Rocket s.r.o.':'TR'} as Record<string,string>;
 const txt=(x:unknown)=>typeof x==='string'?x:'';
@@ -54,12 +55,17 @@ Deno.serve(async req=>{
  if(origin&&origin!==ORIGIN)return answer(req,{ok:false,error:'origin_not_allowed'},403);
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:head(req)});
  if(req.method!=='GET')return answer(req,{ok:false,error:'method_not_allowed'},405);
- if(new URL(req.url).search)return answer(req,{ok:false,error:'unsupported_query'},400);
+ let period:{from:string,to:string};
+ try{period=parseOdooPeriod(req.url)}catch(e){
+  const code=e instanceof Error&&e.message==='invalid_period'?'invalid_period':'unsupported_query';
+  return answer(req,{ok:false,error:code},400);
+ }
  const jwt=req.headers.get('authorization')?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
  if(!jwt)return answer(req,{ok:false,error:'authentication_required'},401);
  let keys:Record<string,string>={};try{keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}')}catch{}
  const base=Deno.env.get('SUPABASE_URL')||'',service=keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
  if(!base||!service)return answer(req,{ok:false,error:'not_configured'},503);
+ let phase='owner_auth';
  try{
   const sb=createClient(base,service,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:au,error:authError}=await sb.auth.getUser(jwt);
@@ -68,6 +74,7 @@ Deno.serve(async req=>{
   const {data:acl,error:ae}=await sb.from('app_access_users').select('role,is_active')
    .eq('email',user.email.toLowerCase()).maybeSingle();
   if(ae||!acl?.is_active||acl.role!=='owner')return answer(req,{ok:false,error:'owner_only'},403);
+  phase='odoo_config';
   const hostRaw=Deno.env.get('ODOO_URL')||'',db=Deno.env.get('ODOO_DB')||'',
    login=Deno.env.get('ODOO_USERNAME')||'',apiKey=Deno.env.get('ODOO_API_KEY')||'';
   let url:URL;try{url=new URL(hostRaw)}catch{throw safe('odoo_not_configured',503)}
@@ -75,18 +82,19 @@ Deno.serve(async req=>{
     url.password||url.search||url.hash||url.port||!db||!login||!apiKey)
    throw safe('odoo_not_configured',503);
   const host=url.origin;
+  phase='odoo_auth';
   const uid=await rpc(host,db,0,apiKey,'common','authenticate',[db,login,apiKey,{}]);
   if(!Number.isSafeInteger(uid)||uid<=0||
    (Deno.env.get('ODOO_UID_PIN')&&String(uid)!==Deno.env.get('ODOO_UID_PIN')))
    throw safe('odoo_auth_failed',503);
-  const today=new Date(),from=new Date(today.getTime()-365*86400000).toISOString().slice(0,10);
+  const {from,to}=period;
+  phase='orders_read';
   const standard=['id','name','date_order','state','invoice_status','partner_id','user_id',
    'company_id','amount_untaxed','currency_id','write_date'];
   const open=await pages(host,db,uid,apiKey,'sale.order',
-   [['user_id','=',uid],['state','in',['draft','sent']]],standard,400);
+   odooPeriodDomain(uid,['draft','sent'],period),standard,300);
   const closed=await pages(host,db,uid,apiKey,'sale.order',
-   [['user_id','=',uid],['state','in',['sale','done']],['date_order','>=',from+' 00:00:00']],
-   standard,1200);
+   odooPeriodDomain(uid,['sale','done'],period),standard,400);
   const all=[...open,...closed].filter(o=>COMPANY[name(o.company_id)]);
   const ids=all.map(o=>o.id);
   if(ids.some(x=>!Number.isSafeInteger(x)||x<=0)||new Set(ids).size!==ids.length)
@@ -94,12 +102,14 @@ Deno.serve(async req=>{
   const lineFields=['id','order_id','product_id','name','product_uom_qty','price_unit','price_subtotal',
    'discount','display_type','product_uom','write_date'];
   const lineDomain=[['order_id','in',ids]];
+  phase='lines_read';
   const lines=ids.length?await pages(host,db,uid,apiKey,'sale.order.line',
-   lineDomain,lineFields,4500):[];
+   lineDomain,lineFields,2400):[];
   assertUnchangedRows(lines,lines,lineFields,'odoo_order_identity_mismatch');
   const pids=[...new Set(lines.map(l=>rel(l.product_id)).filter(x=>x!==null))] as number[];
   if(pids.length>1000)throw safe('odoo_scope_too_large',413);
   const pmap=new Map<number,Record<string,unknown>>();
+  phase='products_read';
   for(let i=0;i<pids.length;i+=100){
    const group=pids.slice(i,i+100);
    const data=await rpc(host,db,uid,apiKey,'object','execute_kw',
@@ -112,6 +122,7 @@ Deno.serve(async req=>{
     pmap.set(item.id,item);
    }
   }
+  phase='catalog_read';
   const snapResp=await sb.from('kino_catalog_snapshots').select('id,source_completed_at,item_count')
    .eq('status','complete').order('source_completed_at',{ascending:false}).limit(1).maybeSingle();
   const snapshot=snapResp.data;
@@ -142,11 +153,13 @@ Deno.serve(async req=>{
   }
   // Re-read the same bounded line scope after catalogue/product reads. Detect edits,
   // additions, removals and reparenting; do not combine monetary facts from two reads.
+  phase='lines_recheck';
   const linesAfter=ids.length?await pages(host,db,uid,apiKey,'sale.order.line',
-   lineDomain,lineFields,4500):[];
+   lineDomain,lineFields,2400):[];
   assertUnchangedRows(lines,linesAfter,lineFields,'odoo_source_changed');
   // Recheck seller, state, currency, order totals and customer/company identity last.
   // This detects changes during this read window; it is not a database transaction.
+  phase='orders_recheck';
   for(let i=0;i<ids.length;i+=100){
    const group=ids.slice(i,i+100),current=await rpc(host,db,uid,apiKey,'object','execute_kw',
     [db,uid,apiKey,'sale.order','search_read',
@@ -155,14 +168,16 @@ Deno.serve(async req=>{
    if(!Array.isArray(current)||current.length!==group.length)throw safe('odoo_state_changed',409);
    assertUnchangedRows(all.filter(o=>group.includes(o.id)),current,standard,'odoo_source_changed');
   }
+  phase='commission_calculation';
   const orders=all.map(o=>calculateOdooOrder(o,lineMap.get(o.id)||[],{
    company:COMPANY[name(o.company_id)],products:pmap,catalog,duplicates:dupes,catalogAvailable}));
   orders.sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
   return answer(req,{ok:true,data:{version:'odoo_commission_pipeline_v1',
-   read_at:new Date().toISOString(),closed_window_from:from,pending_scope:'all_pending_seller_orders',
+   read_at:new Date().toISOString(),closed_window_from:from,pending_scope:'period_pending_seller_orders',
+   period_from:from,period_to:to,
    invoicing_semantics:'sale.order.invoice_status_not_payment_status',
    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
-   revision:4,source_lines_rechecked:true,source_amounts_rechecked:true,
+   revision:5,source_lines_rechecked:true,source_amounts_rechecked:true,
    read_consistency:'two_read_windows_not_atomic_snapshot',
    calculation_guards:'signed_amounts_price_discount_subtotals_v1',
    uncertainties:PIPELINE_UNCERTAINTIES,
@@ -174,7 +189,9 @@ Deno.serve(async req=>{
    'odoo_response_too_large','odoo_scope_too_large','odoo_order_identity_mismatch',
    'odoo_state_changed','odoo_source_changed','odoo_not_configured','odoo_auth_failed'];
   const code=known.includes(err)?err:'odoo_pipeline_unavailable';
-  return answer(req,{ok:false,error:code},
+  // Only bounded allowlisted phase and error code: no credentials, customer IDs or raw Odoo errors.
+  console.error('odoo_commission_pipeline_failure',JSON.stringify({phase,code}));
+  return answer(req,{ok:false,error:code,stage:phase},
    code==='odoo_state_changed'||code==='odoo_source_changed'||code==='odoo_order_identity_mismatch'?409:
     code==='odoo_scope_too_large'||code==='odoo_response_too_large'?413:503);
  }
