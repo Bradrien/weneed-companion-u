@@ -6,4 +6,6 @@ Le filtre d'exclusion du pipeline examine l'identité du produit et son SKU. Une
 
 La révision serveur 6 conserve les contrôles propriétaire, les lectures Odoo répétées, les montants signés et la suspension des unités ambiguës. Les SKU absents, coûts nuls, coûts historiques, SPIFF, avoirs et règles de paiement restent à vérifier. Aucun montant n'est déclaré acquis ou payable.
 
-Validation : tests de conversion gramme/sachet, cohérence entre les trois vues, arrondis par ligne, notes de facture, exclusions explicites, unités ambiguës et contrôle mobile avec données synthétiques. Les données commerciales réelles et les identifiants ne sont pas publiés dans ce dépôt.
+La révision serveur 7 ajoute un rapprochement consultable pour les lignes non estimées. Seul un code explicite entre crochets au début du libellé produit peut devenir un candidat, recherché dans le catalogue de la société Odoo concernée. Le champ SKU officiel, les compteurs de couverture et les simulations restent inchangés. Le panneau mensuel regroupe les preuves, conserve les coûts nuls et ouvre le détail des commandes. Les commandes restent en lecture seule.
+
+Validation : tests de conversion gramme/sachet, cohérence entre les trois vues, arrondis par ligne, notes de facture, exclusions explicites, unités ambiguës, rapprochements par société, candidats non promus, coûts nuls et contrôle mobile avec données synthétiques. Les données commerciales réelles et les identifiants ne sont pas publiés dans ce dépôt.

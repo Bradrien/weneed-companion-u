@@ -31,6 +31,23 @@ function rate(tier,ratio){
  if(ratio<=0.15)return 0.2+ratio/0.15*(0.2321-0.2);
  return 0.2321+(ratio-0.15)/0.65*(0.3-0.2321);
 }
+// Read-only evidence: a bracketed label never substitutes for default_code.
+function catalogEvidence({company,sku,product,reason,catalog,duplicates,catalogAvailable}){
+ let source='odoo_sku',code=sku.toUpperCase();
+ if(!code){
+  if(reason!=='missing_odoo_sku')return null;
+  const hit=product.match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
+  if(!hit)return null;
+  source='product_label_prefix';code=hit[1].toUpperCase();
+ }
+ const key=company+'|'+code,row=catalog.get(key),status=!catalogAvailable?'unavailable':
+  duplicates.has(key)?'ambiguous':row?'found':'not_found';
+ return {source,company,sku:code,status,
+  catalog_name:status==='found'?text(row.product_name).slice(0,180):null,
+  tier:status==='found'?text(row.tier).slice(0,20):null,
+  cost_eur:status==='found'?number(row.cost_eur):null,
+  list_price_eur:status==='found'?number(row.list_price_eur):null};
+}
 export function calculateOdooOrder(order,items,{company,products,catalog,duplicates,catalogAvailable}){
  const seen=new Set();
  const presented=items.map(line=>{
@@ -76,11 +93,14 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
     }
    }
   }
-  return {line_id:line.id,sku,product:text(product?.name)||text(line.name).slice(0,160),
+  const productLabel=text(product?.name)||text(line.name).slice(0,160);
+  const evidence=estimate===null&&reason!=='not_eligible'?catalogEvidence({company,sku,
+   product:productLabel,reason,catalog,duplicates,catalogAvailable}):null;
+  return {line_id:line.id,sku,product:productLabel,
    quantity,unit:relationName(line.product_uom),price_unit:price,discount_pct:discount,
    subtotal_ht:subtotal,commission_estimate:estimate,reason,unit_basis:unitBasis,
    effective_unit_cost_eur:unitCost,catalog_unit_price_eur:catalogPrice,
-   pack_size_g:packSizeG,kino_tier:tier};
+   pack_size_g:packSizeG,kino_tier:tier,catalog_evidence:evidence};
  });
  const issues=[],amount=number(order.amount_untaxed),amountCents=cents(amount),
   lineCents=presented.map(line=>cents(line.subtotal_ht));

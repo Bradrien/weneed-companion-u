@@ -7,6 +7,29 @@ export const statusLabels=Object.freeze({
 // Preserve signed Odoo amounts; a return/adjustment is not a missing amount.
 const sourceNumber=x=>x===null||typeof x==='number'&&Number.isFinite(x);
 const estimate=x=>x===null||typeof x==='number'&&Number.isFinite(x)&&x>=0;
+function normalizeCatalogEvidence(raw,line,company){
+ if(raw===undefined||raw===null)return null; // Older responses remain readable.
+ if(!raw||typeof raw!=='object'||Array.isArray(raw)||raw.company!==company||
+  !['odoo_sku','product_label_prefix'].includes(raw.source)||
+  typeof raw.sku!=='string'||!raw.sku||raw.sku.length>100||raw.sku!==raw.sku.trim().toUpperCase()||
+  !['found','ambiguous','not_found','unavailable'].includes(raw.status)||
+  line.commission_estimate!==null||line.reason==='not_eligible')throw Error('invalid_catalog_evidence');
+ if(raw.source==='odoo_sku'){
+  if(!line.sku.trim()||raw.sku!==line.sku.trim().toUpperCase())throw Error('invalid_catalog_evidence');
+ }else{
+  const hit=line.product.match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
+  if(line.sku.trim()||line.reason!=='missing_odoo_sku'||!hit||raw.sku!==hit[1].toUpperCase())
+   throw Error('invalid_catalog_evidence');
+ }
+ if(raw.status==='found'){
+  if(typeof raw.catalog_name!=='string'||raw.catalog_name.length>180||
+   typeof raw.tier!=='string'||raw.tier.length>20||!sourceNumber(raw.cost_eur)||
+   !sourceNumber(raw.list_price_eur))throw Error('invalid_catalog_evidence');
+ }else if([raw.catalog_name,raw.tier,raw.cost_eur,raw.list_price_eur].some(x=>x!==null))
+  throw Error('invalid_catalog_evidence');
+ return {source:raw.source,company,sku:raw.sku,status:raw.status,
+  catalogName:raw.catalog_name,tier:raw.tier,costEur:raw.cost_eur,listPriceEur:raw.list_price_eur};
+}
 export function normalizeOdooPipeline(input){
  if(!input||input.version!=='odoo_commission_pipeline_v1'||!Array.isArray(input.orders)||
   input.orders.length>1600||input.scope!=='owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked'||
@@ -51,13 +74,14 @@ export function normalizeOdooPipeline(input){
     tier!==null&&!['A','B'].includes(tier)||
     (l.commission_estimate!==null&&(basis===null||effectiveCost===null||catalogUnitPrice===null||tier===null))))
     throw Error('invalid_odoo_unit_basis');
+   const catalogEvidence=normalizeCatalogEvidence(l.catalog_evidence,l,o.company);
    return {id:l.line_id,product:l.product.slice(0,180),sku:l.sku.slice(0,100),
     quantity:l.quantity,unit:l.unit.slice(0,50),
     subtotalHT:l.subtotal_ht,commissionEstimate:l.commission_estimate,
     unitPrice:hasPrice?l.price_unit:null,discountPct:hasDiscount?l.discount_pct:null,
     priceInputsAvailable:hasPrice,reason:l.reason,
     unitBasis:basis,effectiveUnitCostEur:effectiveCost,
-    catalogUnitPriceEur:catalogUnitPrice,packSizeG:packSize,kinoTier:tier};
+    catalogUnitPriceEur:catalogUnitPrice,packSizeG:packSize,kinoTier:tier,catalogEvidence};
   });
   const matched=lines.filter(l=>l.commissionEstimate!==null),
    unmatched=lines.filter(l=>l.commissionEstimate===null&&l.reason!=='not_eligible'),
@@ -100,7 +124,31 @@ export function filterOdooPipeline(data,{stage='all',stages=null,company='all',q
  const q=query.trim().toLocaleLowerCase('fr-FR');
  return data.orders.filter(o=>(active?active.has(o.stage):(stage==='all'||o.stage===stage))&&
   (company==='all'||o.company===company)&&(!q||[o.reference,o.client,o.company,
-   ...o.lines.map(l=>l.product+' '+l.sku)].join(' ').toLocaleLowerCase('fr-FR').includes(q)));
+   ...o.lines.map(l=>l.product+' '+l.sku+' '+(l.catalogEvidence?.sku||'')+' '+
+    (l.catalogEvidence?.catalogName||''))].join(' ').toLocaleLowerCase('fr-FR').includes(q)));
+}
+// Group diagnostics only. Never change coverage, forecasts or official Odoo SKUs.
+export function pipelineReconciliationGroups(orders){
+ const byKey=new Map();
+ for(const order of orders)for(const line of order.lines){
+  if(line.commissionEstimate!==null||line.reason==='not_eligible')continue;
+  const evidence=line.catalogEvidence,sku=evidence?.sku||line.sku;
+  const key=JSON.stringify([order.company,line.reason,evidence||sku,sku?null:line.id]);
+  if(!byKey.has(key))byKey.set(key,{company:order.company,reason:line.reason,sku,
+   catalogEvidence:evidence,lines:[]});
+  byKey.get(key).lines.push({orderId:order.id,reference:order.reference,client:order.client,
+   stage:order.stage,currency:order.currency,lineId:line.id,product:line.product,
+   quantity:line.quantity,amountHT:line.subtotalHT});
+ }
+ return [...byKey.values()].map(group=>{
+  const currencies=new Set(group.lines.map(l=>l.currency));
+  const amounts=group.lines.filter(l=>l.amountHT!==null).map(l=>l.amountHT);
+  const total=sumCents(amounts);
+  return {...group,amountHT:currencies.size===1&&total!==null&&amounts.length?total/100:null,
+   amountKnown:amounts.length,currency:currencies.size===1?[...currencies][0]:null,
+   pendingLines:group.lines.filter(l=>l.stage==='en_cours').length,
+   confirmedLines:group.lines.filter(l=>l.stage!=='en_cours').length};
+ });
 }
 export function odooPipelineTotals(orders){
  const total={en_cours:0,confirme:0,facture:0,forecastCount:0,forecastPartial:0,

@@ -1,4 +1,4 @@
-import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels} from './odoo-commission-model-d30.mjs';
+import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=reconciliation-7';
 import {COMMISSION_ISSUES,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
@@ -11,7 +11,7 @@ const filters=['en_cours','confirme','facture'];
 const name={en_cours:'Devis en cours',confirme:'Confirmées non facturées entièrement',facture:'Facturées'};
 const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kino_match:'SKU absent du catalogue Kino',
  ambiguous_sku:'SKU ambigu dans Kino',invalid_kino_tier:'Catégorie Kino inconnue',
- missing_kino_cost:'Coût Kino absent',line_price_mismatch:'Montant et remise Odoo incohérents',
+ missing_kino_cost:'Coût Kino absent ou nul',line_price_mismatch:'Montant et remise Odoo incohérents',
  invalid_quantity:'Quantité invalide',invalid_calculation:'Simulation impossible',
  invalid_amount:'Prix, remise ou montant incompatible avec le scénario',
  missing_odoo_sku:'SKU absent dans Odoo : rapprochement nécessaire',
@@ -51,6 +51,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
     invalid_odoo_pipeline:'Le serveur a fourni une réponse non conforme.',
     invalid_odoo_pipeline_order:'Une commande source est incohérente.',
     invalid_odoo_line:'Une ligne source est invalide ou dupliquée.',
+    invalid_catalog_evidence:'Le rapprochement catalogue ne correspond pas à la ligne source.',
     invalid_line_coverage:'Le nombre de lignes simulées ne correspond pas au détail source.',
     invalid_odoo_forecast:'L’estimation source est invalide.',
     odoo_stage_mismatch:'Le statut affiché ne correspond pas à Odoo.',
@@ -83,8 +84,63 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
  }
  function mini(title,value,details){const box=el('article','pipeline-stat');
   box.append(el('span','',title),el('strong','',value),el('small','',details));return box}
+ function appendCatalogEvidence(target,evidence){
+  if(!evidence)return;
+  target.append(el('small','pipeline-catalog-evidence',evidence.source==='product_label_prefix'?
+   'Code candidat '+evidence.sku+' lu entre crochets dans le libellé produit. Le champ SKU Odoo reste vide.':
+   'Référence interne Odoo : '+evidence.sku+'.'));
+  const status={found:'Code trouvé dans Kino',ambiguous:'Plusieurs entrées Kino pour ce code',
+   not_found:'Code introuvable dans Kino',unavailable:'Catalogue Kino indisponible'};
+  target.append(el('small','pipeline-catalog-evidence',status[evidence.status]+' · Société '+evidence.company+
+   (evidence.catalogName?' · '+evidence.catalogName:'')+'.'));
+  if(evidence.status==='found'){
+   target.append(el('small','pipeline-catalog-evidence',
+    'Catalogue actuel : coût '+(evidence.costEur===null?'absent':eur(evidence.costEur))+
+    (evidence.costEur!==null&&evidence.costEur<=0?' (inutilisable pour le calcul)':'')+
+    ' · Tarif '+(evidence.listPriceEur===null?'absent':eur(evidence.listPriceEur))+
+    ' · Palier '+(evidence.tier||'absent')+'. Valeurs par unité catalogue ; coût historique à confirmer.'));
+  }
+ }
+ function openOrder(orderId){
+  const order=data?.orders.find(o=>o.id===orderId);if(!order)return;
+  expanded.add(orderId);stages.add(order.stage);render();
+  let card=host()?.querySelector('[data-order-id="'+orderId+'"]');
+  if(!card){search=order.reference;render();card=host()?.querySelector('[data-order-id="'+orderId+'"]')}
+  card?.scrollIntoView({behavior:'smooth',block:'start'});
+  card?.querySelector('.pipeline-order-head')?.focus({preventScroll:true});
+ }
+ function drawReconciliation(target,orders){
+  const groups=pipelineReconciliationGroups(orders);
+  if(!groups.length)return;
+  const panel=el('section','pipeline-reconciliation');
+  const count=groups.reduce((n,g)=>n+g.lines.length,0);
+  panel.append(el('h3','','Lignes à rapprocher · '+count),el('p','commission-month-detail',
+   'Ces lignes restent non estimées. Les codes candidats servent au contrôle de la référence interne Odoo. Les coûts doivent être confirmés dans la source Kino.'));
+  for(const group of groups){
+   const card=el('details','pipeline-reconciliation-group');
+   card.append(el('summary','',group.company+' · '+(group.sku||'SKU absent')+' · '+group.lines.length+' ligne(s)'));
+   const body=el('div','pipeline-reconciliation-body');
+   body.append(el('strong','',lineReasons[group.reason]||group.reason));
+   appendCatalogEvidence(body,group.catalogEvidence);
+   body.append(el('small','',
+    (group.amountHT===null?'Montant HT non additionnable':money(group.amountHT,group.currency)+' HT'+
+     (group.amountKnown<group.lines.length?' disponible (partiel)':''))+
+    ' · '+group.confirmedLines+' ligne(s) confirmée(s), '+group.pendingLines+' en devis. Ce montant HT ne représente pas une commission.'));
+   for(const line of group.lines){
+    const row=el('div','pipeline-reconciliation-row');
+    const button=el('button','',line.reference+' · Voir la commande');button.type='button';
+    button.onclick=()=>openOrder(line.orderId);
+    row.append(button,el('small','',line.client+' · Ligne '+line.lineId+' · Quantité '+
+     (line.quantity??'—')+' · '+money(line.amountHT,line.currency)+' HT'));
+    body.append(row);
+   }
+   card.append(body);panel.append(card);
+  }
+  target.append(panel);
+ }
  function orderCard(o){
   const wrap=el('article','pipeline-order');
+  wrap.dataset.orderId=String(o.id);
   const trigger=el('button','pipeline-order-head');trigger.type='button';
   trigger.setAttribute('aria-expanded',String(expanded.has(o.id)));
   const left=el('div');
@@ -115,6 +171,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
     l.commissionEstimate!==null?(o.issues.length?'Estimation suspendue pour cette commande':
       'Commission estimée : '+eur(l.commissionEstimate)+' · Coût historique à confirmer'):
       'Non estimée : '+(lineReasons[l.reason]||l.reason)));
+   appendCatalogEvidence(item,l.catalogEvidence);
    if(l.unitBasis&&l.effectiveUnitCostEur!==null){
     const basis=l.unitBasis==='pack_cost_divided_by_grams'?
      'Sachet Kino '+l.packSizeG+' g → coût converti au gramme':
@@ -185,6 +242,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
    el('small','','Aucune validation officielle de rémunération ou preuve de paiement accessible.'));
   grid.append(validated);
   target.append(grid);
+  if(data)drawReconciliation(target,[...summary.pending.orders,...summary.confirmed.orders]);
   const groups=[
    ['Devis en cours',summary.pending],
    ['Confirmées et facturées',summary.confirmed]
