@@ -1,4 +1,4 @@
-name: Companion D35 sources and archives
+name: Companion D36 client tasks and sources
 on:
   push:
     branches: [main]
@@ -47,6 +47,8 @@ jobs:
           node --check validation-v12/assets/stocks-d34.mjs
           node --check validation-v12/assets/archive-model-d35.mjs
           node --check validation-v12/assets/archives-d35.mjs
+          node --check validation-v12/assets/task-model-d36.mjs
+          node --check validation-v12/assets/tasks-d36.mjs
           node --check supabase/functions/odoo-invoice-evidence/core.mjs
           node --check supabase/functions/odoo-commission-pipeline/calculation.mjs
           node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs
@@ -76,6 +78,7 @@ jobs:
       - run: node --test supabase/tests/whatsapp-archive-coverage-sql.test.mjs
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/tasks-preview-smoke.mjs
+      - run: node tests/tasks-preview-d36.mjs
       - run: node tests/commission-pipeline-smoke.mjs
       - run: node tests/monthly-commission-preview-d25.mjs
       - run: node tests/monthly-commission-fallback-preview-d26.mjs

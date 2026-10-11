@@ -26,6 +26,10 @@ Les stocks TR/GTA suivent la société, la recherche et la page sélectionnées.
 
 Les archives WhatsApp présentent leur période, leurs conversations approuvées et leurs vocaux disponibles ou transcrits. Les exclusions sont appliquées aux compteurs et aux pages. Le suivi du pilote distingue la réserve estimée du coût effectif ; aucune nouvelle transcription n'est lancée. Les anciens échanges restent sans création de tâches actuelles et le rattachement à un client demande un choix explicite.
 
+## Tâches par client — D36
+
+La fiche client ouvre ses tâches avec un filtre sur son identifiant exact. Les créations préselectionnent la fiche choisie et les compteurs CRM sont relus après une modification. Les pages et acquittements vérifient leurs identifiants et versions ; les réponses tardives restent liées à leur session et la reprise d'un enregistrement non confirmé conserve sa demande d'origine. Les statuts et dates Rappels restent des informations de synchronisation, avec les motifs connus de non-envoi.
+
 ## Sécurité
 
 Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de données commerciales ne doit y être ajouté. La clé Supabase publiable du navigateur est publique par conception ; les secrets Odoo et les clés de service restent côté serveur. Les tables catalogue sont privées et ne sont lues qu'après contrôle propriétaire. Aucune commande Odoo n'est modifiée.
@@ -34,4 +38,4 @@ Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de don
 
 Le workflow GitHub vérifie la syntaxe, les modèles et fonctions avec des données synthétiques, les contrôles SQL isolés et les parcours Chromium sur écran mobile. Les validations réelles des données se font par les API authentifiées, sans publier leurs réponses ni leurs jetons.
 
-Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md) et [D35_CHANGELOG.md](D35_CHANGELOG.md).
+Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md), [D35_CHANGELOG.md](D35_CHANGELOG.md) et [D36_CHANGELOG.md](D36_CHANGELOG.md).
