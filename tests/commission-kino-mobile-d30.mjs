@@ -54,12 +54,12 @@ try{
  assert.match(await page.locator('.commission-monthly-panel').innerText(),/99,13/);
  await page.locator('.pipeline-order-head').first().click();
  const details=page.locator('.pipeline-order-details').first();
- assert.match(await details.innerText(),/Coût 50,00 €/);
- assert.match(await details.innerText(),/Coût 53,00 €/);
- assert.match(await details.innerText(),/Coût 440,00 €/);
+ assert.match(await details.innerText(),/Coût 50,00\s*€/);
+ assert.match(await details.innerText(),/Coût 53,00\s*€/);
+ assert.match(await details.innerText(),/Coût 440,00\s*€/);
  assert.match(await details.innerText(),/Sachet Kino 250 g/);
  assert.match(await details.innerText(),/Coût historique à confirmer/);
- assert.match(await details.innerText(),/99,13 €/);
+ assert.match(await details.innerText(),/99,13\s*€/);
  assert.deepEqual(errors,[]);
  console.log('D30 Kino drill-down mobile passed: three independent line costs, pack units and pending forecast.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok))}
