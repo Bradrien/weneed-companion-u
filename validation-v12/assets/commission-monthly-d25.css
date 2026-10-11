@@ -1,0 +1,21 @@
+.commission-monthly-panel{background:#f5faf5;border:1px solid #cbded2;border-radius:18px;padding:16px;margin:0 0 20px}
+.commission-monthly-panel h2{font-size:1.18rem;line-height:1.4;margin:2px 0 3px}
+.commission-monthly-panel p{margin:6px 0;color:#415c4b;line-height:1.45;font-size:13px}
+.commission-month-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:14px 0}
+.commission-month-toolbar button{min-width:42px;min-height:42px;border:1px solid #b8d3be;background:#fff;border-radius:10px;font-size:20px;cursor:pointer}
+.commission-month-toolbar button:last-of-type{font-size:13px;padding:0 12px}
+.commission-month-toolbar input[type=month]{background:#fff;border:1px solid #b8d3be;border-radius:10px;min-height:42px;padding:7px 9px;font:inherit;color:#152d21;max-width:180px}
+.commission-month-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.commission-month-metric{background:#fff;border:1px solid #d2e3d4;border-radius:13px;padding:13px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.commission-month-metric span{font-size:12px;color:#42614d;font-weight:650;line-height:1.4}
+.commission-month-metric strong{font-size:1.3rem;color:#132d1e;overflow-wrap:anywhere}
+.commission-month-metric small{font-size:11px;color:#4c6253;line-height:1.4}
+.commission-month-breakdown{margin-top:15px}
+.commission-month-breakdown h3{margin:12px 0 5px;font-size:15px}
+.commission-month-list{display:grid;gap:7px}
+.commission-month-row{background:#fff;border:1px solid #dde9df;border-radius:11px;padding:10px 12px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}
+.commission-month-row strong{display:block;font-size:14px;color:#1c3825;overflow-wrap:anywhere}
+.commission-month-row small{display:block;font-size:12px;color:#516454;overflow-wrap:anywhere;margin-top:3px}
+.commission-month-row .monthly-forecast{font-size:13px;font-weight:650;color:#1d4a32;text-align:right}
+.commission-month-detail{font-size:12px!important;color:#566b5b!important}
+@media(max-width:650px){.commission-month-grid{grid-template-columns:1fr}.commission-month-metric strong{font-size:1.36rem}.commission-month-row{grid-template-columns:1fr}.commission-month-row .monthly-forecast{text-align:left}}
