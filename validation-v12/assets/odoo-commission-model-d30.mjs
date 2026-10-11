@@ -1,5 +1,6 @@
 // D22: Odoo stage is authoritative; invoice_status is NOT proof of payment.
 import {cents,sumCents,sourceAmountIssues,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
+import {calculateKinoLine} from './kino-calculation-d31.mjs';
 const STAGES=['en_cours','confirme','facture'];
 export const statusLabels=Object.freeze({
  en_cours:'Devis en cours',confirme:'Commandes confirmées non entièrement facturées',
@@ -36,6 +37,17 @@ export function normalizeOdooPipeline(input){
   input.invoicing_semantics!=='sale.order.invoice_status_not_payment_status'||
   input.formula!=='kino_browser_formula_provisional_without_spiff_units_unverified'||
   !Number.isFinite(Date.parse(input.read_at)))throw Error('invalid_odoo_pipeline');
+ const detailed=input.calculation_version==='kino_browser_arithmetic_v1_cent_per_line';
+ if(input.calculation_version!==undefined&&!detailed||
+  input.catalog_available!==undefined&&typeof input.catalog_available!=='boolean'||
+  input.catalog_products_total!==undefined&&input.catalog_products_total!==null&&
+   (!Number.isSafeInteger(input.catalog_products_total)||input.catalog_products_total<1||input.catalog_products_total>1600)||
+  input.catalog_snapshot_at!==undefined&&input.catalog_snapshot_at!==null&&
+   (typeof input.catalog_snapshot_at!=='string'||!Number.isFinite(Date.parse(input.catalog_snapshot_at))))
+  throw Error('invalid_odoo_pipeline');
+ if(detailed&&(typeof input.catalog_available!=='boolean'||
+  input.catalog_available&&(input.catalog_products_total===null||input.catalog_products_total===undefined)||
+  !input.catalog_available&&input.catalog_products_total!==null))throw Error('invalid_odoo_pipeline');
  const ids=new Set(),lineIds=new Set();
  const orders=input.orders.map(o=>{
   if(!o||!Number.isSafeInteger(o.id)||o.id<1||ids.has(o.id)||
@@ -67,6 +79,8 @@ export function normalizeOdooPipeline(input){
    const catalogUnitPrice=Object.hasOwn(l,'catalog_unit_price_eur')?l.catalog_unit_price_eur:null;
    const packSize=Object.hasOwn(l,'pack_size_g')?l.pack_size_g:null;
    const tier=Object.hasOwn(l,'kino_tier')?l.kino_tier:null;
+   const catalogCost=Object.hasOwn(l,'catalog_cost_eur')?l.catalog_cost_eur:null,
+    catalogPrice=Object.hasOwn(l,'catalog_price_eur')?l.catalog_price_eur:null;
    if(hasBasis&&(basis!==null&&!['catalog_price_matches_odoo_unit','pack_cost_divided_by_grams'].includes(basis)||
     effectiveCost!==null&&(!Number.isFinite(effectiveCost)||effectiveCost<=0)||
     catalogUnitPrice!==null&&(!Number.isFinite(catalogUnitPrice)||catalogUnitPrice<=0)||
@@ -74,14 +88,35 @@ export function normalizeOdooPipeline(input){
     tier!==null&&!['A','B'].includes(tier)||
     (l.commission_estimate!==null&&(basis===null||effectiveCost===null||catalogUnitPrice===null||tier===null))))
     throw Error('invalid_odoo_unit_basis');
+   if(catalogCost!==null||catalogPrice!==null){
+    const divisor=basis==='pack_cost_divided_by_grams'?packSize:1;
+    if(!basis||!Number.isFinite(catalogCost)||catalogCost<=0||!Number.isFinite(catalogPrice)||catalogPrice<=0||
+     !divisor||catalogCost/divisor!==effectiveCost||catalogPrice/divisor!==catalogUnitPrice)
+     throw Error('invalid_odoo_unit_basis');
+   }
    const catalogEvidence=normalizeCatalogEvidence(l.catalog_evidence,l,o.company);
+   let calculation=null;
+   const hasCalculation=Object.hasOwn(l,'calculation');
+   if(detailed&&!hasCalculation||hasCalculation&&l.calculation!==null&&l.commission_estimate===null)
+    throw Error('invalid_odoo_calculation');
+   if(l.commission_estimate!==null&&effectiveCost!==null&&tier!==null){
+    try{calculation=calculateKinoLine({tier,cost:effectiveCost,quantity:l.quantity,subtotalHT:l.subtotal_ht})}
+    catch{throw Error('invalid_odoo_calculation')}
+    if(cents(calculation.commission)!==cents(l.commission_estimate))throw Error('invalid_odoo_calculation');
+   }
+   if(hasCalculation&&l.calculation!==null||detailed&&l.commission_estimate!==null){
+    if(!calculation||!l.calculation||typeof l.calculation!=='object'||Array.isArray(l.calculation)||
+     Object.entries(calculation).some(([key,value])=>l.calculation[key]!==value))
+     throw Error('invalid_odoo_calculation');
+   }
    return {id:l.line_id,product:l.product.slice(0,180),sku:l.sku.slice(0,100),
     quantity:l.quantity,unit:l.unit.slice(0,50),
     subtotalHT:l.subtotal_ht,commissionEstimate:l.commission_estimate,
     unitPrice:hasPrice?l.price_unit:null,discountPct:hasDiscount?l.discount_pct:null,
     priceInputsAvailable:hasPrice,reason:l.reason,
     unitBasis:basis,effectiveUnitCostEur:effectiveCost,
-    catalogUnitPriceEur:catalogUnitPrice,packSizeG:packSize,kinoTier:tier,catalogEvidence};
+    catalogUnitPriceEur:catalogUnitPrice,packSizeG:packSize,kinoTier:tier,catalogEvidence,calculation,
+    catalogCostEur:catalogCost,catalogPriceEur:catalogPrice};
   });
   const matched=lines.filter(l=>l.commissionEstimate!==null),
    unmatched=lines.filter(l=>l.commissionEstimate===null&&l.reason!=='not_eligible'),
@@ -112,6 +147,8 @@ export function normalizeOdooPipeline(input){
  });
  return {orders,readAt:input.read_at,closedWindowFrom:input.closed_window_from,
   pendingScope:input.pending_scope,catalogSnapshotAt:input.catalog_snapshot_at,
+  catalogAvailable:input.catalog_available??null,catalogProductsTotal:input.catalog_products_total??null,
+  calculationVersion:input.calculation_version??null,
   sourceInputsRechecked:input.source_lines_rechecked===true&&input.source_amounts_rechecked===true,
   rules:COMMISSION_RULE_STATUS};
 }

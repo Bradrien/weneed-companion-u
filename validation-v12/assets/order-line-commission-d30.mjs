@@ -1,6 +1,7 @@
 // D20: share the already guarded Kino simulation with the Orders product detail.
 // Never infer "owed" commission from Odoo, or treat missing SKU as payable.
-import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs';
+import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=calculation-8';
+import {sumCents} from './commission-integrity-d24.mjs';
 const safe=(v)=>typeof v==='number'&&Number.isFinite(v);
 export function buildOrderLineCommissions(report){
  const data={status:'no_report',simulations:new Map(),excluded:new Map(),orders:new Map(),note:
@@ -19,7 +20,9 @@ export function buildOrderLineCommissions(report){
    quantity:x.quantity,reference:x.reference,rateVerified:false};
   data.simulations.set(k,entry);
   if(!data.orders.has(x.order_id))data.orders.set(x.order_id,{amount:0,simulatedLines:0,excludedLines:0});
-  const group=data.orders.get(x.order_id);group.amount+=x.commission;group.simulatedLines++;
+  const group=data.orders.get(x.order_id),amount=sumCents([group.amount,x.commission]);
+  if(amount===null)return {...data,status:'invalid_report',simulations:new Map(),orders:new Map()};
+  group.amount=amount/100;group.simulatedLines++;
  }
  for(const x of simulated.excluded){
   const k=key(x.order_id,x.line_id);

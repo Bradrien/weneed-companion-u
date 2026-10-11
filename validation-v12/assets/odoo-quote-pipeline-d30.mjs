@@ -1,4 +1,5 @@
-import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=reconciliation-7';
+import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=calculation-8';
+import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs';
 import {COMMISSION_ISSUES,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
@@ -6,6 +7,10 @@ const el=(tag,cls='',s)=>{const n=document.createElement(tag);if(cls)n.className
 const money=(n,currency='EUR')=>typeof n==='number'&&Number.isFinite(n)&&currency?
  new Intl.NumberFormat('fr-FR',{style:'currency',currency,maximumFractionDigits:2}).format(n):'Non calculable';
 const eur=n=>money(n,'EUR');
+const preciseEur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:6}).format(n);
+const percent=n=>new Intl.NumberFormat('fr-FR',{style:'percent',maximumFractionDigits:4}).format(n);
+const timestamp=d=>d&&Number.isFinite(Date.parse(d))?new Date(d).toLocaleString('fr-FR',{
+ dateStyle:'short',timeStyle:'short'}):'Indisponible';
 const when=d=>{try{return new Date(d).toLocaleDateString('fr-FR')}catch{return 'Date inconnue'}};
 const filters=['en_cours','confirme','facture'];
 const name={en_cours:'Devis en cours',confirme:'Confirmées non facturées entièrement',facture:'Facturées'};
@@ -52,6 +57,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
     invalid_odoo_pipeline_order:'Une commande source est incohérente.',
     invalid_odoo_line:'Une ligne source est invalide ou dupliquée.',
     invalid_catalog_evidence:'Le rapprochement catalogue ne correspond pas à la ligne source.',
+    invalid_odoo_calculation:'Le détail de calcul ne correspond pas aux prix, coûts et montants de la ligne source.',
     invalid_line_coverage:'Le nombre de lignes simulées ne correspond pas au détail source.',
     invalid_odoo_forecast:'L’estimation source est invalide.',
     odoo_stage_mismatch:'Le statut affiché ne correspond pas à Odoo.',
@@ -138,6 +144,82 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
   }
   target.append(panel);
  }
+ function appendCalculation(target,line,suspended){
+  const c=line.calculation;if(!c)return;
+  const details=el('details','pipeline-calculation');
+  details.append(el('summary','','Voir le calcul de cette ligne'));
+  const rows=el('dl','pipeline-calculation-values');
+  for(const [label,value] of [
+   ['Prix net après remise',preciseEur(c.netUnitPrice)+'/unité Odoo'],
+   ['Coût Kino rapproché',preciseEur(line.effectiveUnitCostEur)+'/unité Odoo'],
+   ['Majoration du coût Kino',percent(c.costMultiplier-1)+' · Palier '+line.kinoTier],
+   ['Coût ajusté',preciseEur(c.adjustedUnitCost)+'/unité Odoo'],
+   ['Marge de calcul par unité',preciseEur(c.unitMargin)],
+   ['Quantité Odoo',String(line.quantity)],
+   ['Marge de calcul de la ligne',eur(c.margin)],
+   ['Taux appliqué',percent(c.rate)],
+   ['Estimation arrondie au centime',suspended?'Suspendue pour cette commande':eur(c.commission)]
+  ])rows.append(el('dt','',label),el('dd','',value));
+  details.append(rows,el('small','pipeline-hint',
+   'Marge de calcul selon le simulateur Kino, fondée sur le coût catalogue actuel. SPIFF désactivé ; ce détail ne valide pas une rémunération.'));
+  target.append(details);
+ }
+ function drawAuditControls(target,orders){
+  const info=catalogueProvenance(data,orders),panel=el('details','pipeline-provenance');
+  panel.append(el('summary','','Source des coûts et contrôles du calcul'));
+  const body=el('div','pipeline-provenance-body');
+  body.append(el('p','commission-month-detail','Capture Kino : '+timestamp(info.capturedAt)+
+   (info.productsTotal?' · '+info.productsTotal+' produits':'')+
+   (info.available===false?' · Catalogue indisponible pour cette lecture':'')+'.'));
+  if(info.ageHours!==null)body.append(el('p','commission-month-detail',
+   'Capture réalisée '+new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(info.ageHours)+
+   ' h avant la lecture Odoo.'));
+  if(info.beforeCapture!==null)body.append(el('p','commission-month-detail',
+   info.beforeCapture+' document(s) antérieur(s) au jour de capture, '+info.sameDay+
+   ' le même jour, '+info.afterCapture+' après. Cette capture ne prouve pas les coûts à la date de vente.'));
+  if(info.capturedAt&&!info.chronologyValid)body.append(el('p','commission-month-detail',
+   'L’horodatage du catalogue ne peut pas être comparé à la lecture Odoo : provenance à vérifier.'));
+  body.append(el('p','commission-month-detail',
+   (data.sourceInputsRechecked?'Prix, remises, montants et statuts Odoo revérifiés pendant la lecture.':
+    'La réponse disponible ne confirme pas la seconde lecture Odoo.')+
+   ' Lecture : '+timestamp(info.readAt)+'. Calcul hors SPIFF, arrondi au centime par ligne. '+
+   'Coûts historiques, exclusions, avoirs et paiement restent à confirmer.'));
+  panel.append(body);target.append(panel);
+  const exportPanel=el('div','commission-export-controls'),button=el('button','','Exporter le bilan CSV');
+  button.type='button';button.disabled=loading||!!error||!data.sourceInputsRechecked||!orders.length;
+  const status=el('small','commission-month-detail',
+   'Export du mois sélectionné avec les filtres société et recherche : '+orders.length+
+   ' document(s), devis et commandes séparés. Les montants manquants ou suspendus restent vides.');
+  status.setAttribute('role','status');
+  button.onclick=()=>{
+   try{
+    const output=createCommissionCsv(data,{month,company,query:search});
+    const url=URL.createObjectURL(new Blob([output.content],{type:'text/csv;charset=utf-8'}));
+    const link=el('a');link.href=url;link.download=output.filename;document.body.append(link);
+    link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+    status.textContent='Export préparé : '+output.orders+' document(s), '+output.lines+
+     ' ligne(s). Montants provisoires, non payables.';
+   }catch{status.textContent='Export indisponible : actualise la lecture Odoo.'}
+  };
+  exportPanel.append(button,status);target.append(exportPanel);
+ }
+ function drawCompanyBreakdown(target,orders){
+  const table=el('table','commission-company-table');
+  table.append(el('caption','','Répartition GTA / TR · estimations provisoires'));
+  const head=el('tr');for(const label of ['Société','Devis potentiels','Commandes prévisionnelles'])head.append(el('th','',label));
+  table.append(head);
+  for(const code of ['GTA','TR'].filter(c=>company==='all'||company===c)){
+   const row=el('tr');row.append(el('th','',code));
+   for(const pending of [true,false]){
+    const selected=orders.filter(o=>o.company===code&&(o.stage==='en_cours')===pending),totals=odooPipelineTotals(selected);
+    const cell=el('td');cell.append(el('strong','',totals.forecastCount?eur(totals.forecast):'—'),
+     el('small','',selected.length+' doc. · '+totals.forecastCount+' estimé(s)'));
+    row.append(cell);
+   }
+   table.append(row);
+  }
+  target.append(table);
+ }
  function orderCard(o){
   const wrap=el('article','pipeline-order');
   wrap.dataset.orderId=String(o.id);
@@ -181,6 +263,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
      '/unité Odoo · Tarif catalogue '+eur(l.catalogUnitPriceEur)+
      '/unité Odoo · Palier '+l.kinoTier+'.'));
    }
+   appendCalculation(item,l,o.issues.length>0);
    list.append(item);
   }
   details.append(list);
@@ -228,7 +311,9 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
   if(!data)target.append(el('p','commission-month-detail',
     'Source : rapport Odoo classique vérifié sur le mois. Documents réels, mais estimations de commissions suspendues car le calcul enrichi est indisponible.'+
     (monthlyData.excludedCount?' '+monthlyData.excludedCount+' document(s) annulé(s) exclus.':'')));
-  const summary=summarizeCommissionMonth(monthlyData,{month,company,query:search});
+  const selected=data?selectedCommissionOrders(data,{month,company,query:search}):null;
+  const summary=summarizeCommissionMonth(selected?{...monthlyData,orders:selected}:monthlyData,
+   {month,company,query:data?'':search});
   const grid=el('div','commission-month-grid');
   grid.append(
    monthlyMetric('Devis non confirmés · potentiels',summary.pending,
@@ -242,6 +327,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
    el('small','','Aucune validation officielle de rémunération ou preuve de paiement accessible.'));
   grid.append(validated);
   target.append(grid);
+  if(data){drawCompanyBreakdown(target,selected);drawAuditControls(target,selected)}
   if(data)drawReconciliation(target,[...summary.pending.orders,...summary.confirmed.orders]);
   const groups=[
    ['Devis en cours',summary.pending],

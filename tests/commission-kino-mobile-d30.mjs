@@ -12,6 +12,7 @@ const server=createServer(async(req,res)=>{
    '<link rel="stylesheet" href="/assets/app-crm-d24.css">'+
    '<link rel="stylesheet" href="/assets/commission-monthly-d27.css">'+
    '<link rel="stylesheet" href="/assets/commission-reconciliation-d30.css">'+
+   '<link rel="stylesheet" href="/assets/commission-audit-d31.css">'+
    '<main id="odoo-quote-pipeline-root"></main>');
   const file=resolve(root,'.'+decodeURIComponent(path));
   if(!file.startsWith(root+sep))return res.writeHead(403).end();
@@ -62,7 +63,10 @@ try{
    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
    scope:'owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked',
    source_lines_rechecked:true,source_amounts_rechecked:true,orders:[order,candidateOrder,costOrder]};
-  window.pipeline=createOdooQuotePipeline({request:async()=>({data}),isActive:()=>true,
+  window.failNextRead=false;
+  window.pipeline=createOdooQuotePipeline({request:async()=>{
+   if(window.failNextRead)throw Error('odoo_unreachable');return {data};
+  },isActive:()=>true,
    isAuthenticated:()=>true});
   await window.pipeline.load();
   // The same synthetic packs sold as grams must agree in scenario and Orders.
@@ -93,6 +97,21 @@ try{
  assert.match(await page.locator('#scenario-consistency').innerText(),/99,13\s*€/);
  assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.commission)),[15.75,14.43,68.95]);
  assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.costPerAssumedUnit)),[1,1.06,1.76]);
+ await details.locator('.pipeline-calculation summary').first().click();
+ assert.match(await details.locator('.pipeline-calculation').first().innerText(),/Prix net après remise/);
+ assert.match(await details.locator('.pipeline-calculation').first().innerText(),/57,50\s*€/);
+ assert.match(await details.locator('.pipeline-calculation').first().innerText(),/Taux appliqué\s+30\s*%/);
+ assert.match(await page.locator('.commission-company-table').innerText(),/TR\s+99,13/);
+ await page.locator('.pipeline-provenance summary').click();
+ assert.match(await page.locator('.pipeline-provenance').innerText(),/Cette capture ne prouve pas les coûts à la date de vente/);
+ const downloadPromise=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Exporter le bilan CSV',exact:true}).click();
+ const download=await downloadPromise;
+ assert.equal(download.suggestedFilename(),'commissions-provisoires-2026-10-all.csv');
+ const csv=await readFile(await download.path(),'utf8');
+ assert.match(csv,/estimation_ligne_provisoire/);assert.match(csv,/"99,13"/);
+ assert.match(csv,/"TEST-CANDIDATE"/);assert.match(csv,/"desactive";"non"/);
+ assert.match(await page.locator('.commission-export-controls').innerText(),/3 document\(s\), 6 ligne\(s\)/);
  assert.equal(await page.locator('.pipeline-reconciliation-group').count(),2);
  assert.match(await page.locator('.pipeline-reconciliation').innerText(),/Lignes à rapprocher · 3/);
  await page.locator('.pipeline-reconciliation-group summary').first().click();
@@ -113,6 +132,11 @@ try{
  assert.match(await page.locator('.pipeline-reconciliation-group').nth(1).innerText(),/coût 0,00\s*€ \(inutilisable pour le calcul\)/);
  assert.match(await page.locator('.pipeline-reconciliation-group').nth(1).innerText(),/Ces|Coût Kino absent ou nul/);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.getByRole('searchbox',{name:'Rechercher dans le bilan mensuel',exact:true}).fill('TEST-COST');
+ assert.match(await page.locator('.commission-export-controls').innerText(),/1 document\(s\)/);
+ await page.evaluate(async()=>{window.failNextRead=true;await window.pipeline.load(true)});
+ assert.equal(await page.getByRole('button',{name:'Exporter le bilan CSV',exact:true}).isDisabled(),true);
+ assert.match(await page.locator('#odoo-quote-pipeline-root').innerText(),/actualisation échouée/);
  assert.deepEqual(errors,[]);
- console.log('D30 mobile passed: pack/gram consistency, pending forecasts, unresolved candidates, zero costs and direct order navigation.');
+ console.log('D31 mobile passed: audited line calculations, company breakdown, filtered CSV download, unresolved lines and stale-export guard.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok))}

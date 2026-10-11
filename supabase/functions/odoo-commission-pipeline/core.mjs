@@ -1,5 +1,6 @@
 /** Pure provisional calculation and repeat-read checks. No I/O or payment claims. */
 import {reconcileKinoUnit,UNIT_REASON} from './unit-basis.mjs';
+import {calculateKinoLine} from './calculation.mjs';
 const text=x=>typeof x==='string'?x:'';
 const relationName=x=>Array.isArray(x)&&typeof x[1]==='string'?x[1]:'';
 const relationId=x=>Array.isArray(x)&&Number.isSafeInteger(x[0])&&x[0]>0?x[0]:null;
@@ -23,13 +24,6 @@ export function assertUnchangedRows(before,after,fields,code='odoo_source_change
   const prior=byId.get(row.id);
   if(fields.some(field=>JSON.stringify(prior[field])!==JSON.stringify(row[field])))throw Error(code);
  }
-}
-function rate(tier,ratio){
- if(ratio<=0)return tier==='A'?0.2:0.22254;
- if(tier==='B')return ratio>=1?0.3:0.22254+ratio*(0.3-0.22254);
- if(ratio>=0.8)return 0.3;
- if(ratio<=0.15)return 0.2+ratio/0.15*(0.2321-0.2);
- return 0.2321+(ratio-0.15)/0.65*(0.3-0.2321);
 }
 // Read-only evidence: a bracketed label never substitutes for default_code.
 function catalogEvidence({company,sku,product,reason,catalog,duplicates,catalogAvailable}){
@@ -56,7 +50,7 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
   const product=products.get(relationId(line.product_id)??-1),sku=text(product?.default_code).trim(),
    quantity=number(line.product_uom_qty),price=number(line.price_unit),discount=number(line.discount),
    subtotal=number(line.price_subtotal),key=company+'|'+sku.toUpperCase(),row=catalog.get(key);
-  let reason='not_eligible',estimate=null,unitBasis=null,unitCost=null,packSizeG=null,catalogPrice=null,tier=null;
+  let reason='not_eligible',estimate=null,unitBasis=null,unitCost=null,packSizeG=null,catalogPrice=null,tier=null,calculation=null;
   const candidate=!line.display_type&&quantity!==null&&quantity>0&&subtotal!==null&&subtotal>0;
   // A name filter is a provisional scope filter, not an approved compensation policy.
   // Product identity is authoritative. Invoice notes can mention samples/shipping
@@ -85,11 +79,10 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
      const cost=unit.costPerOdooUnit;
      tier=text(row.tier);unitBasis=unit.basis;unitCost=cost;packSizeG=unit.packSizeG;
      catalogPrice=unit.catalogUnitPrice;
-     const marginUnit=subtotal/quantity-cost*(tier==='A'?1.25:1.15),
-      raw=Math.max(0,marginUnit*quantity)*(marginUnit>0?rate(tier,marginUnit/cost):0),
-      amount=cents(raw);
-     if(amount!==null){estimate=amount/100;reason='estimated_units_unverified'}
-     else reason='invalid_calculation';
+     try{
+      calculation=calculateKinoLine({tier,cost,quantity,subtotalHT:subtotal});
+      estimate=calculation.commission;reason='estimated_units_unverified';
+     }catch{reason='invalid_calculation'}
     }
    }
   }
@@ -100,7 +93,8 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
    quantity,unit:relationName(line.product_uom),price_unit:price,discount_pct:discount,
    subtotal_ht:subtotal,commission_estimate:estimate,reason,unit_basis:unitBasis,
    effective_unit_cost_eur:unitCost,catalog_unit_price_eur:catalogPrice,
-   pack_size_g:packSizeG,kino_tier:tier,catalog_evidence:evidence};
+   catalog_cost_eur:unitBasis?number(row.cost_eur):null,catalog_price_eur:unitBasis?number(row.list_price_eur):null,
+   pack_size_g:packSizeG,kino_tier:tier,catalog_evidence:evidence,calculation};
  });
  const issues=[],amount=number(order.amount_untaxed),amountCents=cents(amount),
   lineCents=presented.map(line=>cents(line.subtotal_ht));

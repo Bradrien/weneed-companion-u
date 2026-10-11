@@ -1,4 +1,4 @@
-// D30 / revision 7 — read-only catalogue evidence for unresolved source lines.
+// Revision 8 — replayable line calculations and explicit catalogue provenance.
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {assertUnchangedRows,calculateOdooOrder,PIPELINE_UNCERTAINTIES} from './core.mjs';
 import {parseOdooPeriod,odooPeriodDomain} from './scope.mjs';
@@ -180,11 +180,13 @@ Deno.serve(async req=>{
    period_from:from,period_to:to,
    invoicing_semantics:'sale.order.invoice_status_not_payment_status',
    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
-   revision:7,source_lines_rechecked:true,source_amounts_rechecked:true,
+   revision:8,calculation_version:'kino_browser_arithmetic_v1_cent_per_line',
+   source_lines_rechecked:true,source_amounts_rechecked:true,
    read_consistency:'two_read_windows_not_atomic_snapshot',
    calculation_guards:'signed_amounts_price_discount_subtotals_v1',
    uncertainties:PIPELINE_UNCERTAINTIES,
    catalog_snapshot_at:snapshot?.source_completed_at||null,
+   catalog_available:catalogAvailable,catalog_products_total:catalogAvailable?snapshot.item_count:null,
    orders,scope:'owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked'}});
  }catch(e){
   const err=e instanceof Error?e.message:'odoo_pipeline_unavailable';
