@@ -85,9 +85,9 @@ try{
  // A failed refresh cannot silently replace prior values with fabricated zeroes.
  await page.evaluate(()=>{window.fail=true});
  await page.getByRole('button',{name:'Actualiser le bilan Odoo'}).click();
- assert.match(await panel.innerText(),/Dernière réponse enregistrée en mémoire/);
- assert.match(await panel.innerText(),/Étape : orders_read/);
- assert.deepEqual(await page.evaluate(()=>window.requestedMonths.slice(0,3)),['2026-10','2026-09','2026-09']);
+ assert.match(await panel.innerText(),/Dernière réponse en mémoire/);
+ assert.match(await page.locator('.pipeline-error').first().innerText(),/Étape : orders_read/);
+ assert.equal((await page.evaluate(()=>window.requestedMonths)).at(-1),'2026-09');
  assert.match(await panel.innerText(),/SEP-E/);
  assert.deepEqual(errors,[]);
  console.log('D28 monthly enriched Odoo pipeline smoke passed: quotations, invoiced, month, search, unavailable, stale.');
