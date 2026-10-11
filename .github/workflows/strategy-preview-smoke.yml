@@ -62,3 +62,4 @@ jobs:
       - run: node tests/monthly-commission-fallback-preview-d26.mjs
       - run: node tests/monthly-commission-search-preview-d27.mjs
       - run: node tests/monthly-commission-preview-d28.mjs
+      - run: node tests/commission-kino-mobile-d30.mjs
