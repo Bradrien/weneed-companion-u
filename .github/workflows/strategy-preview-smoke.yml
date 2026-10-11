@@ -1,4 +1,4 @@
-name: Companion D24 mobile preview
+name: Companion D25 monthly commissions preview
 on:
   push:
     branches: [main]
@@ -22,6 +22,9 @@ jobs:
       - name: Check preview module syntax
         run: |
           node --check validation-v12/assets/app-crm-d24.js
+          node --check validation-v12/assets/app-crm-d25.js
+          node --check validation-v12/assets/monthly-commission-d25.mjs
+          node --check validation-v12/assets/odoo-quote-pipeline-d25.mjs
           node --check validation-v12/assets/tasks-d24.mjs
           node --check validation-v12/assets/connectors-d24.mjs
           node --check validation-v12/assets/odoo-quote-pipeline-d24.mjs
@@ -43,3 +46,4 @@ jobs:
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/tasks-preview-smoke.mjs
       - run: node tests/commission-pipeline-smoke.mjs
+      - run: node tests/monthly-commission-preview-d25.mjs
