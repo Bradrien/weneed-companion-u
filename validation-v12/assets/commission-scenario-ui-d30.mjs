@@ -1,6 +1,7 @@
 /** Read-only presentation of a provisional scenario; no server writes or validation claims. */
 import {formatMoney} from './model.mjs';
-import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs';
+import {simulateOdooReport,SCENARIO_REASONS} from './commission-scenario-d30.mjs?v=calculation-8';
+import {sumCents} from './commission-integrity-d24.mjs';
 const el=(tag,cls,value)=>{
  const n=document.createElement(tag);
  if(cls)n.className=cls;
@@ -74,7 +75,7 @@ export function renderCommissionScenario(report,target,{onOpenOrder}={}){
   const key=row.company+'|'+row.order_id;
   if(!byOrder.has(key))byOrder.set(key,{company:row.company,reference:row.reference,
    client:row.client,id:row.order_id,lines:0,amount:0});
-  const acc=byOrder.get(key);acc.lines++;acc.amount+=row.commission;
+  const acc=byOrder.get(key);acc.lines++;acc.amount=sumCents([acc.amount,row.commission])/100;
  }
  const title=el('h3','scenario-subtitle','Détail du scénario par commande');
  target.append(title);
