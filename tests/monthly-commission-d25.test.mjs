@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from '../validation-v12/assets/monthly-commission-d25.mjs';
 const row=(id,stage,forecast,more={})=>({id,stage,forecast,reference:'DOC-'+id,
  client:'Client essai',company:'GTA',date:'2026-10-08 10:00:00',
- currency:'EUR',amountHT:100,unmatchedLines:forecast===null?1:0,excludedMonetaryLines:0,
+ currency:'EUR',amountHT:100,lines:[],unmatchedLines:forecast===null?1:0,excludedMonetaryLines:0,
  partial:forecast===null,issues:[],...more});
 test('current and adjacent commission months use calendar months, not month-end seconds',()=>{
  assert.equal(currentCommissionMonth(new Date(2026,9,11)),'2026-10');
