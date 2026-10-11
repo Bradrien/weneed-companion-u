@@ -31,17 +31,17 @@ Deno.serve(async(req:Request)=>{
   }
   const action=req.method==='GET'?(sp.get('action')||'summary'):input.action;
   if(action==='summary'){
-   const conversations=checked(await sb.from('whatsapp_archive_conversations').select('batch_id,chat_pk,client_id,message_count,audio_count,link_state').limit(1000));
-   const audio=await sb.from('whatsapp_import_audio_assets').select('id',{count:'exact',head:true}).eq('archive_status','verified');if(audio.error)throw Error('database_unavailable');
-   const trans=await sb.from('whatsapp_import_audio_assets').select('id',{count:'exact',head:true}).eq('transcription_status','done');if(trans.error)throw Error('database_unavailable');
-   const pilots=checked(await sb.from('whatsapp_archive_pilots').select('hard_limit_usd,reserved_usd,reserve_limit_usd').limit(10));
-   return reply({ok:true,conversations:conversations.length,linked_conversations:conversations.filter((c:any)=>c.client_id).length,needs_review:conversations.filter((c:any)=>!c.client_id).length,messages:conversations.reduce((n:number,c:any)=>n+c.message_count,0),audio:conversations.reduce((n:number,c:any)=>n+c.audio_count,0),audio_available:audio.count,transcribed:trans.count,pilots});
+   return reply({ok:true,...checked(await sb.rpc('whatsapp_archive_summary_v2'))});
   }
   if(action==='conversations'){
-   let q=sb.from('whatsapp_archive_conversations').select('batch_id,chat_pk,client_id,display_name,phone_e164,link_state,message_count,audio_count,first_message_at,last_message_at').order('last_message_at',{ascending:false}).limit(500);
-   if(sp.has('client_id')){if(!validUuid(sp.get('client_id')))return reply({ok:false,error:'invalid_client'},400);q=q.eq('client_id',sp.get('client_id')!);}
+   const offset=Number(sp.get('offset')||0);
+   const limit=Number(sp.get('limit')||500); // Previous previews received up to 500 conversations in one response.
+   if(!Number.isSafeInteger(offset)||offset<0||offset>50000)return reply({ok:false,error:'invalid_offset'},400);
+   if(!Number.isSafeInteger(limit)||limit<1||limit>500)return reply({ok:false,error:'invalid_limit'},400);
+   if(sp.has('client_id')&&!validUuid(sp.get('client_id')))return reply({ok:false,error:'invalid_client'},400);
+   const page=checked(await sb.rpc('whatsapp_archive_conversations_page',{p_client_id:sp.get('client_id')||null,p_offset:offset,p_limit:limit}));
    const clients=checked(await sb.from('clients').select('id,canonical_name').order('canonical_name').limit(1000));
-   return reply({ok:true,conversations:checked(await q),clients});
+   return reply({ok:true,...page,clients});
   }
   if(action==='messages'){
    const client=sp.get('client_id'),batch=sp.get('batch_id'),chat=sp.get('chat_pk'),before=cursor(sp.get('cursor'));

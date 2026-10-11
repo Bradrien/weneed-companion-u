@@ -1,4 +1,4 @@
-name: Companion D33 source review
+name: Companion D35 sources and archives
 on:
   push:
     branches: [main]
@@ -40,6 +40,13 @@ jobs:
           node --check validation-v12/assets/odoo-invoice-evidence-d32.mjs
           node --check validation-v12/assets/commission-review-d33.mjs
           node --check validation-v12/assets/odoo-links-d33.mjs
+          node --check validation-v12/assets/source-state-d34.mjs
+          node --check validation-v12/assets/connector-status-model-d34.mjs
+          node --check validation-v12/assets/connectors-d34.mjs
+          node --check validation-v12/assets/stock-model-d34.mjs
+          node --check validation-v12/assets/stocks-d34.mjs
+          node --check validation-v12/assets/archive-model-d35.mjs
+          node --check validation-v12/assets/archives-d35.mjs
           node --check supabase/functions/odoo-invoice-evidence/core.mjs
           node --check supabase/functions/odoo-commission-pipeline/calculation.mjs
           node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs
@@ -66,6 +73,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node --test tests/*.test.mjs supabase/functions/companion-tasks/core.test.mjs supabase/functions/apple-reminders-sync/core.test.mjs supabase/functions/_shared/*.test.mjs
       - run: node --test supabase/tests/google-connectors-sql.test.mjs
+      - run: node --test supabase/tests/whatsapp-archive-coverage-sql.test.mjs
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/tasks-preview-smoke.mjs
       - run: node tests/commission-pipeline-smoke.mjs
@@ -74,3 +82,4 @@ jobs:
       - run: node tests/monthly-commission-search-preview-d27.mjs
       - run: node tests/monthly-commission-preview-d28.mjs
       - run: node tests/commission-kino-mobile-d30.mjs
+      - run: node tests/sources-preview-d35.mjs
