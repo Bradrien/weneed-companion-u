@@ -50,10 +50,12 @@ test('owner Odoo edge guards and repeated reads',async t=>{
  };
  try{
   const path=new URL('../supabase/functions/odoo-commission-pipeline/index.ts',import.meta.url),
-   core=new URL('../supabase/functions/odoo-commission-pipeline/core.mjs',import.meta.url).href;
+   core=new URL('../supabase/functions/odoo-commission-pipeline/core.mjs',import.meta.url).href,
+   scope=new URL('../supabase/functions/odoo-commission-pipeline/scope.mjs',import.meta.url).href;
   let code=await readFile(path,'utf8');
   code=code.replace("import {createClient} from 'npm:@supabase/supabase-js@2.58.0';",
-   'const createClient=globalThis.__commissionCreateClient;').replace("from './core.mjs'",'from '+JSON.stringify(core));
+   'const createClient=globalThis.__commissionCreateClient;').replace("from './core.mjs'",'from '+JSON.stringify(core))
+    .replace("from './scope.mjs'",'from '+JSON.stringify(scope));
   await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(code)).toString('base64'));
   const request=(method='GET',auth=true,origin='https://bradrien.github.io')=>new Request(
    'https://project.invalid/functions/v1/odoo-commission-pipeline',{method,headers:{origin,
@@ -72,16 +74,29 @@ test('owner Odoo edge guards and repeated reads',async t=>{
   await t.test('successful response performs bounded repeat reads and stays nonpayable',async()=>{
    const response=await handler(request()),body=await response.json();
    assert.equal(response.status,200);assert.equal(body.ok,true);
-   assert.equal(lineReads,2);assert.equal(body.data.revision,4);
+   assert.equal(lineReads,2);assert.equal(body.data.revision,5);
+   assert.equal(body.data.period_from,new Date().toISOString().slice(0,7)+'-01');
    assert.equal(body.data.source_lines_rechecked,true);assert.equal(body.data.source_amounts_rechecked,true);
    assert.equal(body.data.uncertainties.payable,false);
    assert.equal(body.data.orders[0].forecast,13.93);
    assert.equal(response.headers.get('cache-control'),'no-store');
   });
+  await t.test('monthly query cannot read outside selected window',async()=>{
+   const url='https://project.invalid/functions/v1/odoo-commission-pipeline?from=2026-10-01&to=2026-10-31';
+   const r=new Request(url,{headers:{origin:'https://bradrien.github.io',authorization:'Bearer synthetic-user-token'}});
+   const response=await handler(r);assert.equal(response.status,200);
+   const body=await response.json();assert.equal(body.data.period_to,'2026-10-31');
+   const lastOrders=calls.filter(c=>c.service==='object'&&c.method==='execute_kw'&&c.args[3]==='sale.order');
+   assert.ok(lastOrders.length>0);
+   const fromDomain=lastOrders.filter(c=>c.args[4]==='search_read').map(c=>c.args[5][0]);
+   assert.ok(fromDomain.some(x=>x.some(t=>t[0]==='date_order'&&t[1]==='>='&&t[2]==='2026-10-01 00:00:00')));
+   const bad=new Request(url+'&junk=1',{headers:{origin:'https://bradrien.github.io',authorization:'Bearer synthetic-user-token'}});
+   assert.equal((await handler(bad)).status,400);
+  });
   await t.test('financial line changed during read rejects the complete snapshot',async()=>{
    changed=true;lineReads=0;
    const response=await handler(request()),body=await response.json();
-   assert.equal(response.status,409);assert.deepEqual(body,{ok:false,error:'odoo_source_changed'});
+   assert.equal(response.status,409);assert.deepEqual(body,{ok:false,error:'odoo_source_changed',stage:'lines_recheck'});
   });
  }finally{globalThis.Deno=oldDeno;globalThis.fetch=oldFetch;globalThis.__commissionCreateClient=oldClient}
 });
