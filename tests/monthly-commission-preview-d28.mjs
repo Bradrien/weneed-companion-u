@@ -86,7 +86,7 @@ try{
  await page.evaluate(()=>{window.fail=true});
  await page.getByRole('button',{name:'Actualiser le bilan Odoo'}).click();
  assert.match(await panel.innerText(),/Dernière réponse en mémoire/);
- assert.match(await page.locator('.pipeline-error').first().innerText(),/Étape : orders_read/);
+ assert.match(await page.locator('.pipeline-error').last().innerText(),/Étape : orders_read/);
  assert.equal((await page.evaluate(()=>window.requestedMonths)).at(-1),'2026-09');
  assert.match(await panel.innerText(),/SEP-E/);
  assert.deepEqual(errors,[]);
