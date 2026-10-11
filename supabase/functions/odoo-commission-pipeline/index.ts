@@ -99,8 +99,11 @@ Deno.serve(async req=>{
   const ids=all.map(o=>o.id);
   if(ids.some(x=>!Number.isSafeInteger(x)||x<=0)||new Set(ids).size!==ids.length)
    throw safe('odoo_order_identity_mismatch',409);
-  const lineFields=['id','order_id','product_id','name','product_uom_qty','price_unit','price_subtotal',
-   'discount','display_type','product_uom','write_date'];
+  // Use the exact sale.order.line field set already proven by commission-catalog-review.
+  // Some Odoo instances reject additional fields with an RPC error; repeated source
+  // reads still compare all financial inputs and detect concurrent edits.
+  const lineFields=['id','name','order_id','product_id','product_uom_qty','price_unit',
+   'discount','price_subtotal','display_type'];
   const lineDomain=[['order_id','in',ids]];
   phase='lines_read';
   const lines=ids.length?await pages(host,db,uid,apiKey,'sale.order.line',
