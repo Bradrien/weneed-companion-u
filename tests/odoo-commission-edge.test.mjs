@@ -42,6 +42,9 @@ test('owner Odoo edge guards and repeated reads',async t=>{
     const pending=domain.some(x=>x[0]==='state'&&x[2]?.includes('draft'));
     result=pending?[]:[structuredClone(sourceOrder)];
    }else if(model==='sale.order.line'){
+    // Real Odoo accepts this set; extra requested fields triggered an RPC failure.
+    assert.deepEqual(opts.fields,['id','name','order_id','product_id','product_uom_qty',
+     'price_unit','discount','price_subtotal','display_type']);
     lineReads++;result=[{...sourceLine,price_subtotal:changed&&lineReads>1?559:560}];
    }else if(model==='product.product')result=[product];
    else throw Error('unexpected_model');
