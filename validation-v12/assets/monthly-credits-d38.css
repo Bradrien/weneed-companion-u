@@ -1,0 +1,7 @@
+.monthly-credit-panel{margin:1rem 0;padding:1rem;border:1px solid var(--line,#dbe5de);border-radius:14px;background:#fbfdfb}
+.monthly-credit-panel h3{margin:0 0 .6rem}.monthly-credit-document{margin-top:1rem;padding:1rem;background:#fff;border:1px solid var(--line,#dbe5de);border-radius:12px;min-width:0}
+.monthly-credit-document h4{margin:0 0 .5rem}.monthly-credit-line{padding-top:.85rem;margin-top:.85rem;border-top:1px solid var(--line,#dbe5de)}
+.monthly-credit-line strong,.monthly-credit-document h4,.monthly-credit-panel p{overflow-wrap:anywhere}.monthly-credit-estimate{font-weight:700;color:#173d2b}
+.monthly-credit-panel .commission-source-link{display:inline-block;margin:.3rem .5rem .3rem 0}.monthly-credit-panel details{margin:.5rem 0}
+
+.monthly-credit-net{display:grid;gap:.5rem;margin:1rem 0;padding:1rem;border:1px solid #c5d8ca;border-radius:12px;background:#f0f6f1}.monthly-credit-net strong{font-size:1.4rem}.monthly-credit-net small{line-height:1.45;color:#455c4d}

@@ -1,7 +1,7 @@
 import {createConnectorStatus} from './connectors-d34.mjs';
 import {createTasks} from './tasks-d36.mjs';
 import {createArchives} from './archives-d35.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=rules-1';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=credits-1';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs';
 import {createStocks} from './stocks-d34.mjs';
@@ -45,6 +45,12 @@ const odooQuotes=createOdooQuotePipeline({isAuthenticated:()=>!!state.access,
   const response=await authFetch('/functions/v1/commission-returns?month='+encodeURIComponent(month),{headers:{authorization:'Bearer '+jwt}});
   let json;try{json=await response.json()}catch{throw Error('return_deductions_unavailable')}
   if(!response.ok||json?.ok!==true)throw Error('return_deductions_unavailable');return json;
+ },
+ monthlyCreditsRequest:async(month)=>{
+  const jwt=await ensureToken();
+  const response=await authFetch('/functions/v1/odoo-monthly-credits?month='+encodeURIComponent(month),{headers:{authorization:'Bearer '+jwt}});
+  let json;try{json=await response.json()}catch{throw Error('credit_evidence_unavailable')}
+  if(!response.ok||json?.ok!==true)throw Error(json?.error||'credit_evidence_unavailable');return json;
  },
  invoiceEvidenceRequest:async(orderId)=>{
   if(!Number.isSafeInteger(orderId)||orderId<1)throw Error('invalid_order_id');

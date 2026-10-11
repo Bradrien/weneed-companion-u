@@ -4,7 +4,8 @@ import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=revie
 import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
 import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
 import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
-import {createCommissionReturns} from './commission-returns-d37.mjs';
+import {createCommissionReturns} from './commission-returns-d37.mjs?v=credits-1';
+import {createMonthlyCredits} from './monthly-credits-d38.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
 const el=(tag,cls='',s)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(s!==undefined)n.textContent=String(s);return n};
@@ -28,17 +29,18 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  estimated_units_unverified:'Coût fondé sur les prix unitaires Kino actuels, historique à valider',
  unverified_unit_scale:'Coût au gramme ou au sachet non identifiable : estimation suspendue',
  missing_kino_price:'Prix de référence Kino manquant'};
-export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,isActive,isAuthenticated}){
+export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,monthlyCreditsRequest,isActive,isAuthenticated}){
  let data=null,fallbackData=null,fallbackMonth=null,fallbackLoading=false,fallbackError='',loading=false,error='',stages=new Set(filters),company='all',search='',month=currentCommissionMonth(),epoch=0,expanded=new Set(),failedCode='';
  const host=()=>document.getElementById('odoo-quote-pipeline-root');
+ const monthlyCredits=createMonthlyCredits({request:monthlyCreditsRequest,isAuthenticated,onUpdated:()=>render()});
  const returnDeductions=createCommissionReturns({request:returnDeductionsRequest,isAuthenticated,onUpdated:()=>render()});
  const invoiceEvidence=typeof invoiceEvidenceRequest==='function'?
   createInvoiceEvidenceView({request:invoiceEvidenceRequest,isAuthenticated}):null;
- function reset(){epoch++;invoiceEvidence?.reset();returnDeductions.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
+ function reset(){epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
  async function load(force=false){
   if(!isAuthenticated()||loading)return;
   if((data||fallbackData)&&!force){render();return}
-  const ticket=++epoch;invoiceEvidence?.reset();loading=true;error='';void returnDeductions.load(month);render();
+  const ticket=++epoch;invoiceEvidence?.reset();loading=true;error='';monthlyCredits.reset();void returnDeductions.load(month);render();
   try{
    const selectedMonth=month;
    const response=await request(selectedMonth);
@@ -360,6 +362,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
     'Lecture des devis et commandes Odoo en cours…':
     'Aucune donnée Odoo chargée : impossible de lister les devis. Utilise « Actualiser Odoo ».'));
    if(fallbackError)target.append(el('p','pipeline-error',fallbackError));
+   target.append(monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month)}));
    return;
   }
   if(!data)target.append(el('p','commission-month-detail',
@@ -382,6 +385,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   grid.append(validated);
   target.append(grid);
   target.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh:!!data&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&data.sourceInputsRechecked&&!loading&&!error,pipelineReadAt:monthlyData.readAt}));
+  target.append(monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh:!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error,pipelineReadAt:monthlyData.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null}));
   if(data){drawCompanyBreakdown(target,selected);drawAuditControls(target,selected)}
   if(data)drawReconciliation(target,[...summary.pending.orders,...summary.confirmed.orders]);
   const groups=[
@@ -439,7 +443,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   function changeMonth(nextMonth){
    if(nextMonth!==month){
     // Never present the prior month's Odoo snapshot as the newly selected month.
-    epoch++;invoiceEvidence?.reset();returnDeductions.reset();loading=false;fallbackLoading=false;expanded.clear();
+    epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();loading=false;fallbackLoading=false;expanded.clear();
     data=null;fallbackData=null;fallbackMonth=null;fallbackError='';
    }
    month=nextMonth;select.value=month;label.textContent=labelCommissionMonth(month);drawMonthly(body);

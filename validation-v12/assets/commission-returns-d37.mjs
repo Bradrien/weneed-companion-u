@@ -49,5 +49,5 @@ export function createCommissionReturns({request,isAuthenticated,onUpdated}){
    'Lecture des déductions : '+new Date(data.readAt).toLocaleString('fr-FR')+'.','commission-month-detail'));
   return panel;
  }
- return {reset,load,render};
+ return {reset,load,render,snapshot:month=>isAuthenticated()&&data?.month===month?data:null};
 }

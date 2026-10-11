@@ -36,6 +36,12 @@ La commande confirmée déclenche la commission. Les commissions des retours se 
 
 La lecture porte sur les déductions enregistrées, sans garantir le rapprochement de tous les retours Odoo. Une liste vide ne confirme pas l’absence de retour. Une recherche ciblée ou une lecture non revérifiée suspend le solde du mois. Les coûts historiques et le SPIFF restent à vérifier.
 
+## Avoirs mensuels — D38
+
+Le bilan peut lire à la demande les avoirs Odoo du mois, leur facture d’origine et les ventes liées. Les liens natifs et les références exactes dans les notes sont distingués. La comparaison affiche les lignes des pièces source et les diagnostics empêchant une déduction. Lorsqu’une ligne concorde, le détail présente le prorata de commission estimé sur sa quantité retournée, fondé sur le catalogue actuel et revérifié dans le navigateur.
+
+Une simulation du solde peut intégrer les avoirs rapprochés estimés, tout en conservant séparément les déductions Excel enregistrées. Elle demande la même capture Kino pour les ventes et les avoirs et des lectures récentes ; elle reste partielle et ne crée aucune déduction enregistrée. Une pièce déjà renseignée pour la même commande et le même mois est signalée ; aucun montant d’avoir HT n’est ajouté comme commission. Cette lecture couvre les avoirs attribués au commercial, sans garantir tous les retours physiques.
+
 ## Sécurité
 
 Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de données commerciales ne doit y être ajouté. La clé Supabase publiable du navigateur est publique par conception ; les secrets Odoo et les clés de service restent côté serveur. Les tables catalogue sont privées et ne sont lues qu'après contrôle propriétaire. Aucune commande Odoo n'est modifiée.
@@ -44,4 +50,4 @@ Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de don
 
 Le workflow GitHub vérifie la syntaxe, les modèles et fonctions avec des données synthétiques, les contrôles SQL isolés et les parcours Chromium sur écran mobile. Les validations réelles des données se font par les API authentifiées, sans publier leurs réponses ni leurs jetons.
 
-Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md), [D35_CHANGELOG.md](D35_CHANGELOG.md) [D36_CHANGELOG.md](D36_CHANGELOG.md) et [D37_CHANGELOG.md](D37_CHANGELOG.md).
+Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md), [D33_CHANGELOG.md](D33_CHANGELOG.md), [D34_CHANGELOG.md](D34_CHANGELOG.md), [D35_CHANGELOG.md](D35_CHANGELOG.md) [D36_CHANGELOG.md](D36_CHANGELOG.md) [D37_CHANGELOG.md](D37_CHANGELOG.md) et [D38_CHANGELOG.md](D38_CHANGELOG.md).
