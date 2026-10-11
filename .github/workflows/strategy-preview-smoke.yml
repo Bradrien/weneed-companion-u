@@ -1,10 +1,12 @@
-name: Companion D23 mobile preview
+name: Companion D24 mobile preview
 on:
   push:
     branches: [main]
     paths:
       - 'validation-v12/**'
-      - 'tests/strategy-preview-smoke.mjs'
+      - 'tests/**'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
       - '.github/workflows/strategy-preview-smoke.yml'
 permissions:
   contents: read
@@ -19,7 +21,10 @@ jobs:
           node-version: '22'
       - name: Check preview module syntax
         run: |
-          node --check validation-v12/assets/app-crm-d23.js
+          node --check validation-v12/assets/app-crm-d24.js
+          node --check validation-v12/assets/tasks-d24.mjs
+          node --check validation-v12/assets/connectors-d24.mjs
+          node --check validation-v12/assets/odoo-quote-pipeline-d24.mjs
           node --check validation-v12/assets/odoo-quote-pipeline-d23.mjs
           node --check validation-v12/assets/odoo-commission-model-d22.mjs
           node --check validation-v12/assets/manual-quotes-ui-d21.mjs
@@ -31,6 +36,10 @@ jobs:
           node --check validation-v12/assets/strategy-d19.mjs
           node --check validation-v12/assets/strategy-model.mjs
           node --check validation-v12/assets/whatsapp-brief-model.mjs
-      - run: npm install --no-save --no-package-lock playwright@1.56.1
+      - run: npm install --no-save --no-package-lock playwright@1.56.1 @electric-sql/pglite@0.5.8
       - run: npx playwright install --with-deps chromium
+      - run: node --test tests/*.test.mjs supabase/functions/companion-tasks/core.test.mjs supabase/functions/apple-reminders-sync/core.test.mjs supabase/functions/_shared/*.test.mjs
+      - run: node --test supabase/tests/google-connectors-sql.test.mjs
       - run: node tests/strategy-preview-smoke.mjs
+      - run: node tests/tasks-preview-smoke.mjs
+      - run: node tests/commission-pipeline-smoke.mjs

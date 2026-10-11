@@ -2,7 +2,7 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {resolve,join,extname,sep} from 'node:path';
 import assert from 'node:assert/strict';
-import {chromium} from 'playwright';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 
 const root=resolve('validation-v12');
 const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml'};
@@ -36,7 +36,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',headers:{
  'access-control-allow-methods':'GET,POST,OPTIONS'},body:JSON.stringify(data)});
 let browser;
 try{
- browser=await chromium.launch({headless:true});
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHANNEL?{channel:process.env.PLAYWRIGHT_CHANNEL}:{})});
  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://gcirlrghjvumhkekrtmf.supabase.co/**',async route=>{
@@ -102,6 +102,7 @@ try{
  await page.locator('#odoo-quote-pipeline-root').getByText(
    'Devis et commandes synchronisés depuis Odoo').waitFor({state:'visible'});
  await page.getByRole('checkbox',{name:'Inclure Devis en cours'}).waitFor({state:'visible'});
+ await page.locator('.pipeline-order').first().waitFor({state:'visible'});
  assert.equal(await page.locator('.pipeline-order').count(),4);
  const pending=page.getByRole('checkbox',{name:'Inclure Devis en cours'});
  const confirmed=page.getByRole('checkbox',{name:'Inclure Confirmées non facturées entièrement'});
@@ -130,5 +131,5 @@ try{
  assert.equal(await page.locator('.pipeline-order').count(),3);
  assert.match(await page.locator('#odoo-quote-pipeline-root').innerText(),/Dernière lecture en mémoire/);
   assert.equal(errors.length,0,'Unexpected runtime errors: '+errors.join(' | '));
- console.log('D23 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
+ console.log('D24 iPhone smoke succeeded: private source data, navigation, verified metrics and price simulator');
 }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}

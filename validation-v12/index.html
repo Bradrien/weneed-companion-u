@@ -11,7 +11,7 @@
  <link rel="manifest" href="manifest.webmanifest">
  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
  <link rel="apple-touch-icon" href="assets/icon-192.png">
- <link rel="stylesheet" href="assets/app-crm-d23.css">
+ <link rel="stylesheet" href="assets/app-crm-d24.css">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — préversion V1.2</title>
 </head>
@@ -21,7 +21,7 @@
    <div class="brand"><span class="brand-symbol" aria-hidden="true">W<span class="accent">.</span></span><span class="brand-name">WeNeed<br><strong>Companion</strong></span></div>
    <div class="header-right"><span id="conn-indicator" class="connection-indicator">Odoo · lecture seule</span><button type="button" id="logout-top" class="icon-button hidden" aria-label="Se déconnecter" title="Se déconnecter">⏻</button></div>
   </header>
-  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · filtres cumulables Odoo D23 — Essais uniquement. Le site principal reste inchangé. Aucune commission validée.</div>
+  <main id="main" tabindex="-1"><div class="notice warn" role="status">PRÉVERSION V1.2 · tâches et rappels D24 — Essais uniquement. Le site principal reste inchangé. Aucune commission validée.</div>
    <section id="login-panel" class="login-screen">
     <div class="login-hero"><span class="eyebrow">ESPACE COMMERCIAL PRIVÉ</span><h1>Ton activité, au même endroit.</h1><p>Commandes Odoo GTA/TR et suivi des commissions. Des données consultables, des montants traçables.</p></div>
     <form id="login-form" class="login-card">
@@ -39,7 +39,7 @@
     <div id="notice" role="status" aria-live="polite" class="notice"><span id="notice-text">Connecté. Appuie sur « Charger les données » pour consulter Odoo.</span></div>
     <div id="loading" class="loading hidden"><span class="spinner"></span><span>Lecture des commandes Odoo en cours…</span></div>
     <div id="view-home" class="view">
-      <div id="metrics" class="metrics-grid"></div><button type="button" class="secondary-button" data-nav="archives">Archives WhatsApp · conversations et vocaux →</button><button type="button" class="secondary-button" data-nav="stocks">Stocks TR / GTA · contrôle toutes les 5 min →</button>
+      <div id="metrics" class="metrics-grid"></div><button type="button" class="secondary-button" data-nav="tasks">Mes tâches et rappels →</button><button type="button" class="secondary-button" data-nav="archives">Archives WhatsApp · conversations et vocaux →</button><button type="button" class="secondary-button" data-nav="stocks">Stocks TR / GTA · contrôle toutes les 5 min →</button>
       <section class="section">
        <div class="section-heading"><div><p class="eyebrow">CRM · SUIVI</p><h2>Activité commerciale</h2></div><button id="reload-crm" type="button" class="inline-button" aria-label="Actualiser le CRM">Actualiser ↻</button></div>
        <div id="crm-stats" class="metrics-grid"></div>
@@ -71,6 +71,7 @@
       <div id="clients-list" class="stack"></div>
       <div id="client-detail" class="stack hidden"></div>
     </div>
+<div id="view-tasks" class="view hidden"><div id="tasks-root"></div></div>
 <div id="view-archives" class="view hidden"><div id="archive-root"></div></div>
     <div id="view-stocks" class="view hidden">
  <div class="section-heading"><h2>Stocks TR / GTA</h2><button id="stock-reload" type="button" class="inline-button">Actualiser ↻</button></div>
@@ -85,12 +86,12 @@
     <div id="view-strategy" class="view hidden">
       <div id="strategy-root"></div>
     </div>
-    <div id="view-settings" class="view hidden"><section class="settings-card"><h2>Connexions</h2><button type="button" class="inline-button" data-nav="archives">Archives WhatsApp et vocaux →</button><button type="button" class="inline-button" data-nav="stocks">Stocks et notifications →</button><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import des historiques</span><strong>Archives privées connectées</strong></div><div class="setting-row"><span>Transcription des anciens audios</span><strong>Premier lot · plafond 1 $</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée · archives WhatsApp consultables.</p></div>
+    <div id="view-settings" class="view hidden"><section id="connector-status-root" class="settings-card"></section><section class="settings-card"><h2>Connexions</h2><button type="button" class="inline-button" data-nav="tasks">Tâches et rappels →</button><button type="button" class="inline-button" data-nav="archives">Archives WhatsApp et vocaux →</button><button type="button" class="inline-button" data-nav="stocks">Stocks et notifications →</button><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import des historiques</span><strong>Archives privées connectées</strong></div><div class="setting-row"><span>Transcription des anciens audios</span><strong>Premier lot · plafond 1 $</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">Version alpha privée · archives WhatsApp consultables.</p></div>
    </section>
   </main>
   <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Navigation principale">
    <button type="button" data-nav="home" class="nav-button active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7v10H3zM9 20v-7h6v7"/></svg><span>Accueil</span></button>
-   <button type="button" data-nav="orders" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Commandes</span></button>
+   <button type="button" data-nav="tasks" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Tâches</span></button>
    <button type="button" data-nav="clients" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 11a3 3 0 1 0 0-6M18 15a5 5 0 0 1 3 5v1"/></svg><span>Clients</span></button>
    <button type="button" data-nav="commissions" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 15h10M7 11h10M9 7h6"/></svg><span>Commissions</span></button>
    <button type="button" data-nav="strategy" class="nav-button">
@@ -100,5 +101,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg><span>Réglages</span></button>
   </nav>
  </div>
- <script src="assets/app-crm-d23.js" type="module"></script>
+ <script src="assets/app-crm-d24.js" type="module"></script>
 </body></html>
