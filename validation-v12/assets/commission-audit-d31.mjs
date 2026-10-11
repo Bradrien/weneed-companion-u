@@ -27,7 +27,7 @@ export const COMMISSION_CSV_COLUMNS=Object.freeze([
  'code_candidat','statut_catalogue','cout_brut_catalogue','tarif_brut_catalogue',
  'capture_catalogue','lecture_odoo','source_reverifiee','couts_historiques_valides','spiff','payable'
 ]);
-function csvCell(value){
+export function csvCell(value){
  if(value===null||value===undefined)return '""';
  let s=typeof value==='number'?String(value).replace('.',','):String(value);
  // Source text must never be interpreted as a spreadsheet formula.

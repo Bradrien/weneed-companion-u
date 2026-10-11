@@ -1,0 +1,11 @@
+# D33 — Dossier de contrôle et accès aux pièces Odoo
+
+Les rapprochements indiquent une action à vérifier dans la source pour les références absentes, coûts nuls, paliers et unités ambigus, prix et remises incohérents. Les points portant sur la commande entière et les exclusions avec montant HT, montant signé ou montant manquant sont présentés séparément. Les exclusions à zéro et les véritables estimations à zéro ne deviennent pas des anomalies.
+
+« Exporter les points à vérifier » produit un CSV du mois, de la société et de la recherche du bilan. Il comprend les seules lignes non estimées, exclusions monétaires à confirmer et incohérences de commande. Les codes candidats restent distincts du SKU officiel. Les montants signés, manquants et nuls sont conservés et les textes protégés contre l'interprétation comme formules. Les montants de commande sont répétés par contrôle et explicitement non additionnables. Aucun montant de commission n'est calculé dans ce dossier.
+
+Le bilan permet d'ouvrir directement le détail d'une commande. Les commandes, factures et avoirs disposent aussi de liens vers leurs fiches dans Odoo. Seuls deux modèles fixes et un identifiant source numérique positif peuvent former un lien ; l'origine est fixée à l'instance Odoo et les nouveaux onglets n'ont pas d'accès à la page Companion. Les liens ne contiennent aucun jeton ou identifiant de connexion et ne lancent aucune modification.
+
+Une actualisation échouée, une lecture en cours, une source non revérifiée ou l'absence de session désactive les exports. Les gestionnaires refusent également une invocation tardive pendant ces états. Aucun calcul, SKU, coût, palier ou état comptable n'est corrigé automatiquement. L'absence de point technique ne valide pas les coûts historiques, le SPIFF ou les règles de rémunération ; aucune commission n'est déclarée acquise.
+
+Validation : sélection mensuelle/société/recherche, diagnostics simultanés sans double décompte des documents, valeurs signées/manquantes/nulles, devis versus confirmées, absence de mutation des données, CSV lu par un parseur indépendant, liens bornés, navigation mobile, téléchargement des deux exports et refus après actualisation échouée. Les lectures commerciales réelles restent privées.

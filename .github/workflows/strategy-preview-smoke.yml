@@ -1,4 +1,4 @@
-name: Companion D32 accounting evidence
+name: Companion D33 source review
 on:
   push:
     branches: [main]
@@ -38,6 +38,8 @@ jobs:
           node --check validation-v12/assets/kino-calculation-d31.mjs
           node --check validation-v12/assets/commission-audit-d31.mjs
           node --check validation-v12/assets/odoo-invoice-evidence-d32.mjs
+          node --check validation-v12/assets/commission-review-d33.mjs
+          node --check validation-v12/assets/odoo-links-d33.mjs
           node --check supabase/functions/odoo-invoice-evidence/core.mjs
           node --check supabase/functions/odoo-commission-pipeline/calculation.mjs
           node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs

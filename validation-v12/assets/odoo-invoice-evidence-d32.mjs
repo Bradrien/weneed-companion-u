@@ -1,4 +1,5 @@
 /** Separate accounting evidence; never allocated to commission or order totals. */
+import {odooRecordUrl} from './odoo-links-d33.mjs';
 const sourceNumber=x=>x===null||typeof x==='number'&&Number.isFinite(x);
 const paymentLabels=Object.freeze({not_paid:'Non payé (Odoo)',in_payment:'Paiement en cours (Odoo)',
  paid:'Indiqué payé dans Odoo',partial:'Paiement partiel (Odoo)',reversed:'Contre-passé (Odoo)',
@@ -90,6 +91,9 @@ export function createInvoiceEvidenceView({request,isAuthenticated}){
     if(d.reversesId){const original=data.documents.find(x=>x.id===d.reversesId);
      card.append(el('small','',original?'Contre-passe : '+original.reference:'Document contre-passé : ID '+d.reversesId));}
     for(const issue of d.issues)card.append(el('small','pipeline-error',issueLabels[issue]));
+    const sourceLink=el('a','commission-source-link','Ouvrir '+(d.kind==='credit_note'?'l’avoir':'la facture')+' dans Odoo');
+    sourceLink.href=odooRecordUrl('account.move',d.id);sourceLink.target='_blank';sourceLink.rel='noopener noreferrer';
+    card.append(sourceLink);
     body.append(card);
    }
    body.append(el('p','pipeline-hint','Documents revérifiés le '+new Date(data.readAt).toLocaleString('fr-FR',{

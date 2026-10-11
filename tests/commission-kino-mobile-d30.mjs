@@ -14,6 +14,7 @@ const server=createServer(async(req,res)=>{
    '<link rel="stylesheet" href="/assets/commission-reconciliation-d30.css">'+
    '<link rel="stylesheet" href="/assets/commission-audit-d31.css">'+
    '<link rel="stylesheet" href="/assets/odoo-invoice-evidence-d32.css">'+
+   '<link rel="stylesheet" href="/assets/commission-review-d33.css">'+
    '<main id="odoo-quote-pipeline-root"></main>');
   const file=resolve(root,'.'+decodeURIComponent(path));
   if(!file.startsWith(root+sep))return res.writeHead(403).end();
@@ -54,9 +55,10 @@ try{
   const candidateOrder={...order,id:2,reference:'TEST-CANDIDATE',state:'sale',stage:'confirme',
    amount_ht:160,forecast:null,matched_lines:0,unmatched_lines:2,lines:[20,21].map(id=>
     unresolved(id,'','[TEST/TR/50] Produit test 50g','missing_odoo_sku',candidateEvidence))};
-  const costOrder={...candidateOrder,id:3,reference:'TEST-COST',amount_ht:80,unmatched_lines:1,
+  const costOrder={...candidateOrder,id:3,reference:'TEST-COST',amount_ht:100,unmatched_lines:1,excluded_lines:1,
    invoice_status:'invoiced',stage:'facture',lines:[unresolved(30,'COST/TR/50','Produit coût test 50g',
-    'missing_kino_cost',{...candidateEvidence,source:'odoo_sku',sku:'COST/TR/50',cost_eur:0})]};
+    'missing_kino_cost',{...candidateEvidence,source:'odoo_sku',sku:'COST/TR/50',cost_eur:0}),
+    {...unresolved(31,'SHIP','Transport test','not_eligible',null),price_unit:20,subtotal_ht:20}]};
   const data={version:'odoo_commission_pipeline_v1',read_at:'2026-10-11T11:00:00Z',
    closed_window_from:'2026-10-01',period_from:'2026-10-01',
    pending_scope:'period_pending_seller_orders',catalog_snapshot_at:'2026-10-10T00:35:35Z',
@@ -107,7 +109,8 @@ try{
  });
  await page.locator('.commission-month-toolbar input[type=month]').fill('2026-10');
  assert.match(await page.locator('.commission-monthly-panel').innerText(),/99,13/);
- await page.locator('.pipeline-order-head').first().click();
+ await page.getByRole('button',{name:'Voir le détail de T02163',exact:true}).click();
+ assert.equal(await page.locator('[data-order-id="1"] .pipeline-order-head').getAttribute('aria-expanded'),'true');
  const details=page.locator('.pipeline-order-details').first();
  assert.match(await details.innerText(),/Coût 50,00\s*€/);
  assert.match(await details.innerText(),/Coût 53,00\s*€/);
@@ -115,6 +118,8 @@ try{
  assert.match(await details.innerText(),/Sachet Kino 250 g/);
  assert.match(await details.innerText(),/Coût historique à confirmer/);
  assert.match(await details.innerText(),/99,13\s*€/);
+ assert.equal(await details.getByRole('link',{name:'Ouvrir la commande dans Odoo',exact:true}).getAttribute('href'),
+  'https://weneedweed.odoo.com/web#id=1&model=sale.order&view_type=form');
  assert.equal(await page.evaluate(()=>window.invoiceCalls),0);
  await page.evaluate(()=>{window.deferNextInvoiceRead=true});
  await details.getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
@@ -128,6 +133,9 @@ try{
  assert.match(await invoicePanel.innerText(),/Total document 1\s*600,00/);
  assert.match(await invoicePanel.innerText(),/Ils ne sont pas attribués à cette commande/);
  assert.match(await invoicePanel.innerText(),/ne valide pas une commission/);
+ assert.equal(await invoicePanel.getByRole('link',{name:'Ouvrir la facture dans Odoo',exact:true}).getAttribute('href'),
+  'https://weneedweed.odoo.com/web#id=501&model=account.move&view_type=form');
+ assert.equal(await invoicePanel.getByRole('link',{name:'Ouvrir l’avoir dans Odoo',exact:true}).getAttribute('rel'),'noopener noreferrer');
  await page.evaluate(()=>{window.failNextInvoiceRead=true});
  await invoicePanel.getByRole('button',{name:'Actualiser les factures Odoo',exact:true}).click();
  await invoicePanel.getByRole('alert').waitFor();
@@ -153,13 +161,26 @@ try{
  const csv=await readFile(await download.path(),'utf8');
  assert.match(csv,/estimation_ligne_provisoire/);assert.match(csv,/"99,13"/);
  assert.match(csv,/"TEST-CANDIDATE"/);assert.match(csv,/"desactive";"non"/);
- assert.match(await page.locator('.commission-export-controls').innerText(),/3 document\(s\), 6 ligne\(s\)/);
+ assert.match(await page.locator('.commission-export-controls').innerText(),/3 document\(s\), 7 ligne\(s\)/);
+ assert.match(await page.locator('.commission-review-controls').innerText(),/4 point\(s\) à vérifier · 2 document\(s\)/);
+ const reviewDownloadPromise=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Exporter les points à vérifier',exact:true}).click();
+ const reviewDownload=await reviewDownloadPromise;
+ assert.equal(reviewDownload.suggestedFilename(),'points-a-verifier-2026-10-all.csv');
+ const reviewCsv=await readFile(await reviewDownload.path(),'utf8');
+ assert.match(reviewCsv,/"TEST-CANDIDATE"/);assert.match(reviewCsv,/"TEST-COST"/);
+ assert.match(reviewCsv,/"line_exclusion"/);assert.doesNotMatch(reviewCsv,/"T02163"/);
+ assert.match(reviewCsv,/"sku_officiel_odoo";"code_candidat"/);
+ await page.locator('.commission-review-other summary').click();
+ assert.match(await page.locator('.commission-review-other').innerText(),/Transport test/);
+ assert.match(await page.locator('.commission-review-other').innerText(),/ne constitue pas une validation contractuelle/);
  assert.equal(await page.locator('.pipeline-reconciliation-group').count(),2);
  assert.match(await page.locator('.pipeline-reconciliation').innerText(),/Lignes à rapprocher · 3/);
  await page.locator('.pipeline-reconciliation-group summary').first().click();
  const candidate=page.locator('.pipeline-reconciliation-group').first();
  assert.match(await candidate.innerText(),/Code candidat TEST\/TR\/50/);
  assert.match(await candidate.innerText(),/Le champ SKU Odoo reste vide/);
+ assert.match(await candidate.innerText(),/ne remplace pas le SKU source/);
  assert.match(await candidate.innerText(),/Société TR/);
  assert.match(await candidate.innerText(),/160,00\s*€ HT/);
  assert.match(await candidate.innerText(),/ne représente pas une commission/);
@@ -179,6 +200,11 @@ try{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.getByRole('searchbox',{name:'Rechercher dans le bilan mensuel',exact:true}).fill('TEST-COST');
  assert.match(await page.locator('.commission-export-controls').innerText(),/1 document\(s\)/);
+ assert.match(await page.locator('.commission-review-controls').innerText(),/2 point\(s\) à vérifier · 1 document\(s\)/);
+ const filteredReviewPromise=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Exporter les points à vérifier',exact:true}).click();
+ const filteredReview=await readFile(await (await filteredReviewPromise).path(),'utf8');
+ assert.match(filteredReview,/"TEST-COST"/);assert.doesNotMatch(filteredReview,/"TEST-CANDIDATE"/);
  await page.locator('[data-order-id="3"] .pipeline-order-head').click();
  await page.evaluate(()=>{window.deferNextInvoiceRead=true});
  await page.locator('[data-order-id="3"]').getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
@@ -186,6 +212,13 @@ try{
  await page.evaluate(()=>window.resolveInvoiceRead());
  assert.doesNotMatch(await page.locator('#odoo-quote-pipeline-root').innerText(),/TEST-INV|Indiqué payé/);
  assert.equal(await page.getByRole('button',{name:'Exporter le bilan CSV',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Exporter les points à vérifier',exact:true}).isDisabled(),true);
+ assert.equal(await page.evaluate(()=>{
+  const original=URL.createObjectURL;let calls=0;
+  URL.createObjectURL=(...args)=>{calls++;return original(...args)};
+  for(const b of document.querySelectorAll('button'))if(b.textContent.startsWith('Exporter '))b.onclick?.();
+  URL.createObjectURL=original;return calls;
+ }),0);
  assert.match(await page.locator('#odoo-quote-pipeline-root').innerText(),/actualisation échouée/);
  // A late response after logout/reset cannot put accounting data back in the DOM.
  await page.evaluate(()=>{window.deferNextInvoiceRead=true});
@@ -193,5 +226,5 @@ try{
  await page.evaluate(()=>{window.invoiceAuthenticated=false;window.pipeline.reset();window.resolveInvoiceRead()});
  assert.equal(await page.locator('#odoo-quote-pipeline-root').innerText(),'');
  assert.deepEqual(errors,[]);
- console.log('D32 mobile passed: on-demand invoices/credit notes, rerender during read, no allocation, error/reset/logout guards; D31 calculations and CSV preserved.');
+ console.log('D33 mobile passed: targeted review CSV, monetary exclusions, safe Odoo source links, monthly detail navigation and stale guards; D31/D32 preserved.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok))}

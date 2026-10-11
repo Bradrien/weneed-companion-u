@@ -1,6 +1,7 @@
 import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=calculation-8';
-import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs';
-import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs';
+import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=review-1';
+import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=review-1';
+import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
 import {COMMISSION_ISSUES,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
@@ -120,16 +121,37 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
  }
  function drawReconciliation(target,orders){
   const groups=pipelineReconciliationGroups(orders);
-  if(!groups.length)return;
+  const review=reviewPointsForOrders(orders);
   const panel=el('section','pipeline-reconciliation');
   const count=groups.reduce((n,g)=>n+g.lines.length,0);
-  panel.append(el('h3','','Lignes à rapprocher · '+count),el('p','commission-month-detail',
-   'Ces lignes restent non estimées. Les codes candidats servent au contrôle de la référence interne Odoo. Les coûts doivent être confirmés dans la source Kino.'));
+  panel.append(el('h3','',count?'Lignes à rapprocher · '+count:'Points à vérifier'),el('p','commission-month-detail',
+   count?'Ces lignes restent non estimées. Les codes candidats servent au contrôle de la référence interne Odoo. Les coûts doivent être confirmés dans la source Kino.':
+   'Aucune ligne non estimée dans cette sélection. Les contrôles de source et les exclusions restent distincts de la validation de rémunération.'));
+  const controls=el('div','commission-review-controls'),exportButton=el('button','','Exporter les points à vérifier');
+  exportButton.type='button';exportButton.disabled=loading||!!error||!isAuthenticated()||!data.sourceInputsRechecked||!review.points.length;
+  const status=el('small','commission-month-detail',review.points.length+' point(s) à vérifier · '+review.ordersCount+
+   ' document(s) concerné(s), dont '+review.pendingOrders+' devis et '+review.confirmedOrders+
+   ' commande(s) confirmée(s) · '+review.unestimatedLines+' ligne(s) non estimée(s) · '+review.monetaryExclusions+
+   ' exclusion(s) avec montant ou montant manquant.');
+  status.setAttribute('role','status');
+  exportButton.onclick=()=>{
+   if(loading||error||!isAuthenticated())return;
+   try{
+    const output=createReviewCsv(data,{month,company,query:search});
+    const url=URL.createObjectURL(new Blob([output.content],{type:'text/csv;charset=utf-8'}));
+    const link=el('a');link.href=url;link.download=output.filename;document.body.append(link);
+    link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+    status.textContent='Dossier préparé : '+output.points+' point(s), '+output.orders+
+     ' document(s). Les montants de commande sont répétés par contrôle ; ne pas les additionner.';
+   }catch{status.textContent='Dossier indisponible : actualise la lecture Odoo.'}
+  };
+  controls.append(exportButton,status);panel.append(controls);
   for(const group of groups){
    const card=el('details','pipeline-reconciliation-group');
    card.append(el('summary','',group.company+' · '+(group.sku||'SKU absent')+' · '+group.lines.length+' ligne(s)'));
    const body=el('div','pipeline-reconciliation-body');
    body.append(el('strong','',lineReasons[group.reason]||group.reason));
+   body.append(el('p','commission-review-action',reviewAction(group.reason).instruction));
    appendCatalogEvidence(body,group.catalogEvidence);
    body.append(el('small','',
     (group.amountHT===null?'Montant HT non additionnable':money(group.amountHT,group.currency)+' HT'+
@@ -141,11 +163,34 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
     button.onclick=()=>openOrder(line.orderId);
     row.append(button,el('small','',line.client+' · Ligne '+line.lineId+' · Quantité '+
      (line.quantity??'—')+' · '+money(line.amountHT,line.currency)+' HT'));
+    row.append(sourceOrderLink(line.orderId));
     body.append(row);
    }
    card.append(body);panel.append(card);
   }
+  const other=review.points.filter(p=>p.scope!=='line_unestimated');
+  if(other.length){
+   const extra=el('details','commission-review-other');
+   extra.append(el('summary','','Montants et exclusions à vérifier · '+other.length));
+   const body=el('div','commission-review-other-body');
+   for(const point of other){
+    const row=el('article','commission-review-point'),o=point.order,l=point.line;
+    row.append(el('strong','',o.reference+' · '+o.company+' · '+point.action.label),
+     el('p','commission-review-action',point.action.instruction),
+     el('small','',l?'Ligne '+l.id+' · '+l.product+' · '+money(l.subtotalHT,o.currency)+' HT':
+      'Contrôle de la commande entière · '+money(o.amountHT,o.currency)+' HT'));
+    const open=el('button','','Voir le détail de '+o.reference);open.type='button';open.onclick=()=>openOrder(o.id);
+    row.append(open,sourceOrderLink(o.id));body.append(row);
+   }
+   extra.append(body);panel.append(extra);
+  }
+  if(!review.points.length)panel.append(el('p','commission-month-detail',
+   'Aucun point technique détecté. Coûts historiques, SPIFF, règles de rémunération et traitement des avoirs restent à valider. Aucune commission acquise.'));
   target.append(panel);
+ }
+ function sourceOrderLink(id){
+  const link=el('a','commission-source-link','Ouvrir la commande dans Odoo');
+  link.href=odooRecordUrl('sale.order',id);link.target='_blank';link.rel='noopener noreferrer';return link;
  }
  function appendCalculation(target,line,suspended){
   const c=line.calculation;if(!c)return;
@@ -195,6 +240,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    ' document(s), devis et commandes séparés. Les montants manquants ou suspendus restent vides.');
   status.setAttribute('role','status');
   button.onclick=()=>{
+   if(loading||error||!isAuthenticated())return;
    try{
     const output=createCommissionCsv(data,{month,company,query:search});
     const url=URL.createObjectURL(new Blob([output.content],{type:'text/csv;charset=utf-8'}));
@@ -238,6 +284,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   details.append(el('p','pipeline-status',
    'État Odoo : '+o.state+' · Facturation Odoo : '+(o.invoiceStatus||'non renseignée')+
    '. « Facturé » ne prouve pas que la facture est réglée.'));
+  details.append(sourceOrderLink(o.id));
   const calc=el('p','pipeline-estimate',o.forecast===null?
    'Commission potentielle : '+(o.issues.length?'estimation suspendue.':'non calculable avec les données actuelles.'):
    'Commission potentielle'+(o.partial?' partielle':'')+
@@ -328,7 +375,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   const validated=el('article','commission-month-metric');
   validated.append(el('span','','Commissions validées · acquises'),
    el('strong','','Non disponible'),
-   el('small','','Aucune validation officielle de rémunération ou preuve de paiement accessible.'));
+   el('small','','Aucune validation officielle de rémunération accessible. Les états de paiement Odoo se consultent dans le détail et ne valident pas une commission.'));
   grid.append(validated);
   target.append(grid);
   if(data){drawCompanyBreakdown(target,selected);drawAuditControls(target,selected)}
@@ -350,6 +397,9 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
       (o.stage==='facture'?' · Facturé (Odoo)':'')));
     const value=el('div','monthly-forecast',o.forecast===null?'Estimation à rapprocher':
      eur(o.forecast)+(o.partial?' · partielle':''));
+    if(data){const open=el('button','commission-month-open','Voir le détail');open.type='button';
+     open.setAttribute('aria-label','Voir le détail de '+o.reference);open.onclick=()=>openOrder(o.id);
+     left.append(open)}
     item.append(left,value);list.append(item);
    }
    if(group.orders.length>80)list.append(el('p','commission-month-detail',

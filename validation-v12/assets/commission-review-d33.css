@@ -1,0 +1,13 @@
+.commission-review-controls{display:grid;gap:8px;margin:12px 0 15px}
+.commission-review-controls button,.commission-review-point button,.commission-month-open,.commission-source-link{min-height:44px;padding:10px 12px;border:1px solid #bdd1c3;border-radius:9px;background:#fff;color:#28523c;font:inherit;font-size:12px;font-weight:650;max-width:100%;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.commission-review-controls button:disabled{opacity:.55;cursor:default}
+.commission-source-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:underline;text-underline-offset:3px;width:fit-content;line-height:1.4}
+.commission-review-action{font-size:12px;line-height:1.5;color:#496452;margin:8px 0;overflow-wrap:anywhere}
+.commission-review-other{margin:12px 0;border:1px solid #d2dfd5;border-radius:10px;background:#fff}
+.commission-review-other summary{padding:12px;font-size:12px;font-weight:700;cursor:pointer;overflow-wrap:anywhere}
+.commission-review-other-body{padding:0 12px 12px}
+.commission-review-point{display:grid;gap:8px;padding:12px 0;border-top:1px solid #dce5df;font-size:12px;overflow-wrap:anywhere}
+.commission-review-point .commission-review-action{margin:0}
+.commission-review-point small{color:#617766;line-height:1.5}
+.commission-month-open{margin-top:7px}
+.commission-source-link:focus-visible,.commission-month-open:focus-visible,.commission-review-controls button:focus-visible{outline:3px solid #39865c;outline-offset:3px}

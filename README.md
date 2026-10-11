@@ -4,7 +4,7 @@ Companion commercial avec commandes et stocks Odoo en lecture seule, authentific
 
 La préversion en cours est disponible sur [validation-v12](https://bradrien.github.io/weneed-companion-u/validation-v12/). La page principale conserve sa version antérieure.
 
-## Commissions — D32
+## Commissions — D33
 
 - Bilan par mois, société et recherche, avec séparation des devis non confirmés et des commandes confirmées/facturées.
 - Rapprochement Kino strict par société et SKU. Un code dans un libellé reste un candidat si le champ SKU Odoo est vide.
@@ -13,6 +13,8 @@ La préversion en cours est disponible sur [validation-v12](https://bradrien.git
 - Provenance horodatée du catalogue et seconde lecture bornée des prix, remises, montants et états Odoo.
 - Export CSV de la sélection avec diagnostics, valeurs signées, protection des textes et commissions suspendues laissées vides.
 - Lecture des factures et avoirs à la demande dans chaque commande : état comptable, état de paiement Odoo, solde restant et seconde vérification des liens et documents.
+- Dossier CSV ciblé des contrôles de source et exclusions à confirmer, avec le même mois, la même société et la même recherche que le bilan. Actions proposées et liens vers les pièces Odoo, sans modifier les sources.
+- Accès au détail d'une commande depuis le bilan et liens directs vers la commande, ses factures et ses avoirs dans Odoo.
 
 Les simulations utilisent une capture du catalogue actuel et restent provisoires. Les coûts historiques, le SPIFF et les exclusions contractuelles ne sont pas validés. Les factures et avoirs présentent leurs montants complets : une facture peut couvrir plusieurs commandes, aucune allocation ni déduction de commission n'est faite. Le statut facturé Odoo ne constitue pas une preuve de règlement ; même l'indication payé ne valide pas la rémunération. Aucun montant n'est déclaré acquis ou payable.
 
@@ -24,4 +26,4 @@ Le dépôt GitHub Pages est public : aucun secret, document client ou jeu de don
 
 Le workflow GitHub vérifie la syntaxe, les modèles et fonctions avec des données synthétiques, les contrôles SQL isolés et les parcours Chromium sur écran mobile. Les validations réelles des données se font par les API authentifiées, sans publier leurs réponses ni leurs jetons.
 
-Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md) et [D32_CHANGELOG.md](D32_CHANGELOG.md).
+Les changements récents sont décrits dans [D30_CHANGELOG.md](D30_CHANGELOG.md), [D31_CHANGELOG.md](D31_CHANGELOG.md), [D32_CHANGELOG.md](D32_CHANGELOG.md) et [D33_CHANGELOG.md](D33_CHANGELOG.md).
