@@ -1,4 +1,4 @@
-name: Companion D28 scoped Odoo pipeline
+name: Companion D30 Kino unit reconciliation
 on:
   push:
     branches: [main]
@@ -28,6 +28,10 @@ jobs:
           node --check validation-v12/assets/odoo-quote-pipeline-d27.mjs
           node --check validation-v12/assets/odoo-quote-pipeline-d28.mjs
           node --check validation-v12/assets/app-crm-d28.js
+          node --check validation-v12/assets/app-crm-d30.js
+          node --check validation-v12/assets/odoo-quote-pipeline-d30.mjs
+          node --check validation-v12/assets/odoo-commission-model-d30.mjs
+          node --check supabase/functions/odoo-commission-pipeline/unit-basis.mjs
           node --check supabase/functions/odoo-commission-pipeline/scope.mjs
           node --check validation-v12/assets/app-crm-d27.js
           node --check validation-v12/assets/monthly-odoo-fallback-d26.mjs
