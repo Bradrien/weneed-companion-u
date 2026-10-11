@@ -1,4 +1,5 @@
 /** Pure provisional calculation and repeat-read checks. No I/O or payment claims. */
+import {reconcileKinoUnit,UNIT_REASON} from './unit-basis.mjs';
 const text=x=>typeof x==='string'?x:'';
 const relationName=x=>Array.isArray(x)&&typeof x[1]==='string'?x[1]:'';
 const relationId=x=>Array.isArray(x)&&Number.isSafeInteger(x[0])&&x[0]>0?x[0]:null;
@@ -38,7 +39,7 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
   const product=products.get(relationId(line.product_id)??-1),sku=text(product?.default_code).trim(),
    quantity=number(line.product_uom_qty),price=number(line.price_unit),discount=number(line.discount),
    subtotal=number(line.price_subtotal),key=company+'|'+sku.toUpperCase(),row=catalog.get(key);
-  let reason='not_eligible',estimate=null;
+  let reason='not_eligible',estimate=null,unitBasis=null,unitCost=null,packSizeG=null,catalogPrice=null,tier=null;
   const candidate=!line.display_type&&quantity!==null&&quantity>0&&subtotal!==null&&subtotal>0;
   // A name filter is a provisional scope filter, not an approved compensation policy.
   const namedExclusion=/sample|samples|échantillon|échantillons|delivery|shipping|livraison|transport/i.test(
@@ -56,17 +57,28 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
    else if(!row)reason='missing_kino_match';
    else if(!['A','B'].includes(text(row.tier)))reason='invalid_kino_tier';
    else if(number(row.cost_eur)===null||row.cost_eur<=0)reason='missing_kino_cost';
+   else if(number(row.list_price_eur)===null||row.list_price_eur<=0)reason='missing_kino_price';
    else{
-    const cost=row.cost_eur,tier=text(row.tier),marginUnit=subtotal/quantity-cost*(tier==='A'?1.25:1.15),
-     raw=Math.max(0,marginUnit*quantity)*(marginUnit>0?rate(tier,marginUnit/cost):0),
-     amount=cents(raw);
-    if(amount!==null){estimate=amount/100;reason='estimated_units_unverified'}
-    else reason='invalid_calculation';
+    const unit=reconcileKinoUnit({sku,productName:text(row.product_name),cost:row.cost_eur,
+     listedPrice:row.list_price_eur,odooUnitPrice:price});
+    if(!unit.ok)reason=UNIT_REASON;
+    else{
+     const cost=unit.costPerOdooUnit;
+     tier=text(row.tier);unitBasis=unit.basis;unitCost=cost;packSizeG=unit.packSizeG;
+     catalogPrice=unit.catalogUnitPrice;
+     const marginUnit=subtotal/quantity-cost*(tier==='A'?1.25:1.15),
+      raw=Math.max(0,marginUnit*quantity)*(marginUnit>0?rate(tier,marginUnit/cost):0),
+      amount=cents(raw);
+     if(amount!==null){estimate=amount/100;reason='estimated_units_unverified'}
+     else reason='invalid_calculation';
+    }
    }
   }
   return {line_id:line.id,sku,product:text(product?.name)||text(line.name).slice(0,160),
    quantity,unit:relationName(line.product_uom),price_unit:price,discount_pct:discount,
-   subtotal_ht:subtotal,commission_estimate:estimate,reason};
+   subtotal_ht:subtotal,commission_estimate:estimate,reason,unit_basis:unitBasis,
+   effective_unit_cost_eur:unitCost,catalog_unit_price_eur:catalogPrice,
+   pack_size_g:packSizeG,kino_tier:tier};
  });
  const issues=[],amount=number(order.amount_untaxed),amountCents=cents(amount),
   lineCents=presented.map(line=>cents(line.subtotal_ht));
