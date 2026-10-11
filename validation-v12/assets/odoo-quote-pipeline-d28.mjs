@@ -55,8 +55,10 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
     odoo_pipeline_unavailable:'Le service de synchronisation n’a pas renvoyé de données utilisables.',
     network_error:'Le navigateur ne parvient pas à joindre le service.'
    };
+   const phase=typeof e?.stage==='string'&&/^[a-z_]{3,40}$/.test(e.stage)?e.stage:null;
    error=(labels[failedCode]||'La lecture des devis Odoo a échoué.')+
     ' Code : '+(/^[a-z0-9_]{3,65}$/.test(failedCode)?failedCode:'erreur_reseau')+
+    (phase?' · Étape : '+phase:'')+
     '. Le bilan mensuel tente alors la lecture Odoo classique.';
    if(typeof monthlyReportRequest==='function'){
     const selectedMonth=month;
