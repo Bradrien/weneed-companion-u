@@ -1,6 +1,6 @@
 # D38 — Rapprochement mensuel des avoirs Odoo
 
-Le bilan Commissions permet de lire à la demande les avoirs attribués au commercial Odoo du service, pour leur mois de date comptable et les sociétés GTA/TR. La lecture inclut les états brouillon, comptabilisé et annulé sans assimiler ces états à des retours de marchandise complets. Elle est bornée à quarante documents et quatre cents lignes par périmètre de source ; dépasser une limite suspend toute la réponse.
+Le bilan Commissions permet de lire à la demande les avoirs attribués au commercial Odoo du service, pour le mois de leur date d’avoir (`invoice_date`) et les sociétés GTA/TR. La lecture inclut les états brouillon, comptabilisé et annulé sans assimiler ces états à des retours de marchandise complets. Elle est bornée à quarante documents et quatre cents lignes par périmètre de source ; dépasser une limite suspend toute la réponse.
 
 Les liens natifs vers les ventes et les factures contre-passées sont vérifiés. En leur absence, une note explicitement libellée « Ref. invoice » peut conduire à une recherche sur le nom exact de facture. Cette provenance reste distincte du lien natif. La société, le commercial, le client, la devise, le produit et les unités sont contrôlés. Plusieurs références ou plusieurs lignes compatibles restent ambiguës. Aucune concordance de nom de client ou de produit ne crée un lien.
 

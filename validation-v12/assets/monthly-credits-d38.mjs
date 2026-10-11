@@ -28,7 +28,7 @@ export function createMonthlyCredits({request,isAuthenticated,onUpdated}){
  function render({month,company,query,recorded=null,confirmed=null,sourceFresh=false,pipelineReadAt=null,catalogSnapshotAt=null}){
   const panel=el('section',undefined,'monthly-credit-panel');
   panel.append(el('h3','Rapprocher les avoirs Odoo du mois'),el('p',
-   'Avoirs attribués à ton commercial Odoo, selon leur date comptable. La ligne de vente d’origine peut appartenir à un autre mois.','commission-month-detail'));
+   'Avoirs attribués à ton commercial Odoo, selon la date de l’avoir. La ligne de vente d’origine peut appartenir à un autre mois.','commission-month-detail'));
   const button=el('button',loading?'Lecture Odoo…':'Lire les avoirs du mois','secondary-button');button.type='button';
   button.disabled=loading||!isAuthenticated()||typeof request!=='function';button.onclick=()=>open(month);panel.append(button);
   if(loading){panel.append(el('p','Vérification des avoirs, lignes et liens d’origine…','commission-month-detail'));return panel}

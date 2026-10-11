@@ -5,7 +5,7 @@ import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from '
 import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
 import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
 import {createCommissionReturns} from './commission-returns-d37.mjs?v=credits-1';
-import {createMonthlyCredits} from './monthly-credits-d38.mjs';
+import {createMonthlyCredits} from './monthly-credits-d38.mjs?v=date-1';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
 const el=(tag,cls='',s)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(s!==undefined)n.textContent=String(s);return n};
