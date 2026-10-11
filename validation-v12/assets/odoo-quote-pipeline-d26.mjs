@@ -263,6 +263,20 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
   if(loading)root.append(el('p','pipeline-hint','Actualisation Odoo en cours…'));
   if(error){const warn=el('p','pipeline-error',error);root.append(warn)}
   if(!data){
+   if(fallbackData){
+    const controls=el('div','pipeline-controls'),selector=el('select');
+    for(const [value,label] of [['all','GTA + TR'],['GTA','GTA uniquement'],['TR','TR uniquement']]){
+     const option=el('option','',label);option.value=value;selector.append(option);
+    }
+    selector.value=company;selector.setAttribute('aria-label','Filtrer les commandes par société');
+    selector.onchange=()=>{company=selector.value;render()};
+    const q=el('input');q.type='search';q.value=search;
+    q.placeholder='Client, commande, référence…';
+    q.setAttribute('aria-label','Rechercher les devis Odoo');
+    q.oninput=()=>{search=q.value;const area=root.querySelector('.commission-month-body');
+     if(area)drawMonthly(area)};
+    controls.append(selector,q);root.append(controls);
+   }
    root.append(el('p','pipeline-hint',fallbackData?
     'La liste détaillée et le calcul des commissions restent indisponibles. Les documents du mois apparaissent dans le bilan ci-dessus grâce au rapport Odoo classique.':
     'Les filtres sont prêts. La liste détaillée apparaîtra si le pipeline Odoo enrichi répond ; réessaie avec « Actualiser Odoo ».'));
