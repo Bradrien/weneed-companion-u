@@ -13,6 +13,7 @@ const server=createServer(async(req,res)=>{
    '<link rel="stylesheet" href="/assets/commission-monthly-d27.css">'+
    '<link rel="stylesheet" href="/assets/commission-reconciliation-d30.css">'+
    '<link rel="stylesheet" href="/assets/commission-audit-d31.css">'+
+   '<link rel="stylesheet" href="/assets/odoo-invoice-evidence-d32.css">'+
    '<main id="odoo-quote-pipeline-root"></main>');
   const file=resolve(root,'.'+decodeURIComponent(path));
   if(!file.startsWith(root+sep))return res.writeHead(403).end();
@@ -64,10 +65,30 @@ try{
    scope:'owner_odoo_salesperson_read_only_states_and_invoice_status_rechecked',
    source_lines_rechecked:true,source_amounts_rechecked:true,orders:[order,candidateOrder,costOrder]};
   window.failNextRead=false;
+  window.invoiceCalls=0;window.invoiceAuthenticated=true;
+  window.failNextInvoiceRead=false;window.deferNextInvoiceRead=false;
   window.pipeline=createOdooQuotePipeline({request:async()=>{
    if(window.failNextRead)throw Error('odoo_unreachable');return {data};
-  },isActive:()=>true,
-   isAuthenticated:()=>true});
+  },invoiceEvidenceRequest:async(id)=>{
+   window.invoiceCalls++;
+   if(window.failNextInvoiceRead){window.failNextInvoiceRead=false;throw Error('odoo_source_changed')}
+   const o=data.orders.find(o=>o.id===id),empty=id===2;
+   const document={id:501,reference:'TEST-INV',origin:'order_invoice_link',kind:'invoice',
+    state:'posted',payment_state:'paid',currency:'EUR',date:'2026-10-09',amount_ht:1400,
+    amount_total:1600,amount_residual:0,reverses_id:null,issues:[],odoo_paid_indicator:true};
+   const response={version:'odoo_invoice_evidence_v1',read_at:'2026-10-11T12:00:00Z',source_rechecked:true,
+    scope:'seller_linked_invoices_and_direct_reversals_read_only_rechecked',
+    payment_semantics:'account_move_state_payment_state_residual_not_commission_entitlement',
+    document_amounts_attributed_to_order:false,commission_payable:false,
+    order:{id,reference:o.reference,company:o.company,state:o.state,invoice_status:o.invoice_status,
+     currency:o.currency,amount_ht:o.amount_ht},documents:empty?[]:[document,{...document,id:502,
+     reference:'TEST-CREDIT',origin:'direct_reversal',kind:'credit_note',amount_ht:100,amount_total:100,
+     reverses_id:501,odoo_paid_indicator:false}],invoice_count:empty?0:1,credit_note_count:empty?0:1,
+    odoo_paid_invoice_count:empty?0:1};
+   if(window.deferNextInvoiceRead){window.deferNextInvoiceRead=false;
+    return new Promise(resolve=>{window.resolveInvoiceRead=()=>resolve({data:response})})}
+   return {data:response};
+  },isActive:()=>true,isAuthenticated:()=>window.invoiceAuthenticated});
   await window.pipeline.load();
   // The same synthetic packs sold as grams must agree in scenario and Orders.
   const {renderCommissionScenario}=await import('/assets/commission-scenario-ui-d30.mjs');
@@ -94,6 +115,27 @@ try{
  assert.match(await details.innerText(),/Sachet Kino 250 g/);
  assert.match(await details.innerText(),/Coût historique à confirmer/);
  assert.match(await details.innerText(),/99,13\s*€/);
+ assert.equal(await page.evaluate(()=>window.invoiceCalls),0);
+ await page.evaluate(()=>{window.deferNextInvoiceRead=true});
+ await details.getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
+ // A filter/render during the request must update the current panel, not the detached old one.
+ await page.evaluate(()=>window.pipeline.render());
+ await page.evaluate(()=>window.resolveInvoiceRead());
+ const invoicePanel=page.locator('[data-order-id="1"] .invoice-evidence-panel');
+ await invoicePanel.getByRole('button',{name:'Actualiser les factures Odoo',exact:true}).waitFor();
+ assert.match(await invoicePanel.innerText(),/1 facture\(s\) · 1 avoir\(s\) · 1 facture\(s\) indiquée\(s\) payée\(s\)/);
+ assert.match(await invoicePanel.innerText(),/Contre-passe : TEST-INV/);
+ assert.match(await invoicePanel.innerText(),/Total document 1\s*600,00/);
+ assert.match(await invoicePanel.innerText(),/Ils ne sont pas attribués à cette commande/);
+ assert.match(await invoicePanel.innerText(),/ne valide pas une commission/);
+ await page.evaluate(()=>{window.failNextInvoiceRead=true});
+ await invoicePanel.getByRole('button',{name:'Actualiser les factures Odoo',exact:true}).click();
+ await invoicePanel.getByRole('alert').waitFor();
+ assert.match(await invoicePanel.innerText(),/Un document a changé pendant la lecture/);
+ assert.doesNotMatch(await invoicePanel.innerText(),/TEST-INV|Indiqué payé/);
+ await invoicePanel.getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
+ await invoicePanel.getByRole('button',{name:'Actualiser les factures Odoo',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.invoiceCalls),3);
  assert.match(await page.locator('#scenario-consistency').innerText(),/99,13\s*€/);
  assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.commission)),[15.75,14.43,68.95]);
  assert.deepEqual(await page.evaluate(()=>window.orderLineEstimates.map(x=>x.costPerAssumedUnit)),[1,1.06,1.76]);
@@ -128,15 +170,28 @@ try{
  assert.equal(await page.getByRole('checkbox',{name:'Inclure Confirmées non facturées entièrement',exact:true}).isChecked(),true);
  assert.equal(await page.locator('[data-order-id="2"] .pipeline-order-head').getAttribute('aria-expanded'),'true');
  assert.match(await page.locator('[data-order-id="2"] .pipeline-order-details').innerText(),/Non estimée : SKU absent/);
+ await page.locator('[data-order-id="2"]').getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
+ await page.locator('[data-order-id="2"]').getByRole('button',{name:'Actualiser les factures Odoo',exact:true}).waitFor();
+ assert.match(await page.locator('[data-order-id="2"] .invoice-evidence-panel').innerText(),/Aucun document comptable lié/);
  await page.locator('.pipeline-reconciliation-group summary').nth(1).click();
  assert.match(await page.locator('.pipeline-reconciliation-group').nth(1).innerText(),/coût 0,00\s*€ \(inutilisable pour le calcul\)/);
  assert.match(await page.locator('.pipeline-reconciliation-group').nth(1).innerText(),/Ces|Coût Kino absent ou nul/);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.getByRole('searchbox',{name:'Rechercher dans le bilan mensuel',exact:true}).fill('TEST-COST');
  assert.match(await page.locator('.commission-export-controls').innerText(),/1 document\(s\)/);
+ await page.locator('[data-order-id="3"] .pipeline-order-head').click();
+ await page.evaluate(()=>{window.deferNextInvoiceRead=true});
+ await page.locator('[data-order-id="3"]').getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
  await page.evaluate(async()=>{window.failNextRead=true;await window.pipeline.load(true)});
+ await page.evaluate(()=>window.resolveInvoiceRead());
+ assert.doesNotMatch(await page.locator('#odoo-quote-pipeline-root').innerText(),/TEST-INV|Indiqué payé/);
  assert.equal(await page.getByRole('button',{name:'Exporter le bilan CSV',exact:true}).isDisabled(),true);
  assert.match(await page.locator('#odoo-quote-pipeline-root').innerText(),/actualisation échouée/);
+ // A late response after logout/reset cannot put accounting data back in the DOM.
+ await page.evaluate(()=>{window.deferNextInvoiceRead=true});
+ await page.locator('[data-order-id="3"]').getByRole('button',{name:'Lire les factures Odoo',exact:true}).click();
+ await page.evaluate(()=>{window.invoiceAuthenticated=false;window.pipeline.reset();window.resolveInvoiceRead()});
+ assert.equal(await page.locator('#odoo-quote-pipeline-root').innerText(),'');
  assert.deepEqual(errors,[]);
- console.log('D31 mobile passed: audited line calculations, company breakdown, filtered CSV download, unresolved lines and stale-export guard.');
+ console.log('D32 mobile passed: on-demand invoices/credit notes, rerender during read, no allocation, error/reset/logout guards; D31 calculations and CSV preserved.');
 }finally{await browser?.close();await new Promise(ok=>server.close(ok))}

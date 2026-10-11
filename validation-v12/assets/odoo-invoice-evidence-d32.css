@@ -1,0 +1,9 @@
+.invoice-evidence-panel{margin-top:18px;padding:14px;border:1px solid var(--line,#dbe5df);border-radius:12px;background:var(--surface,#fff);overflow-wrap:anywhere}
+.invoice-evidence-panel h4{margin:0 0 12px;font-size:14px}
+.invoice-evidence-panel button{min-height:44px;padding:10px 14px;border:1px solid var(--line,#dbe5df);border-radius:9px;color:var(--ink,#12281e);background:#f1f7f3;font:inherit;cursor:pointer;max-width:100%;white-space:normal}
+.invoice-evidence-panel button:disabled{opacity:.6;cursor:wait}
+.invoice-evidence-body{margin-top:10px}
+.invoice-evidence-document{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line,#dbe5df)}
+.invoice-evidence-document strong{font-size:13px}
+.invoice-evidence-document small{display:block;font-size:12px;line-height:1.5;color:var(--muted,#567064)}
+.invoice-evidence-body .pipeline-error{color:#8b4e19}

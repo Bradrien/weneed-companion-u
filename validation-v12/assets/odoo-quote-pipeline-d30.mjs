@@ -1,5 +1,6 @@
 import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=calculation-8';
 import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs';
+import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs';
 import {COMMISSION_ISSUES,COMMISSION_RULE_STATUS} from './commission-integrity-d24.mjs';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
@@ -24,14 +25,16 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  estimated_units_unverified:'Coût fondé sur les prix unitaires Kino actuels, historique à valider',
  unverified_unit_scale:'Coût au gramme ou au sachet non identifiable : estimation suspendue',
  missing_kino_price:'Prix de référence Kino manquant'};
-export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,isAuthenticated}){
+export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,isActive,isAuthenticated}){
  let data=null,fallbackData=null,fallbackMonth=null,fallbackLoading=false,fallbackError='',loading=false,error='',stages=new Set(filters),company='all',search='',month=currentCommissionMonth(),epoch=0,expanded=new Set(),failedCode='';
  const host=()=>document.getElementById('odoo-quote-pipeline-root');
- function reset(){epoch++;data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
+ const invoiceEvidence=typeof invoiceEvidenceRequest==='function'?
+  createInvoiceEvidenceView({request:invoiceEvidenceRequest,isAuthenticated}):null;
+ function reset(){epoch++;invoiceEvidence?.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
  async function load(force=false){
   if(!isAuthenticated()||loading)return;
   if((data||fallbackData)&&!force){render();return}
-  const ticket=++epoch;loading=true;error='';render();
+  const ticket=++epoch;invoiceEvidence?.reset();loading=true;error='';render();
   try{
    const selectedMonth=month;
    const response=await request(selectedMonth);
@@ -267,6 +270,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
    list.append(item);
   }
   details.append(list);
+  if(invoiceEvidence)details.append(invoiceEvidence.render(o));
   const toOrder=el('p','pipeline-hint','Seuls les documents Odoo sont affichés. Ouvrir Commandes pour le contrôle mensuel détaillé. Aucun devis n’est ajouté ou modifié dans Odoo.');
   details.append(toOrder);wrap.append(details);
   trigger.onclick=()=>{if(expanded.has(o.id))expanded.delete(o.id);else expanded.add(o.id);
@@ -381,6 +385,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
   function changeMonth(nextMonth){
    if(nextMonth!==month){
     // Never present the prior month's Odoo snapshot as the newly selected month.
+    epoch++;invoiceEvidence?.reset();loading=false;fallbackLoading=false;expanded.clear();
     data=null;fallbackData=null;fallbackMonth=null;fallbackError='';
    }
    month=nextMonth;select.value=month;label.textContent=labelCommissionMonth(month);drawMonthly(body);
@@ -472,7 +477,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,isActive,i
    'Périmètre : devis et commandes Odoo pour le mois sélectionné, sous ton utilisateur commercial. '+
    'Le statut facturé provient de invoice_status et ne prouve aucun règlement. '+
    'Les coûts ont été rapprochés de l’unité commerciale lorsque le catalogue fournit suffisamment d’indices ; tout cas ambigu reste non estimé. '+
-   'Le catalogue Kino est une photographie actuelle : coûts historiques, exclusions, SPIFF, avoirs et paiements restent à vérifier. '+
+   'Le catalogue Kino est une photographie actuelle : coûts historiques, exclusions et SPIFF restent à vérifier. Les factures et avoirs se lisent séparément dans chaque commande ; leurs états ne valident pas une commission. '+
    'Dernière lecture : '+when(data.readAt)+'. Catalogue : '+
    (data.catalogSnapshotAt?when(data.catalogSnapshotAt):'date indisponible')+'.'));
  }

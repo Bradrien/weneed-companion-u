@@ -1,7 +1,7 @@
 import {createConnectorStatus} from './connectors-d24.mjs';
 import {createTasks} from './tasks-d24.mjs';
 import {createArchives} from './archives-d18.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=calculation-8';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=invoice-evidence-1';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=calculation-8';
 import {createStrategy} from './strategy-d19.mjs';
 import {createStocks} from './stocks-d16.mjs';
@@ -40,6 +40,15 @@ const archives=createArchives({briefRequest:async(suffix)=>{
 archives.setClientRenderer(()=>{if(state.view==='clients'&&clients.selected)renderClients()});
 const odooQuotes=createOdooQuotePipeline({isAuthenticated:()=>!!state.access,
  isActive:()=>state.view==='commissions',
+ invoiceEvidenceRequest:async(orderId)=>{
+  if(!Number.isSafeInteger(orderId)||orderId<1)throw Error('invalid_order_id');
+  const jwt=await ensureToken();
+  const response=await authFetch('/functions/v1/odoo-invoice-evidence?order_id='+orderId,
+   {headers:{authorization:'Bearer '+jwt}});
+  let json;try{json=await response.json()}catch{throw Error('invalid_invoice_evidence')}
+  if(!response.ok||json?.ok!==true)throw Error(json?.error||'invoice_evidence_unavailable');
+  return json;
+ },
  monthlyReportRequest:async(month)=>{
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('invalid_month');
   const [year,m]=month.split('-').map(Number),from=month+'-01',
