@@ -1,4 +1,4 @@
-name: Companion D25 monthly commissions preview
+name: Companion D26 resilient Odoo commissions
 on:
   push:
     branches: [main]
@@ -23,6 +23,9 @@ jobs:
         run: |
           node --check validation-v12/assets/app-crm-d24.js
           node --check validation-v12/assets/app-crm-d25.js
+          node --check validation-v12/assets/app-crm-d26.js
+          node --check validation-v12/assets/odoo-quote-pipeline-d26.mjs
+          node --check validation-v12/assets/monthly-odoo-fallback-d26.mjs
           node --check validation-v12/assets/monthly-commission-d25.mjs
           node --check validation-v12/assets/odoo-quote-pipeline-d25.mjs
           node --check validation-v12/assets/tasks-d24.mjs
@@ -47,3 +50,4 @@ jobs:
       - run: node tests/tasks-preview-smoke.mjs
       - run: node tests/commission-pipeline-smoke.mjs
       - run: node tests/monthly-commission-preview-d25.mjs
+      - run: node tests/monthly-commission-fallback-preview-d26.mjs
