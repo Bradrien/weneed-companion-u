@@ -1,6 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.58.0';
 import {readStock} from './core.mjs';
 import {vapid,validSubscription,sendPush,dispatch} from './push.mjs';
+import {parseWatch} from './watch.mjs';
 const env=Object.fromEntries(['ODOO_URL','ODOO_DB','ODOO_USERNAME','ODOO_API_KEY','ODOO_UID_PIN'].map(k=>[k,Deno.env.get(k)||'']));
 let bag={};try{bag=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}')}catch{}
 const base=Deno.env.get('SUPABASE_URL');
@@ -25,14 +26,25 @@ Deno.serve(async req=>{
  if(action){
   const user=await owner(token);if(!user)return reply({ok:false,error:'owner_only'},403);
   try{
+   if(action==='watch'&&req.method==='POST'){
+    if(Number(req.headers.get('content-length')||0)>512)return reply({ok:false,error:'invalid_watch'},400);
+    const raw=await req.text();if(raw.length>512)return reply({ok:false,error:'invalid_watch'},400);
+    let watch;try{watch=parseWatch(JSON.parse(raw))}catch{return reply({ok:false,error:'invalid_watch'},400)}
+    const {data,error}=await sb.rpc('stock_watch_set',{p_owner:user.id,p_company:watch.company,p_product:watch.product_id,p_enabled:watch.watching});
+    return error?reply({ok:false,error:'watch_update_failed'},503):reply({ok:true,data});
+   }
    if(action==='push-key'&&req.method==='GET'){const keys=await vapid(sb);return reply({ok:true,publicKey:keys.publicKey})}
-   if(!['subscribe','unsubscribe','test'].includes(action)||req.method!=='POST')return reply({ok:false,error:'invalid_action'},400);
+   if(!['subscribe','unsubscribe','test','push-status'].includes(action)||req.method!=='POST')return reply({ok:false,error:'invalid_action'},400);
    if(Number(req.headers.get('content-length')||0)>4096)return reply({ok:false,error:'invalid_subscription'},400);
    const raw=await req.text();if(raw.length>4096)return reply({ok:false,error:'invalid_subscription'},400);
    const sub=JSON.parse(raw);if(!validSubscription(sub))return reply({ok:false,error:'invalid_subscription'},400);
+   if(action==='push-status'){const {data,error}=await sb.rpc('stock_push_status',{p_owner:user.id,p_endpoint:sub.endpoint});
+    return error?reply({ok:false,error:'push_status_failed'},503):reply({ok:true,data});}
    if(action==='unsubscribe'){const {error}=await sb.rpc('stock_push_unregister',{p_owner:user.id,p_endpoint:sub.endpoint});
     return error?reply({ok:false,error:'push_update_failed'},503):reply({ok:true});}
-   if(action==='subscribe'){const {error}=await sb.rpc('stock_push_register',{p_owner:user.id,p_endpoint:sub.endpoint,p_keys:sub.keys});
+   if(action==='subscribe'){
+    if(sub.notify_all!==undefined&&typeof sub.notify_all!=='boolean')return reply({ok:false,error:'invalid_scope'},400);
+    const {error}=await sb.rpc('stock_push_register_scoped',{p_owner:user.id,p_endpoint:sub.endpoint,p_keys:sub.keys,p_notify_all:sub.notify_all??true});
     return error?reply({ok:false,error:'push_update_failed'},503):reply({ok:true});}
    // Test only the subscription owned by this user; register through the same guarded RPC.
    const {error}=await sb.rpc('stock_push_register',{p_owner:user.id,p_endpoint:sub.endpoint,p_keys:sub.keys});
@@ -42,10 +54,10 @@ Deno.serve(async req=>{
   }catch{return reply({ok:false,error:'push_unavailable'},503)}
  }
  if(req.method==='GET'){
-  if(!await owner(token))return reply({ok:false,error:'owner_only'},403);
+  const user=await owner(token);if(!user)return reply({ok:false,error:'owner_only'},403);
   const company=query.get('company')||'ALL',q=(query.get('q')||'').slice(0,120),offset=Number(query.get('offset')||0);
   if(!['ALL','GTA','TR'].includes(company)||!Number.isSafeInteger(offset)||offset<0||offset>10000)return reply({ok:false,error:'invalid_query'},400);
-  const {data,error}=await sb.rpc('stock_read_dashboard',{p_company:company,p_query:q,p_offset:offset});
+  const {data,error}=await sb.rpc('stock_read_owner_dashboard',{p_owner:user.id,p_company:company,p_query:q,p_offset:offset});
   return error?reply({ok:false,error:'stock_read_failed'},503):reply({ok:true,data});
  }
  if(req.method!=='POST')return reply({ok:false,error:'method_not_allowed'},405);

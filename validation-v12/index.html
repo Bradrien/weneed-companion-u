@@ -19,6 +19,7 @@
  <link rel="stylesheet" href="assets/commission-review-d33.css">
  <link rel="stylesheet" href="assets/monthly-credits-d38.css">
  <link rel="stylesheet" href="assets/companion-v1.css?v=development-4">
+ <link rel="stylesheet" href="assets/stock-watches.css">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — V1</title>
 </head>
@@ -88,8 +89,9 @@
  <div class="section-heading"><h2>Stocks TR / GTA</h2><button id="stock-reload" type="button" class="inline-button">Actualiser ↻</button></div>
  <p id="stock-status" class="help" role="status" aria-live="polite"></p><div id="stock-summary" class="metrics-grid"></div>
  <details class="v1-disclosure" id="stock-notification-options"><summary>Notifications de stock</summary><div class="v1-disclosure-body"><section class="settings-card"><h3>Notifications sur cet appareil</h3><p id="stock-push-status" class="help" role="status" aria-live="polite"></p>
- <button id="stock-push-enable" class="secondary-button" type="button">Activer les notifications</button><button id="stock-push-test" class="inline-button" type="button" disabled>Tester</button><button id="stock-push-stop" class="inline-button" type="button" disabled>Désactiver</button>
- <p class="help">Ruptures et retours en stock, regroupés par société. Le contrôle continue lorsque l’application est fermée. La première lecture ne génère pas d’alerte.</p></section></div></details>
+ <label for="stock-push-scope">Alertes sur cet appareil</label><select id="stock-push-scope"><option value="selected">Retours des références suivies uniquement</option><option value="all">Toutes les ruptures et retours en stock</option></select>
+ <button id="stock-push-enable" class="secondary-button" type="button">Activer / appliquer les notifications</button><button id="stock-push-test" class="inline-button" type="button" disabled>Tester</button><button id="stock-push-stop" class="inline-button" type="button" disabled>Désactiver</button>
+ <p class="help">Ouvre un produit ci-dessous pour suivre son retour en stock. Le suivi est enregistré dans ton compte. Le contrôle continue lorsque l’application est fermée. La première lecture ne génère pas d’alerte.</p></section></div></details>
  <div class="filter-panel"><label for="stock-company">Société</label><select id="stock-company"><option value="ALL">TR et GTA</option><option value="TR">TR</option><option value="GTA">GTA</option></select><label for="stock-search">Rechercher</label><input id="stock-search" type="search" maxlength="120" placeholder="Produit ou référence…"></div>
  <p id="stock-count" class="help"></p><div id="stock-list" class="stack"></div><div class="section-heading"><button id="stock-prev" type="button" class="inline-button" disabled>← Précédent</button><button id="stock-next" type="button" class="inline-button" disabled>Suivant →</button></div>
  <section class="section"><h2>Dernières alertes</h2><div id="stock-alerts" class="stack"></div></section>
@@ -112,5 +114,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Plus</span></button>
   </nav>
  </div>
- <script src="assets/app-crm-d30.js?v=development-4" type="module"></script>
+ <script src="assets/app-crm-d30.js?v=stock-watches-1" type="module"></script>
 </body></html>

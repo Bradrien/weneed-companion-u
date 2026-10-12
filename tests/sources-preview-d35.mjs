@@ -62,6 +62,7 @@ try{
   if(u.pathname==='/functions/v1/companion-api/sync-status')return route.fulfill(sourceFail?json({ok:false,error:'unavailable'},503):json({ok:true,data:sourceRows}));
   if(u.pathname==='/functions/v1/stock-monitor'){
    const action=u.searchParams.get('action');
+   if(action==='push-status')return route.fulfill(json({ok:true,data:{active:true,notify_all:true}}));
    if(action==='push-key')return route.fulfill(json({ok:true,publicKey:'AQIDBA'}));
    if(action){pushCalls.push(action);if(action==='test'&&delayPush){delayPush=false;hold('push',route,{ok:true});return}return route.fulfill(json({ok:true}))}
    if(stockFail)return route.fulfill(json({ok:false,error:'stock_read_failed'},503));

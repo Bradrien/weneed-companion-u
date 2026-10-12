@@ -1,0 +1,7 @@
+.stock-card>summary{cursor:pointer;list-style:none;border-radius:8px;overflow-wrap:anywhere}
+.stock-card>summary::-webkit-details-marker{display:none}
+.stock-card>summary:focus-visible{outline:3px solid #65c694;outline-offset:5px}
+.stock-open-label{display:block;margin-top:12px;color:#276b4b;font-size:12px;font-weight:650}
+.stock-watch-actions{margin-top:16px;padding-top:14px;border-top:1px solid #e1eae2}
+.stock-watch-button{width:100%;min-height:46px;white-space:normal;overflow-wrap:anywhere}
+#stock-push-scope{margin:8px 0 12px;max-width:100%}

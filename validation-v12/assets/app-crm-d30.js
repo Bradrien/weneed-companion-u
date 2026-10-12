@@ -7,7 +7,7 @@ import {buildOrderLineCommissions,lineCommission} from './order-line-commission-
 import {createStrategy} from './strategy-d19.mjs?v=v1-1';
 import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=3';
 import {presentPipelineOrder} from './order-view-v1.mjs?v=2';
-import {createStocks} from './stocks-d34.mjs';
+import {createStocks} from './stocks-d34.mjs?v=stock-watches-1';
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model-d14.mjs';

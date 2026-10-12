@@ -23,10 +23,10 @@ export function normalizeStockSnapshot(raw,scope={company:'ALL',query:'',offset:
  const seen=new Set(),items=raw.items.map(r=>{
   const c=company(r.company),id=sourceCount(r.product_id,Number.MAX_SAFE_INTEGER),at=sourceTime(r.checked_at),key=c+':'+id;
   if(!id||seen.has(key)||scope.company!=='ALL'&&c!==scope.company||!at||Date.parse(at)!==Date.parse(checkedAt)||
-   !['free_qty','qty_available'].includes(r.quantity_basis))throw Error('invalid_stock_snapshot');
+   !['free_qty','qty_available'].includes(r.quantity_basis)||r.watching!==undefined&&typeof r.watching!=='boolean')throw Error('invalid_stock_snapshot');
   seen.add(key);return {company:c,id,sku:r.sku==null?'':text(r.sku,250,true),name:text(r.product_name,1000),unit:text(r.unit,120),
    basis:r.quantity_basis,available:quantity(r.available_quantity),onHand:quantity(r.on_hand_quantity),
-   forecast:r.forecast_quantity==null?null:quantity(r.forecast_quantity),checkedAt:at};
+   forecast:r.forecast_quantity==null?null:quantity(r.forecast_quantity),checkedAt:at,watching:r.watching===true};
  });
  const seenAlerts=new Set(),alerts=raw.alerts.map(r=>{
   const c=company(r.company),id=text(r.id,80),at=sourceTime(r.created_at);

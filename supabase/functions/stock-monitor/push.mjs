@@ -1,4 +1,5 @@
 import webpush from 'npm:web-push@3.6.7';
+import {notificationBody} from './watch.mjs';
 export function validSubscription(value){
  try{
   const u=new URL(value.endpoint);
@@ -43,10 +44,9 @@ export async function dispatch(sb){
  let sent=0,failed=0;
  // Never print the browser subscription or encryption keys.
  for(const rows of groups.values()){
-  const first=rows[0],ruptures=rows.filter(r=>r.kind==='out_of_stock').length,retours=rows.filter(r=>r.kind==='back_in_stock').length;
-  const parts=[ruptures?`${ruptures} rupture${ruptures>1?'s':''}`:'',retours?`${retours} retour${retours>1?'s':''} en stock`:''].filter(Boolean);
+  const first=rows[0];
   const result=await sendPush({endpoint:first.endpoint,keys:first.keys},{title:`Stocks ${first.company}`,
-   body:parts.join(' · ')||`${rows.length} variation(s) de stock`,tag:'stock-'+first.company},keys);
+   body:notificationBody(rows),tag:'stock-'+first.company},keys);
   const {error:saveError}=await sb.rpc('stock_push_finish',{p_lease:first.lease,p_device:first.device_id,p_alerts:rows.map(r=>r.alert_id),p_result:result});
   if(result==='sent'&&!saveError)sent+=rows.length;else failed+=rows.length;
  }

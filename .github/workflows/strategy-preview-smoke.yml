@@ -1,7 +1,7 @@
 name: Companion V1 responsive commercial workspace
 on:
   push:
-    branches: [main]
+    branches: [main, codex/stock-watches]
     paths:
       - 'validation-v12/**'
       - 'tests/**'
@@ -89,8 +89,10 @@ jobs:
       - run: node --test supabase/tests/client-samples-sql.test.mjs
         env:
           CONNECTOR_TEST_PGLITE_URL: '@electric-sql/pglite'
+      - run: node --test supabase/tests/stock-watches-sql.test.mjs
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/companion-v1-preview.mjs
+      - run: node tests/stock-watches-mobile.mjs
       - run: node tests/development-preview-v2.mjs
       - uses: actions/upload-artifact@v4
         if: always()

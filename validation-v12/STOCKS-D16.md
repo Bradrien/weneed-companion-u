@@ -1,5 +1,11 @@
 # D16 — Surveillance privée des stocks TR / GTA
 
+## Suivi par référence — 12 octobre 2026
+
+Les cartes produits sont ouvrables, y compris après une recherche. Le bouton « M’avertir du retour en stock » enregistre un suivi privé associé à la société et à l’identifiant Odoo exact, jamais au nom seul. L’activation ciblée configure cet appareil pour les retours des références suivies uniquement. Le choix « Toutes les ruptures et retours en stock » peut être appliqué explicitement dans les notifications. Les anciens abonnements globaux sont conservés jusqu’à ce choix.
+
+Le suivi persiste après une actualisation ou reconnexion et peut être désactivé depuis la même fiche. Il vise les transitions de quantité disponible ≤ 0 vers > 0, après l’activation du suivi ; il ne renvoie pas les anciennes alertes. Les messages de retour identifient les produits. L’autorisation du téléphone et un abonnement actif restent requis pour recevoir une notification. Aucune quantité Odoo n’est modifiée.
+
 La vue Stocks est accessible depuis Accueil, Paramètres ou `?view=stocks`. Le serveur interroge Odoo toutes les cinq minutes, même lorsque le navigateur est fermé. Elle montre uniquement les références actives, vendables, suivies en inventaire. Chaque société est lue dans son propre contexte Odoo. Les quantités disponibles excluent les réservations (`free_qty`), avec les unités originales.
 
 Le premier relevé constitue une référence silencieuse. Une quantité passant de positive à zéro ou négative déclenche une rupture ; le passage inverse déclenche un retour. Les variations qui restent positives ne déclenchent pas de notification par défaut. Un relevé incomplet est rejeté et la dernière lecture réussie est conservée. Les relevés de plus de douze minutes sont signalés comme anciens.
