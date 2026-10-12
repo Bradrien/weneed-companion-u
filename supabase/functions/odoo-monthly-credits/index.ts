@@ -45,7 +45,8 @@ Deno.serve(async(req:Request)=>{
   const read=async(model:string,domain:unknown[],fields:string[],limit:number)=>{
    if(!['res.company','account.move','account.move.line','sale.order','sale.order.line','product.product'].includes(model)||
     !Number.isSafeInteger(limit)||limit<1||limit>401||fields.length>24)throw Error('credit_scope_limit');
-   const result=await rpc(host,[db,uid,key,model,'search_read',[domain],{fields,limit,order:'id asc'}]);
+   const result=await rpc(host,[db,uid,key,model,'search_read',[domain],{fields,limit,order:'id asc',
+    ...(model==='product.product'?{context:{active_test:false}}:{})}]);
    if(!Array.isArray(result)||result.length>limit)throw Error('odoo_invalid_response');return result;
   };
   phase='odoo_schema';

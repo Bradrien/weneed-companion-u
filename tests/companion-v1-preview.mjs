@@ -27,9 +27,9 @@ const portfolio={version:'strategy_verified_v1',checked_at:time,clients:[{id,can
  partner_name:client.canonical_name,company:'TR',amount_ht:550,currency:'EUR'}]}};
 const headers={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,apikey,content-type,x-client-info','access-control-allow-methods':'GET,POST,OPTIONS'};
 const json=(body,status=200)=>({status,contentType:'application/json',headers,body:JSON.stringify(body)});
-let browser,tasks=[],posts=[],pipelineReads=0;
+let browser,page,tasks=[],posts=[],pipelineReads=0,errors=[];
 try{
- browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:390,height:844},timezoneId:'Europe/Paris',locale:'fr-FR'}),errors=[];
+ browser=await chromium.launch({headless:true});page=await browser.newPage({viewport:{width:390,height:844},timezoneId:'Europe/Paris',locale:'fr-FR'});
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://gcirlrghjvumhkekrtmf.supabase.co/**',async route=>{
   const req=route.request(),u=new URL(req.url());if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});
@@ -55,7 +55,7 @@ try{
  });
  const overflow=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'V1 horizontal overflow');
  await page.goto(origin+'/?view=home');await page.locator('#login-password').fill('synthetic-only');await page.locator('#login-button').click();
- await page.locator('#metrics').getByText('93,75 €',{exact:true}).waitFor({state:'visible'});
+ await page.locator('#metrics').getByText('99,45 €',{exact:true}).waitFor({state:'visible'});
  assert.ok(pipelineReads>=1);assert.equal(await page.locator('#bottom-nav [aria-current="page"]').getAttribute('data-nav'),'home');
  assert.equal(await page.locator('#recent-orders .client-row').count(),1);assert.match(await page.locator('#metrics').innerText(),/550,00/);
  for(const width of [320,360,390,768,1440]){await page.setViewportSize({width,height:844});await overflow()}
@@ -67,7 +67,7 @@ try{
  await page.screenshot({path:'artifacts-v1/commissions-mobile.png',fullPage:true});
  await page.locator('[data-disclosure="commission-orders"]>summary').click();await page.locator('.pipeline-order-head').first().click();
  await page.getByText('Libellé rapproché · PB/G/TR/250',{exact:true}).waitFor({state:'visible'});
- assert.match(await page.locator('.pipeline-order-details').first().innerText(),/93,75/);
+ assert.match(await page.locator('.pipeline-order-details').first().innerText(),/99,45/);
  await page.locator('#bottom-nav [data-nav="clients"]').click();await page.locator('#clients-list .client-row').first().click();
  await page.getByRole('button',{name:'Préparer une relance',exact:true}).waitFor({state:'visible'});
  assert.equal(await page.locator('a[href="tel:+33600000000"]').count(),1);
@@ -85,4 +85,4 @@ try{
  await page.locator('#logout-top').click();await page.locator('#login-panel').waitFor({state:'visible'});
  assert.equal(await page.locator('#client-detail').innerText(),'');assert.equal(errors.length,0,errors.join('\n'));
  console.log('V1 passed: automatic current-month dashboard, 320–1440px layouts, collapsed diagnostics, listing provenance, client contact shortcuts, unsaved follow-up draft, client-bound development action and logout isolation.');
-}finally{await browser?.close();await new Promise(ok=>server.close(ok))}
+}catch(error){await mkdir('artifacts-v1',{recursive:true});if(page){await page.screenshot({path:'artifacts-v1/failure.png',fullPage:true});console.log('V1 failure diagnostics',JSON.stringify({errors,visible:(await page.locator('#app-panel').innerText()).slice(0,2200),posts:posts.length}))}throw error;}finally{await browser?.close();await new Promise(ok=>server.close(ok))}

@@ -8,6 +8,8 @@ Le rapprochement produit tolère accents, casse, espaces et ponctuation ; une se
 
 Un avoir peut rapprocher deux fiches produit distinctes lorsqu’il existe une facture d’origine explicite, une seule ligne compatible, les mêmes unités et prix nets, une liaison unique vers la vente et des libellés compatibles. Les noms des produits sont ensuite revérifiés avec les autres sources. Une variante, un prix différent ou une ambiguïté suspend la déduction estimée. Les commissions utilisent les coûts actuels Kino ; SPIFF, coûts historiques et exhaustivité des retours restent hors validation.
 
+Les lectures de produits incluent les fiches archivées reliées aux ventes retenues. Archiver un produit ne fait plus disparaître son SKU de l’historique et ne le remet pas en stock actif. Les mêmes identifiants bornés sont utilisés avant et après la lecture.
+
 La déconnexion efface aussi les données commerciales rendues. Les brouillons de relance vérifient la session et le client après leur lecture et ne survivent pas à une déconnexion. Aucune écriture Odoo, émission de message, notification réelle ni nouvelle transcription audio n’est déclenchée par cette version.
 
 Validation : calculs et contrôles de provenance, scénarios de noms voisins et de variantes, lectures réelles authentifiées, parcours mobiles, mises en page de 320 à 1440 px, création d’action depuis le développement client, déconnexion et captures visuelles sur données synthétiques. Les pièces et réponses réelles restent privées.

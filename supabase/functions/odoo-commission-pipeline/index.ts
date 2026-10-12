@@ -117,7 +117,7 @@ Deno.serve(async req=>{
    const group=pids.slice(i,i+100);
    const data=await rpc(host,db,uid,apiKey,'object','execute_kw',
     [db,uid,apiKey,'product.product','search_read',[[['id','in',group]]],
-     {fields:['id','default_code','name'],limit:group.length+1}]);
+     {fields:['id','default_code','name'],limit:group.length+1,context:{active_test:false}}]);
    if(!Array.isArray(data)||data.length>group.length)throw safe('odoo_invalid_response');
    for(const item of data){
     if(!item||!Number.isSafeInteger(item.id)||!group.includes(item.id)||pmap.has(item.id))
@@ -175,7 +175,7 @@ Deno.serve(async req=>{
   for(let i=0;i<pids.length;i+=100){
    const group=pids.slice(i,i+100),current=await rpc(host,db,uid,apiKey,'object','execute_kw',
     [db,uid,apiKey,'product.product','search_read',[[['id','in',group]]],
-     {fields:['id','default_code','name'],limit:group.length+1}]);
+     {fields:['id','default_code','name'],limit:group.length+1,context:{active_test:false}}]);
    assertUnchangedRows([...pmap.values()].filter(p=>group.includes(p.id as number)),current,['id','default_code','name']);
   }
   phase='commission_calculation';

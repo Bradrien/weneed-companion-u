@@ -46,7 +46,7 @@ test('owner Odoo edge guards and repeated reads',async t=>{
     assert.deepEqual(opts.fields,['id','name','order_id','product_id','product_uom_qty',
      'price_unit','discount','price_subtotal','display_type']);
     lineReads++;result=[{...sourceLine,price_subtotal:changed&&lineReads>1?559:560}];
-   }else if(model==='product.product')result=[product];
+   }else if(model==='product.product'){assert.deepEqual(opts.context,{active_test:false});result=[product];}
    else throw Error('unexpected_model');
   }
   return new Response(JSON.stringify({jsonrpc:'2.0',id:1,result}),{status:200});
