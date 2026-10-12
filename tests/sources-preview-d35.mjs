@@ -100,7 +100,7 @@ try{
  const login=async()=>{await page.locator('#login-password').fill('synthetic-only');await page.locator('#login-button').click();await page.locator('#app-panel').waitFor({state:'visible'})};
  const logout=async()=>{await page.locator('#logout-top').click();await page.locator('#login-panel').waitFor({state:'visible'})};
  const noOverflow=async()=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
- await page.goto(origin+'/?view=settings&build=D35');await login();
+ await page.goto(origin+'/?view=settings&build=D35');await login();await page.locator('#connection-options>summary').click();
  await page.locator('[data-source="gmail"][data-health="current"]').waitFor({state:'visible'});
  assert.equal(await page.locator('#connector-status-root [data-source]').count(),3);
  assert.equal(await page.locator('[data-source="google_chat"]').getAttribute('data-health'),'pending');
@@ -123,10 +123,10 @@ try{
  assert.equal(await page.locator('.stock-card').count(),2);assert.ok(!(await page.locator('#stock-list').innerText()).includes('Produit TR'));
  await page.locator('#stock-search').fill('Absent');await page.getByText(/0 référence/).waitFor({state:'visible'});assert.equal(await page.locator('.stock-card').count(),0);
  await page.locator('#stock-search').fill('');await page.getByText(/GTA · 2 référence/).waitFor({state:'visible'});
- await page.evaluate(()=>window.__deferPermission=true);await page.locator('#stock-push-enable').click();await logout();
+ await page.evaluate(()=>window.__deferPermission=true);await page.locator('#stock-notification-options').evaluate(d=>{d.open=true});await page.locator('#stock-push-enable').click();await logout();
  await page.evaluate(()=>{window.__deferPermission=false;window.__resolvePermission('granted')});await login();
  await page.getByText(/TR et GTA · 57 référence/).waitFor({state:'visible'});assert.deepEqual(pushCalls,[]);
- await page.locator('#stock-push-enable').click();await page.getByText(/Notifications activées/).waitFor({state:'visible'});
+ await page.locator('#stock-notification-options').evaluate(d=>{d.open=true});await page.locator('#stock-push-enable').click();await page.getByText(/Notifications activées/).waitFor({state:'visible'});
  await page.locator('#stock-push-test').click();await page.getByText(/test acceptée par le service/).waitFor({state:'visible'});
  delayPush=true;await page.locator('#stock-push-test').click();const releasePush=await gate('push');await logout();await login();await releasePush();
  assert.ok(!(await page.locator('#stock-push-status').innerText()).includes('test acceptée'));

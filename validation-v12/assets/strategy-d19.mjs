@@ -7,7 +7,7 @@ const fullCash=n=>typeof n==='number'&&Number.isFinite(n)?
 const date=x=>x?new Date(x).toLocaleDateString('fr-FR'):'Date inconnue';
 const pct=n=>typeof n==='number'&&Number.isFinite(n)?new Intl.NumberFormat('fr-FR',{style:'percent',maximumFractionDigits:0}).format(n):'—';
 const int=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n??0);
-export function createStrategy({request,isAuthenticated,isActive,onClient}){
+export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan}){
  let raw=null,derived=null,loading=false,error='',selected=null,months=12,search='',filter='all',epoch=0;
  const root=()=>document.getElementById('strategy-root');
  function reset(){epoch++;raw=null;derived=null;loading=false;error='';selected=null;months=12;search='';filter='all';root()?.replaceChildren()}
@@ -46,7 +46,7 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   button.append(meta);
   const recommendation=p.recommendations[0];
   button.append(el('small','',recommendation?.title||'À qualifier'));
-  button.onclick=()=>{selected=p.id;render()};
+  button.onclick=()=>{selected=p.id;render();root()?.querySelector('.strategy-detail')?.scrollIntoView({behavior:'smooth',block:'start'})};
   return button;
  }
  function simulator(){
@@ -176,7 +176,9 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   for(let i=0;i<p.recommendations.length;i++){
    const r=p.recommendations[i],entry=el('article','strategy-action');
    entry.append(el('strong','',String(i+1)+'. '+r.title),
-    el('p','',r.detail),el('small','', 'Justification : '+r.evidence));box.append(entry);
+    el('p','',r.detail),el('small','', 'Justification : '+r.evidence));
+   if(onPlan){const action=el('button','','Préparer cette action');action.type='button';action.onclick=()=>onPlan(p.id,p.name,r);entry.append(action)}
+   box.append(entry);
   }
   if(p.orders.length){
    const sales=el('details','strategy-orders');sales.append(el('summary','','Commandes Odoo retenues · '+p.verifiedOrderCount));
@@ -195,7 +197,7 @@ export function createStrategy({request,isAuthenticated,isActive,onClient}){
   const host=root();if(!host)return;host.replaceChildren();
   const hero=el('section','strategy-hero');
   hero.append(el('h2','','Pilotage stratégique du portefeuille'),
-   el('p','','Croiser achats réels, mix TR/GTA, historique relationnel et scénarios de remise sans masquer les données manquantes.'));
+   el('p','','Repérer les clients à relancer et les opportunités GTA / TR.'));
   const refresh=el('button','strategy-refresh','Actualiser Odoo et CRM');
   refresh.type='button';refresh.disabled=loading;refresh.onclick=()=>open(true);hero.append(refresh);
   host.append(hero);

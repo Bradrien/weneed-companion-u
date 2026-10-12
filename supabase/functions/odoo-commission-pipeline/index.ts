@@ -70,7 +70,7 @@ Deno.serve(async req=>{
   const sb=createClient(base,service,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:au,error:authError}=await sb.auth.getUser(jwt);
   const user=au?.user;
-  if(authError||!user?.email||!user.email_confirmed_at)return answer(req,{ok:false,error:'invalid_session'},401);
+  if(authError||!user?.email||!user.email_confirmed_at||user.is_anonymous)return answer(req,{ok:false,error:'invalid_session'},401);
   const {data:acl,error:ae}=await sb.from('app_access_users').select('role,is_active')
    .eq('email',user.email.toLowerCase()).maybeSingle();
   if(ae||!acl?.is_active||acl.role!=='owner')return answer(req,{ok:false,error:'owner_only'},403);
@@ -171,6 +171,13 @@ Deno.serve(async req=>{
    if(!Array.isArray(current)||current.length!==group.length)throw safe('odoo_state_changed',409);
    assertUnchangedRows(all.filter(o=>group.includes(o.id)),current,standard,'odoo_source_changed');
   }
+  phase='products_recheck';
+  for(let i=0;i<pids.length;i+=100){
+   const group=pids.slice(i,i+100),current=await rpc(host,db,uid,apiKey,'object','execute_kw',
+    [db,uid,apiKey,'product.product','search_read',[[['id','in',group]]],
+     {fields:['id','default_code','name'],limit:group.length+1}]);
+   assertUnchangedRows([...pmap.values()].filter(p=>group.includes(p.id as number)),current,['id','default_code','name']);
+  }
   phase='commission_calculation';
   const orders=all.map(o=>calculateOdooOrder(o,lineMap.get(o.id)||[],{
    company:COMPANY[name(o.company_id)],products:pmap,catalog,duplicates:dupes,catalogAvailable}));
@@ -180,7 +187,7 @@ Deno.serve(async req=>{
    period_from:from,period_to:to,
    invoicing_semantics:'sale.order.invoice_status_not_payment_status',
    formula:'kino_browser_formula_provisional_without_spiff_units_unverified',
-   revision:8,calculation_version:'kino_browser_arithmetic_v1_cent_per_line',
+   revision:9,listing_tolerance:'unique_company_name_minor_typo_protected_numbers_quality_v1',calculation_version:'kino_browser_arithmetic_v1_cent_per_line',
    source_lines_rechecked:true,source_amounts_rechecked:true,
    read_consistency:'two_read_windows_not_atomic_snapshot',
    calculation_guards:'signed_amounts_price_discount_subtotals_v1',

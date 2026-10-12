@@ -2,12 +2,16 @@
 
 Companion commercial avec commandes et stocks Odoo en lecture seule, authentification Supabase et accès propriétaire vérifié côté serveur.
 
-La préversion en cours est disponible sur [validation-v12](https://bradrien.github.io/weneed-companion-u/validation-v12/). La page principale conserve sa version antérieure.
+La V1 est disponible sur [validation-v12](https://bradrien.github.io/weneed-companion-u/validation-v12/). La page principale conserve sa version antérieure.
+
+## Espace commercial — V1
+
+Accueil automatique du mois courant, raccourcis clients/commandes/stocks, chiffres et priorités CRM, interface responsive et détails à la demande. Les relances et recommandations du portefeuille ouvrent un brouillon associé au client, enregistré uniquement après validation dans l’application. Les petits écarts de libellé produit sont acceptés lorsqu’une seule correspondance est compatible, avec protection des grammages, société et variantes. Les sources et la méthode restent visibles. Voir [V1_CHANGELOG.md](V1_CHANGELOG.md).
 
 ## Commissions — D33
 
 - Bilan par mois, société et recherche, avec séparation des devis non confirmés et des commandes confirmées/facturées.
-- Rapprochement Kino strict par société et SKU. Un code dans un libellé reste un candidat si le champ SKU Odoo est vide.
+- Rapprochement Kino par société et SKU, avec tolérance limitée aux libellés compatibles et uniques. Les références ambiguës restent suspendues.
 - Réconciliation conservatrice gramme/sachet ; les unités ambiguës, coûts nuls et références absentes restent non estimés.
 - Décomposition par ligne et calcul commun au serveur, au scénario confirmé et au détail des commandes ; arrondi au centime par ligne.
 - Provenance horodatée du catalogue et seconde lecture bornée des prix, remises, montants et états Odoo.

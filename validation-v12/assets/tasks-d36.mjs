@@ -43,11 +43,11 @@ export function createTasks({request,clientRequest,isAuthenticated,isActive,onCh
  const currentRow=row=>s.rows.some(t=>t.id===row.id&&t.updated_at===row.updated_at);
  function action(row,verb,payload={}){if(!currentRow(row))return;return mutate({request_id:crypto.randomUUID(),action:verb,task_id:row.id,expected_version:row.updated_at,payload})}
  function field(form,label,type,value='',max){const box=el('label',label,'task-field');const input=el(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;input.value=value;if(max)input.maxLength=max;box.append(input);form.append(box);return input}
- function edit(row=null){
+ function edit(row=null,draft=null){
   if(s.busy||s.retry||s.loading||!isAuthenticated()||row&&!currentRow(row))return;
   clearTimeout(clientTimer);clientEpoch++;editor.replaceChildren();const form=el('form',undefined,'task-editor');form.append(el('h3',row?'Modifier la tâche':'Nouvelle tâche'));
-  const title=field(form,'Action à réaliser','text',row?.title||'',240);title.required=true;
-  const description=field(form,'Contexte','textarea',row?.description||'',5000);
+  const title=field(form,'Action à réaliser','text',row?.title||String(draft?.title||'').slice(0,240),240);title.required=true;
+  const description=field(form,'Contexte','textarea',row?.description||String(draft?.description||'').slice(0,5000),5000);
   const due=field(form,'Échéance (heure locale)','datetime-local',localDateTime(row?.due_at));
   const search=field(form,'Chercher un client (facultatif)','search','',120);
   const label=el('label','Client','task-field'),select=el('select');select.setAttribute('aria-label','Client');select.append(new Option('Sans client',''));
@@ -125,7 +125,14 @@ export function createTasks({request,clientRequest,isAuthenticated,isActive,onCh
   root.append(head,scopeNote,scopeButton,filters,feedback,editor,summary,list,pages,el('p','Rappels Apple se synchronise lorsque ton Mac est allumé et connecté. Les modifications de titre et d’échéance se font ici ; les tâches terminées dans Rappels remontent au Companion.','help'));render();
  }
  init();
- return {open:()=>load(),render,focusClient,isBusy:()=>s.busy||!!s.retry,reset(){
+ async function draft(template){
+  const session=s.session,client=s.clientId;
+  if(s.busy||s.retry||!client)return false;
+  await load();
+  if(session!==s.session||client!==s.clientId||!isAuthenticated()||!isActive()||s.error||s.busy||s.retry||s.loading)return false;
+  edit(null,template);return true;
+ }
+ return {open:()=>load(),render,focusClient,draft,isBusy:()=>s.busy||!!s.retry,reset(){
   s.session++;s.operation++;s.epoch++;clientEpoch++;clearTimeout(searchTimer);clearTimeout(clientTimer);s.rows=[];s.total=0;s.offset=0;s.query='';s.status='OPEN';s.clientId=null;s.clientName='';
   s.error='';s.notice='';s.checked=null;s.retry=null;s.busy=false;s.loading=false;editor?.replaceChildren();if(searchControl)searchControl.value='';if(statusControl)statusControl.value='OPEN';render();
  },forClient(id,name=''){if(focusClient(id,name))return load()}};

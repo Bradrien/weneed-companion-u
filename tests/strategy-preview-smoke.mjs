@@ -99,6 +99,7 @@ try{
  await page.getByText('Hausse de volume nécessaire').waitFor({state:'visible'});
  assert.match(await page.locator('.strategy-outcome').innerText(),/25/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
+ await page.locator('[data-disclosure="commission-orders"]>summary').click();
  await page.locator('#odoo-quote-pipeline-root').getByText(
    'Devis et commandes synchronisés depuis Odoo').waitFor({state:'visible'});
  await page.getByRole('checkbox',{name:'Inclure Devis en cours'}).waitFor({state:'visible'});

@@ -2,6 +2,7 @@
 import {cents,sumCents,sourceAmountIssues} from './commission-integrity-d24.mjs';
 import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
 import {calculateKinoLine} from './kino-calculation-d31.mjs';
+import {validateListingMatch} from './product-match-v1.mjs';
 const STAGES=['en_cours','confirme','facture'];
 export const statusLabels=Object.freeze({
  en_cours:'Devis en cours',confirme:'Commandes confirmées non entièrement facturées',
@@ -20,7 +21,7 @@ function normalizeCatalogEvidence(raw,line,company){
   if(!line.sku.trim()||raw.sku!==line.sku.trim().toUpperCase())throw Error('invalid_catalog_evidence');
  }else{
   const hit=line.product.match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
-  if(line.sku.trim()||line.reason!=='missing_odoo_sku'||!hit||raw.sku!==hit[1].toUpperCase())
+  if(line.sku.trim()||!['missing_odoo_sku','ambiguous_sku','catalog_unavailable'].includes(line.reason)||!hit||raw.sku!==hit[1].toUpperCase())
    throw Error('invalid_catalog_evidence');
  }
  if(raw.status==='found'){
@@ -70,6 +71,8 @@ export function normalizeOdooPipeline(input){
     typeof l.reason!=='string'||!sourceNumber(l.quantity)||!sourceNumber(l.subtotal_ht)||
     !estimate(l.commission_estimate))throw Error('invalid_odoo_line');
    lineIds.add(l.line_id);
+   const listingMatch=l.listing_match??null;
+   if(listingMatch&&!validateListingMatch(listingMatch,{company:o.company,sku:l.sku,product:l.product}))throw Error('invalid_catalog_evidence');
    const hasPrice=Object.hasOwn(l,'price_unit'),hasDiscount=Object.hasOwn(l,'discount_pct');
    if(hasPrice!==hasDiscount||hasPrice&&(!sourceNumber(l.price_unit)||!sourceNumber(l.discount_pct)))
     throw Error('invalid_odoo_line');
@@ -117,7 +120,7 @@ export function normalizeOdooPipeline(input){
     priceInputsAvailable:hasPrice,reason:l.reason,
     unitBasis:basis,effectiveUnitCostEur:effectiveCost,
     catalogUnitPriceEur:catalogUnitPrice,packSizeG:packSize,kinoTier:tier,catalogEvidence,calculation,
-    catalogCostEur:catalogCost,catalogPriceEur:catalogPrice};
+    catalogCostEur:catalogCost,catalogPriceEur:catalogPrice,listingMatch};
   });
   const matched=lines.filter(l=>l.commissionEstimate!==null),
    unmatched=lines.filter(l=>l.commissionEstimate===null&&l.reason!=='not_eligible'),

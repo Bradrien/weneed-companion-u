@@ -1,6 +1,7 @@
 /** Pure provisional calculation and repeat-read checks. No I/O or payment claims. */
 import {reconcileKinoUnit,UNIT_REASON} from './unit-basis.mjs';
 import {calculateKinoLine} from './calculation.mjs';
+import {resolveCatalogProduct} from './product-match.mjs';
 const text=x=>typeof x==='string'?x:'';
 const relationName=x=>Array.isArray(x)&&typeof x[1]==='string'?x[1]:'';
 const relationId=x=>Array.isArray(x)&&Number.isSafeInteger(x[0])&&x[0]>0?x[0]:null;
@@ -29,7 +30,6 @@ export function assertUnchangedRows(before,after,fields,code='odoo_source_change
 function catalogEvidence({company,sku,product,reason,catalog,duplicates,catalogAvailable}){
  let source='odoo_sku',code=sku.toUpperCase();
  if(!code){
-  if(reason!=='missing_odoo_sku')return null;
   const hit=product.match(/^\s*\[([A-Za-z0-9_+./-]{2,40})\]/);
   if(!hit)return null;
   source='product_label_prefix';code=hit[1].toUpperCase();
@@ -49,7 +49,9 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
   seen.add(line.id);
   const product=products.get(relationId(line.product_id)??-1),sku=text(product?.default_code).trim(),
    quantity=number(line.product_uom_qty),price=number(line.price_unit),discount=number(line.discount),
-   subtotal=number(line.price_subtotal),key=company+'|'+sku.toUpperCase(),row=catalog.get(key);
+   subtotal=number(line.price_subtotal),key=company+'|'+sku.toUpperCase();
+  const productLabel=text(product?.name)||text(line.name).slice(0,160);
+  const resolved=resolveCatalogProduct({company,sku,product:productLabel,catalog,duplicates,catalogAvailable}),row=resolved.row;
   let reason='not_eligible',estimate=null,unitBasis=null,unitCost=null,packSizeG=null,catalogPrice=null,tier=null,calculation=null;
   const candidate=!line.display_type&&quantity!==null&&quantity>0&&subtotal!==null&&subtotal>0;
   // A name filter is a provisional scope filter, not an approved compensation policy.
@@ -64,15 +66,13 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
    const expected=price===null||discount===null?null:quantity*price*(1-discount/100);
    if(expected===null||!Number.isFinite(expected)||Math.abs(expected-subtotal)>0.04)reason='line_price_mismatch';
    else if(namedExclusion)reason='not_eligible';
-   else if(!sku)reason='missing_odoo_sku';
-   else if(!catalogAvailable)reason='catalog_unavailable';
-   else if(duplicates.has(key))reason='ambiguous_sku';
-   else if(!row)reason='missing_kino_match';
+   else if(!product)reason='missing_odoo_sku';
+   else if(!row)reason=resolved.reason;
    else if(!['A','B'].includes(text(row.tier)))reason='invalid_kino_tier';
    else if(number(row.cost_eur)===null||row.cost_eur<=0)reason='missing_kino_cost';
    else if(number(row.list_price_eur)===null||row.list_price_eur<=0)reason='missing_kino_price';
    else{
-    const unit=reconcileKinoUnit({sku,productName:text(row.product_name),cost:row.cost_eur,
+    const unit=reconcileKinoUnit({sku:resolved.match?.catalog_sku||sku,productName:text(row.product_name),cost:row.cost_eur,
      listedPrice:row.list_price_eur,odooUnitPrice:price});
     if(!unit.ok)reason=UNIT_REASON;
     else{
@@ -86,15 +86,14 @@ export function calculateOdooOrder(order,items,{company,products,catalog,duplica
     }
    }
   }
-  const productLabel=text(product?.name)||text(line.name).slice(0,160);
-  const evidence=estimate===null&&reason!=='not_eligible'?catalogEvidence({company,sku,
+  const evidence=!resolved.match&&estimate===null&&reason!=='not_eligible'?catalogEvidence({company,sku,
    product:productLabel,reason,catalog,duplicates,catalogAvailable}):null;
   return {line_id:line.id,sku,product:productLabel,
    quantity,unit:relationName(line.product_uom),price_unit:price,discount_pct:discount,
    subtotal_ht:subtotal,commission_estimate:estimate,reason,unit_basis:unitBasis,
    effective_unit_cost_eur:unitCost,catalog_unit_price_eur:catalogPrice,
    catalog_cost_eur:unitBasis?number(row.cost_eur):null,catalog_price_eur:unitBasis?number(row.list_price_eur):null,
-   pack_size_g:packSizeG,kino_tier:tier,catalog_evidence:evidence,calculation};
+   pack_size_g:packSizeG,kino_tier:tier,catalog_evidence:evidence,listing_match:resolved.match,calculation};
  });
  const issues=[],amount=number(order.amount_untaxed),amountCents=cents(amount),
   lineCents=presented.map(line=>cents(line.subtotal_ht));

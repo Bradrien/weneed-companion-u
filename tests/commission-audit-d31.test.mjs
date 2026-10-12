@@ -102,13 +102,14 @@ test('CSV company, search and month scope exactly match the selected source view
  assert.equal(selectedCommissionOrders(data,{month:'2026-10',query:'absent'}).length,0);
  assert.throws(()=>createCommissionCsv(data,{month:'2026-13'}),/invalid_month/);
 });
-test('zero costs and proposed codes remain source diagnostics, without assumed commissions or promoted SKUs',()=>{
+test('zero costs stay suspended and unique compatible listing matches keep their original SKU empty',()=>{
  const data=normalize(rawOrder({cost:0}),rawOrder({id:2,sku:'',product:'[TEST] Produit test'}));
  const rows=parseCsv(createCommissionCsv(data,{month:'2026-10'}).content);
  assert.equal(rows[0].cout_brut_catalogue,'0');assert.equal(rows[0].estimation_ligne_provisoire,'');
  assert.equal(rows[0].estimation_commande_provisoire,'');assert.equal(rows[1].sku_odoo,'');
  assert.equal(rows[1].code_candidat,'TEST');assert.equal(rows[1].statut_catalogue,'found');
- assert.equal(rows[1].estimation_ligne_provisoire,'');
+ assert.equal(rows[1].estimation_ligne_provisoire,'13,93');
+ assert.equal(rows[1].methode_rapprochement,'label_sku');assert.equal(rows[1].payable,'non');
 });
 test('a blocked order exports no usable commission even when line arithmetic is available',()=>{
  const data=normalize(rawOrder({amount:561})),row=parseCsv(createCommissionCsv(data,{month:'2026-10'}).content)[0];

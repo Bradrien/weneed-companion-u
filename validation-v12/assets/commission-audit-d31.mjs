@@ -25,7 +25,7 @@ export const COMMISSION_CSV_COLUMNS=Object.freeze([
  'raison_ligne','base_unite_kino','taille_sachet_g','palier_kino','cout_par_unite_odoo','prix_net_par_unite_odoo',
  'coefficient_cout_kino','cout_ajuste_par_unite_odoo','marge_calcul_ligne','taux_commission_pct',
  'code_candidat','statut_catalogue','cout_brut_catalogue','tarif_brut_catalogue',
- 'capture_catalogue','lecture_odoo','source_reverifiee','couts_historiques_valides','spiff','payable'
+ 'capture_catalogue','lecture_odoo','source_reverifiee','couts_historiques_valides','spiff','payable','methode_rapprochement','sku_catalogue_rapproche'
 ]);
 export function csvCell(value){
  if(value===null||value===undefined)return '""';
@@ -44,9 +44,9 @@ export function createCommissionCsv(data,options){
    l.id,l.product,l.sku,l.quantity,l.unit,l.unitPrice,l.discountPct,l.subtotalHT,
    blocked?null:l.commissionEstimate,l.reason,l.unitBasis,l.packSizeG,l.kinoTier,l.effectiveUnitCostEur,
    c?.netUnitPrice,c?.costMultiplier,c?.adjustedUnitCost,c?.margin,c?c.rate*100:null,
-   e?.source==='product_label_prefix'?e.sku:null,e?.status,
+   e?.source==='product_label_prefix'?e.sku:l.listingMatch?.catalog_sku,e?.status||(l.listingMatch?'found':null),
    l.catalogCostEur??e?.costEur,l.catalogPriceEur??e?.listPriceEur,
-   data.catalogSnapshotAt,data.readAt,'oui','non','desactive','non']);
+   data.catalogSnapshotAt,data.readAt,'oui','non','desactive','non',l.listingMatch?.method||'sku_exact',l.listingMatch?.catalog_sku||l.sku]);
  }
  return {filename:'commissions-provisoires-'+options.month+'-'+(options.company||'all')+'.csv',
   content:'\uFEFF'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n')+'\r\n',

@@ -1,11 +1,12 @@
-import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=rules-1';
-import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=rules-1';
+import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=v1-1';
+import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=v1-1';
 import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=review-1';
 import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
 import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
-import {COMMISSION_RULE_STATUS} from './commission-rules-d37.mjs';
+import {COMMISSION_RULE_STATUS,commissionAfterReturns} from './commission-rules-d37.mjs';
+import {disclosure} from './v1-interface.mjs';
 import {createCommissionReturns} from './commission-returns-d37.mjs?v=credits-1';
-import {createMonthlyCredits} from './monthly-credits-d38.mjs?v=date-1';
+import {createMonthlyCredits} from './monthly-credits-d38.mjs?v=v1-1';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
 import {normalizeMonthlyOdooSource} from './monthly-odoo-fallback-d26.mjs';
 const el=(tag,cls='',s)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(s!==undefined)n.textContent=String(s);return n};
@@ -29,11 +30,11 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  estimated_units_unverified:'Coût fondé sur les prix unitaires Kino actuels, historique à valider',
  unverified_unit_scale:'Coût au gramme ou au sachet non identifiable : estimation suspendue',
  missing_kino_price:'Prix de référence Kino manquant'};
-export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,monthlyCreditsRequest,isActive,isAuthenticated}){
+export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,monthlyCreditsRequest,isActive,isAuthenticated,compact=false,onUpdated}){
  let data=null,fallbackData=null,fallbackMonth=null,fallbackLoading=false,fallbackError='',loading=false,error='',stages=new Set(filters),company='all',search='',month=currentCommissionMonth(),epoch=0,expanded=new Set(),failedCode='';
  const host=()=>document.getElementById('odoo-quote-pipeline-root');
- const monthlyCredits=createMonthlyCredits({request:monthlyCreditsRequest,isAuthenticated,onUpdated:()=>render()});
- const returnDeductions=createCommissionReturns({request:returnDeductionsRequest,isAuthenticated,onUpdated:()=>render()});
+ const monthlyCredits=createMonthlyCredits({request:monthlyCreditsRequest,isAuthenticated,onUpdated:()=>{render();onUpdated?.()}});
+ const returnDeductions=createCommissionReturns({request:returnDeductionsRequest,isAuthenticated,onUpdated:()=>{render();onUpdated?.()}});
  const invoiceEvidence=typeof invoiceEvidenceRequest==='function'?
   createInvoiceEvidenceView({request:invoiceEvidenceRequest,isAuthenticated}):null;
  function reset(){epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
@@ -95,7 +96,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
     }finally{fallbackLoading=false}
    }
   }}
-  finally{if(ticket===epoch){loading=false;render()}}
+  finally{if(ticket===epoch){loading=false;render();onUpdated?.()}}
  }
  function mini(title,value,details){const box=el('article','pipeline-stat');
   box.append(el('span','',title),el('strong','',value),el('small','',details));return box}
@@ -119,6 +120,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
  function openOrder(orderId){
   const order=data?.orders.find(o=>o.id===orderId);if(!order)return;
   expanded.add(orderId);stages.add(order.stage);render();
+  const details=host()?.querySelector('[data-disclosure="commission-orders"]');if(details)details.open=true;
   let card=host()?.querySelector('[data-order-id="'+orderId+'"]');
   if(!card){search=order.reference;render();card=host()?.querySelector('[data-order-id="'+orderId+'"]')}
   card?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -302,6 +304,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   for(const l of o.lines){
    const item=el('div','pipeline-line');
    item.append(el('strong','',l.product+(l.sku?' · '+l.sku:'')));
+   if(l.listingMatch)item.append(el('small','v1-compact-matching','Libellé rapproché · '+l.listingMatch.catalog_sku));
    item.append(el('span','',
      (l.quantity??'—')+' '+(l.unit||'unité')+' · '+money(l.subtotalHT,o.currency)+' HT'));
    item.append(el('small','',
@@ -386,12 +389,15 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   target.append(grid);
   target.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh:!!data&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&data.sourceInputsRechecked&&!loading&&!error,pipelineReadAt:monthlyData.readAt}));
   target.append(monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh:!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error,pipelineReadAt:monthlyData.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null}));
-  if(data){drawCompanyBreakdown(target,selected);drawAuditControls(target,selected)}
-  if(data)drawReconciliation(target,[...summary.pending.orders,...summary.confirmed.orders]);
+  const audit=compact?el('div'):target;
+  if(data){drawCompanyBreakdown(audit,selected);drawAuditControls(audit,selected)}
+  if(data)drawReconciliation(audit,[...summary.pending.orders,...summary.confirmed.orders]);
+  if(compact&&data)target.append(disclosure('commission-audit','Exports et points à vérifier',[audit]));
   const groups=[
    ['Devis en cours',summary.pending],
    ['Confirmées et facturées',summary.confirmed]
   ];
+  const documentList=compact?el('div'):target;
   for(const [heading,group] of groups){
    const section=el('div','commission-month-breakdown');
    section.append(el('h3','',heading+' · '+group.count));
@@ -412,8 +418,9 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    }
    if(group.orders.length>80)list.append(el('p','commission-month-detail',
     '80 premiers documents affichés pour cette catégorie. Recherche plus précise nécessaire.'));
-   section.append(list);target.append(section);
+   section.append(list);documentList.append(section);
   }
+  if(compact)target.append(disclosure('commission-month-documents','Documents du mois · '+(summary.pending.count+summary.confirmed.count),[documentList],{open:!!search.trim()}));
   target.append(el('p','commission-month-detail',
    'Mois établi à partir de la date Odoo du devis ou de la commande. Catégories exclusives : un devis confirmé quitte la catégorie « devis en cours ». '+
    'Les montants sont des estimations partielles lorsque des lignes ne sont pas rapprochées. '+
@@ -485,17 +492,18 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   if(!isActive())return;
   const root=host();if(!root)return;root.replaceChildren();
   renderMonthly(root);
+  const fullRoot=root,detailRoot=compact?el('div'):root;
   const top=el('section','pipeline-head');
   top.append(el('h3','','Devis et commandes synchronisés depuis Odoo'),
    el('p','pipeline-hint',
     'Aucune saisie manuelle. Sélectionne les statuts à inclure : en cours, confirmés non entièrement facturés et facturés. Les choix sont combinables. Ce n’est pas une commission acquise.'));
   const refresh=el('button','secondary-button',loading?'Actualisation…':'↻ Actualiser Odoo');
   refresh.disabled=loading;refresh.type='button';refresh.onclick=()=>load(true);
-  top.append(refresh);root.append(top);
-  root.append(el('p','pipeline-hint',
+  top.append(refresh);detailRoot.append(top);
+  detailRoot.append(el('p','pipeline-hint',
    'Commissions payables : non validées. '+COMMISSION_RULE_STATUS.explanation));
   const all=data?odooPipelineTotals(data.orders):null;
-  if(data)root.append(el('p','pipeline-filter-intro','Inclure dans la liste détaillée (coche plusieurs statuts) :'));
+  if(data)detailRoot.append(el('p','pipeline-filter-intro','Inclure dans la liste détaillée (coche plusieurs statuts) :'));
   const pills=el('div','pipeline-pills');
   for(const value of filters){
    const count=all?String(all[value]):'—';
@@ -509,17 +517,18 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    };
    label.append(box,el('span','',name[value]+' ('+count+')'));pills.append(label);
   }
-  if(data)root.append(pills);
-  if(loading)root.append(el('p','pipeline-hint','Actualisation Odoo en cours…'));
-  if(error){const warn=el('p','pipeline-error',error);root.append(warn)}
+  if(data)detailRoot.append(pills);
+  if(loading)detailRoot.append(el('p','pipeline-hint','Actualisation Odoo en cours…'));
+  if(error){const warn=el('p','pipeline-error',error);detailRoot.append(warn)}
+  if(compact)fullRoot.append(disclosure('commission-orders','Détail des commandes et factures',[detailRoot],{open:expanded.size>0}));
   if(!data){
-   root.append(el('p','pipeline-hint',fallbackData?
+   detailRoot.append(el('p','pipeline-hint',fallbackData?
     'La liste détaillée et le calcul des commissions restent indisponibles. Les documents du mois apparaissent dans le bilan ci-dessus grâce au rapport Odoo classique.':
     'Les filtres sont prêts. La liste détaillée apparaîtra si le pipeline Odoo enrichi répond ; réessaie avec « Actualiser Odoo ».'));
    return;
   }
-  if(error)root.append(el('p','pipeline-hint','Dernière lecture en mémoire affichée ci-dessous : elle peut être périmée.'));
-  if(!data.sourceInputsRechecked)root.append(el('p','pipeline-hint',
+  if(error)detailRoot.append(el('p','pipeline-hint','Dernière lecture en mémoire affichée ci-dessous : elle peut être périmée.'));
+  if(!data.sourceInputsRechecked)detailRoot.append(el('p','pipeline-hint',
    'Le service actuel ne revérifie pas encore les prix, remises et montants après la première lecture. Actualisation du contrôle requise avant validation.'));
   const controls=el('div','pipeline-controls'),selector=el('select');
   for(const [value,label]of [['all','GTA + TR'],['GTA','GTA uniquement'],['TR','TR uniquement']]){
@@ -529,9 +538,9 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   const q=el('input');q.type='search';q.value=search;
   q.placeholder='Client, commande, référence…';q.setAttribute('aria-label','Rechercher les devis Odoo');
   q.oninput=()=>{search=q.value;const r=root.querySelector('.pipeline-result');if(r)drawRows(r);const m=root.querySelector('.commission-month-body');if(m)drawMonthly(m)};
-  controls.append(selector,q);root.append(controls);
-  const result=el('div','pipeline-result');root.append(result);drawRows(result);
-  root.append(el('p','pipeline-hint',
+  controls.append(selector,q);detailRoot.append(controls);
+  const result=el('div','pipeline-result');detailRoot.append(result);drawRows(result);
+  detailRoot.append(el('p','pipeline-hint',
    'Périmètre : devis et commandes Odoo pour le mois sélectionné, sous ton utilisateur commercial. '+
    'Le statut facturé provient de invoice_status et ne prouve aucun règlement. '+
    'Les coûts ont été rapprochés de l’unité commerciale lorsque le catalogue fournit suffisamment d’indices ; tout cas ambigu reste non estimé. '+
@@ -557,5 +566,20 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   if(rows.length>120)container.append(el('p','pipeline-hint',
    'Affichage limité aux 120 premiers documents triés par date : affine la recherche ou le filtre.'));
  }
- return {load,reset,render};
+ function snapshot(){
+  if(!isAuthenticated()||!data||loading||error||!data.sourceInputsRechecked)return {available:false,loading,error,month};
+  const fresh=Date.now()-Date.parse(data.readAt)<=900000&&Date.parse(data.readAt)<=Date.now()+300000;
+  if(!fresh)return {available:false,stale:true,month};
+  const totals=summarizeCommissionMonth(data,{month,company:'all',query:''});
+  const recorded=returnDeductions.snapshot(month);
+  const recordedTime=Date.parse(recorded?.readAt),recordedFresh=Number.isFinite(recordedTime)&&Date.now()-recordedTime<=900000&&recordedTime<=Date.now()+300000;
+  const balance=commissionAfterReturns(totals.confirmed,recorded,{month,company:'all',query:'',fresh:fresh&&recordedFresh});
+  return {available:true,month,confirmed:totals.confirmed,pending:totals.pending,recorded:balance,readAt:data.readAt,revenue:odooPipelineTotals(totals.confirmed.orders)};
+ }
+ function selectMonth(value){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(value))return;
+  if(month!==value){epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();data=null;fallbackData=null;fallbackMonth=null;loading=false;error='';month=value;expanded.clear()}
+  return load(true);
+ }
+ return {load,reset,render,snapshot,selectMonth,openOrder};
 }

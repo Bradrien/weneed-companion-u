@@ -1,4 +1,4 @@
-name: Companion D38 monthly credit reconciliation
+name: Companion V1 responsive commercial workspace
 on:
   push:
     branches: [main]
@@ -53,6 +53,9 @@ jobs:
           node --check validation-v12/assets/commission-returns-d37.mjs
           node --check validation-v12/assets/monthly-credit-model-d38.mjs
           node --check validation-v12/assets/monthly-credits-d38.mjs
+          node --check validation-v12/assets/product-match-v1.mjs
+          node --check validation-v12/assets/v1-interface.mjs
+          node --check tests/companion-v1-preview.mjs
           node --check supabase/functions/odoo-monthly-credits/core.mjs
           node --check tests/monthly-credits-preview-d38.mjs
           node --check supabase/functions/odoo-invoice-evidence/core.mjs
@@ -86,6 +89,13 @@ jobs:
         env:
           CONNECTOR_TEST_PGLITE_URL: '@electric-sql/pglite'
       - run: node tests/strategy-preview-smoke.mjs
+      - run: node tests/companion-v1-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: companion-v1-visuals
+          path: artifacts-v1/*.png
+          retention-days: 2
       - run: node tests/tasks-preview-smoke.mjs
       - run: node tests/monthly-credits-preview-d38.mjs
       - run: node tests/commission-returns-preview-d37.mjs

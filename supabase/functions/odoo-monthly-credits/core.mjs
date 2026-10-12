@@ -1,6 +1,7 @@
 import {assertUnchangedRows} from '../odoo-commission-pipeline/core.mjs';
 import {reconcileKinoUnit} from '../odoo-commission-pipeline/unit-basis.mjs';
 import {calculateKinoLine} from '../odoo-commission-pipeline/calculation.mjs';
+import {compareProductNames,compatibleListingSku,resolveCatalogProduct} from '../odoo-commission-pipeline/product-match.mjs';
 export const CREDIT_LIMITS=Object.freeze({documents:40,invoiceLines:400,saleLines:400,orders:200,products:400});
 export const CREDIT_FIELDS=Object.freeze(['id','name','move_type','state','invoice_date','invoice_user_id','company_id','partner_id',
  'currency_id','amount_untaxed','amount_total','reversed_entry_id','invoice_line_ids','invoice_origin','ref','narration','write_date']);
@@ -113,11 +114,16 @@ export async function readMonthlyCredits(period,{uid,read,catalog,catalogSnapsho
   const sameProduct=originalLines.filter(o=>id(o.move_id)===parent.id&&productLine(o)&&id(o.product_id)!==null&&
    id(o.product_id)===id(l.product_id)&&invoiceUnitField&&id(o[invoiceUnitField])===id(l[invoiceUnitField]));
   const priceMatches=sameProduct.filter(o=>close(o.price_unit,l.price_unit)&&close(o.discount,l.discount));
-  const candidates=priceMatches.length?priceMatches:sameProduct.length===1?sameProduct:[];
+  const listingCandidates=!sameProduct.length?originalLines.filter(o=>id(o.move_id)===parent.id&&productLine(o)&&
+   id(o.product_id)!==null&&invoiceUnitField&&id(o[invoiceUnitField])===id(l[invoiceUnitField])&&
+   compareProductNames(text(l.name),text(o.name))&&positive(l.quantity)&&positive(o.quantity)&&
+   positive(l.price_subtotal)&&positive(o.price_subtotal)&&close(l.price_subtotal/l.quantity,o.price_subtotal/o.quantity)):[];
+  const candidates=priceMatches.length?priceMatches:sameProduct.length===1?sameProduct:listingCandidates;
   if(candidates.length!==1){links.set(l.id,{reason:candidates.length||sameProduct.length>1?'ambiguous_original_invoice_lines':'missing_original_invoice_line'});continue}
   if(candidates[0].sale_line_ids.length!==1){links.set(l.id,{reason:'multiple_sale_lines'});continue}
   links.set(l.id,{saleLineId:candidates[0].sale_line_ids[0],kind:parentInfo.kind==='native_reversal'?
-   'unique_reversed_invoice_line':'explicit_invoice_note_unique_line',invoiceLineId:candidates[0].id});
+   'unique_reversed_invoice_line':'explicit_invoice_note_unique_line',invoiceLineId:candidates[0].id,
+   listingIdentity:!sameProduct.length&&listingCandidates.length===1});
  }
  const saleIds=[...new Set([...links.values()].map(x=>x.saleLineId).filter(Boolean))];
  if(saleIds.length>400)throw Error('credit_scope_limit');
@@ -148,15 +154,27 @@ export async function readMonthlyCredits(period,{uid,read,catalog,catalogSnapsho
   const dl=lines.filter(l=>id(l.move_id)===d.id).map(l=>{
    const link=links.get(l.id),source=saleLines.find(s=>s.id===link.saleLineId),order=source&&orders.find(o=>o.id===id(source.order_id));
    let reason=link.reason||null,calculation=null,deduction=null,unit=null;
-   const product=productMap.get(id(l.product_id)),sku=text(product?.default_code).trim().toUpperCase();
+   const product=productMap.get(id(l.product_id)),sku=text(product?.default_code).trim().toUpperCase(),
+    sourceProduct=source&&productMap.get(id(source.product_id));
+   const sourceSku=text(sourceProduct?.default_code).trim().toUpperCase(),sourceName=text(sourceProduct?.name)||text(source?.name),
+    sourceReference=sourceSku||sourceName.match(/^\s*\[([A-Za-z0-9_+./ -]{2,100})\]/)?.[1]||'';
+   const matchedInvoiceLine=originalLines.find(o=>o.id===link.invoiceLineId);
+   const listingQuality=link.listingIdentity&&compareProductNames(text(product?.name)||text(l.name),sourceName);
+   const identityAllowed=!!listingQuality&&id(matchedInvoiceLine?.product_id)===id(source?.product_id)&&
+    (!sku||!sourceReference||compatibleListingSku(sku,sourceReference))&&
+    !!compareProductNames(text(matchedInvoiceLine?.name),sourceName);
+   const listingIdentity=identityAllowed?{method:listingQuality,unique_invoice_line:true,
+    source_product_id:id(source.product_id),source_product:sourceName.slice(0,300),source_sku:sourceSku,
+    invoice_line_id:link.invoiceLineId}:null;
    const qty=num(l.quantity),subtotal=num(l.price_subtotal),price=num(l.price_unit),discount=num(l.discount);
    if(!reason&&documentIssues.length)reason=documentIssues[0];
    if(!reason&&d.state!=='posted')reason='credit_not_posted';
    if(!reason&&currency!=='EUR')reason='not_eur';
    if(!reason&&(!source||!order))reason='original_sale_not_accessible';
+   if(!reason&&(!product||!sourceProduct))reason='product_identity_mismatch';
    if(!reason&&(!['sale','done'].includes(order.state)||id(order.company_id)!==id(d.company_id)||name(order.currency_id)!==currency||
     ![id(order.partner_id),id(order.partner_invoice_id)].includes(id(d.partner_id))))reason='original_sale_scope_mismatch';
-   if(!reason&&(!id(l.product_id)||id(l.product_id)!==id(source.product_id)))reason='product_identity_mismatch';
+   if(!reason&&(!id(l.product_id)||id(l.product_id)!==id(source.product_id))&&!identityAllowed)reason='product_identity_mismatch';
    if(!reason&&(!invoiceUnitField||!saleUnitField||!id(l[invoiceUnitField])||id(l[invoiceUnitField])!==id(source[saleUnitField])))reason='unit_identity_unverified';
    if(!reason&&(!positive(qty)||!positive(subtotal)||!positive(source.product_uom_qty)||!positive(source.price_subtotal)||
     num(discount)===null||discount<0||discount>100||!positive(price)||!positive(source.price_unit)||
@@ -166,14 +184,12 @@ export async function readMonthlyCredits(period,{uid,read,catalog,catalogSnapsho
     !close(source.product_uom_qty*source.price_unit*(1-source.discount/100),source.price_subtotal)||
     !close(subtotal,qty*(source.price_subtotal/source.product_uom_qty))))reason='refund_price_mismatch';
    if(!reason&&/(?:^|[^\p{L}\p{N}_])(?:samples?|échantillons?|delivery|shipping|livraison|transport|freight|port)(?=$|[^\p{L}\p{N}_])/iu.test((text(product?.name)||text(l.name).split('\n')[0])+' '+sku))reason='not_eligible';
-   if(!reason&&!sku)reason='missing_odoo_sku';
-   const key=company+'|'+sku,row=catalog?.get(key);
-   if(!reason&&!catalogAvailable)reason='catalog_unavailable';
-   if(!reason&&duplicates?.has(key))reason='ambiguous_sku';
-   if(!reason&&!row)reason='missing_kino_match';
+   const resolved=resolveCatalogProduct({company,sku:sourceSku,product:sourceName||text(product?.name)||text(l.name),
+    catalog:catalog||new Map(),duplicates,catalogAvailable}),row=resolved.row;
+   if(!reason&&!row)reason=resolved.reason;
    if(!reason&&(!positive(row.cost_eur)||!positive(row.list_price_eur)||!['A','B'].includes(row.tier)))reason='invalid_kino_cost_or_tier';
    if(!reason){
-    unit=reconcileKinoUnit({sku,productName:row.product_name,cost:row.cost_eur,listedPrice:row.list_price_eur,odooUnitPrice:source.price_unit});
+    unit=reconcileKinoUnit({sku:resolved.match?.catalog_sku||sourceSku||sku,productName:row.product_name,cost:row.cost_eur,listedPrice:row.list_price_eur,odooUnitPrice:source.price_unit});
     if(!unit.ok)reason='unverified_unit_scale';
     else try{
      calculation=calculateKinoLine({tier:row.tier,cost:unit.costPerOdooUnit,quantity:source.product_uom_qty,subtotalHT:source.price_subtotal});
@@ -183,12 +199,13 @@ export async function readMonthlyCredits(period,{uid,read,catalog,catalogSnapsho
    }
    const original=order?{order_id:order.id,reference:text(order.name).slice(0,120),date:text(order.date_order).slice(0,10),
     state:order.state,line_id:source.id,quantity:num(source.product_uom_qty),subtotal_ht:num(source.price_subtotal),
-    price_unit:num(source.price_unit),discount_pct:num(source.discount),unit_id:saleUnitField?id(source[saleUnitField]):null}:null;
+    price_unit:num(source.price_unit),discount_pct:num(source.discount),unit_id:saleUnitField?id(source[saleUnitField]):null,
+    product_id:id(source.product_id),product:sourceName.slice(0,300),sku:sourceSku}:null;
    return {id:l.id,product_id:id(l.product_id),product:text(product?.name)||text(l.name).slice(0,180),sku,
     quantity:qty,subtotal_ht:subtotal,price_unit:price,discount_pct:discount,
     unit_id:invoiceUnitField?id(l[invoiceUnitField]):null,unit:invoiceUnitField?name(l[invoiceUnitField]):'',
     link_kind:original?link.kind||null:null,original_invoice_line_id:original?link.invoiceLineId||null:null,
-    original,reason,unit_basis:unit?.ok?unit.basis:null,pack_size_g:unit?.ok?unit.packSizeG:null,
+    original,reason,listing_identity:listingIdentity,listing_match:resolved.match,unit_basis:unit?.ok?unit.basis:null,pack_size_g:unit?.ok?unit.packSizeG:null,
     effective_unit_cost_eur:unit?.ok?unit.costPerOdooUnit:null,kino_tier:!reason?row.tier:null,
     original_calculation:calculation,deduction_estimate_cents:deduction};
   });

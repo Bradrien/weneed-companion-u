@@ -1,4 +1,4 @@
-import {normalizeMonthlyCredits,filterMonthlyCredits,proposedBalanceWithCredits} from './monthly-credit-model-d38.mjs';
+import {normalizeMonthlyCredits,filterMonthlyCredits,proposedBalanceWithCredits} from './monthly-credit-model-d38.mjs?v=v1-1';
 import {odooRecordUrl} from './odoo-links-d33.mjs';
 const el=(tag,text,cls='')=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
 const money=(n,currency='EUR')=>typeof n==='number'&&Number.isFinite(n)?new Intl.NumberFormat('fr-FR',{style:'currency',currency}).format(n):'Montant absent';
@@ -70,6 +70,7 @@ export function createMonthlyCredits({request,isAuthenticated,onUpdated}){
      const matching=recorded?.deductions.filter(r=>r.month===month&&r.company===d.company&&r.reference===o.reference)||[];
      if(matching.length)line.append(el('p','Une déduction Excel est déjà renseignée pour cette commande et ce mois. Vérifie la pièce avant d’ajouter un retrait.','commission-month-detail'));
     }
+    if(l.listing_identity||l.listing_match)line.append(el('small','Libellé rapproché'+(l.listing_match?' · '+l.listing_match.catalog_sku:''),'v1-compact-matching'));
     if(l.deduction_estimate_cents!==null&&fresh){
      line.append(el('p','Commission à retirer estimée : −'+money(l.deduction_estimate_cents/100),'monthly-credit-estimate'));
      const details=el('details');details.append(el('summary','Voir le calcul de la déduction'));

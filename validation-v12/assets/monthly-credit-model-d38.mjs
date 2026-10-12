@@ -1,6 +1,7 @@
 import {sourceTime,sourceText,sourceCount} from './source-state-d34.mjs';
 import {calculateKinoLine} from './kino-calculation-d31.mjs';
 import {cents} from './commission-integrity-d24.mjs';
+import {compareProductNames,compatibleListingSku,validateListingMatch} from './product-match-v1.mjs';
 const sid=x=>{if(!Number.isSafeInteger(x)||x<1)throw Error('invalid_credit_evidence');return x};
 const number=x=>x===null||typeof x==='number'&&Number.isFinite(x);
 const day=x=>{if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x)||!Number.isFinite(Date.parse(x+'T00:00:00Z'))||new Date(x+'T00:00:00Z').toISOString().slice(0,10)!==x)throw Error('invalid_credit_evidence');return x};
@@ -55,6 +56,25 @@ export function normalizeMonthlyCredits(body,month){
     if(sourceLines.has(key)&&sourceLines.get(key)!==signature)throw Error('invalid_credit_evidence');sourceLines.set(key,signature);
    }else if(l.link_kind!==null||invoiceLineId!==null)throw Error('invalid_credit_evidence');
    const estimate=l.deduction_estimate_cents;
+   const identity=l.listing_identity??null,match=l.listing_match??null;
+   if(identity){
+    const invoiceLine=originalInvoice?.lines?.find(x=>x.id===invoiceLineId);
+    sid(identity.source_product_id);
+    const sourceReference=original?.sku||original?.product?.match(/^\s*\[([A-Za-z0-9_+./ -]{2,100})\]/)?.[1]||'';
+    const unique=originalInvoice?.lines?.filter(x=>x.unit_id===unitId&&x.quantity>0&&x.subtotal_ht>0&&
+     compareProductNames(l.product,x.product)&&l.quantity>0&&l.subtotal_ht>0&&
+     Math.abs(l.subtotal_ht/l.quantity-x.subtotal_ht/x.quantity)<=0.04);
+    if(!original||!invoiceLine||identity.unique_invoice_line!==true||identity.invoice_line_id!==invoiceLineId||
+     identity.source_product_id!==original.product_id||invoiceLine.product_id!==original.product_id||
+     original.product_id===productId||invoiceLine.sale_link_count!==1||
+     compareProductNames(l.product,identity.source_product)!==identity.method||
+     identity.source_product!==original.product||identity.source_sku!==original.sku||
+     !compareProductNames(invoiceLine.product,original.product)||
+     invoiceLine.unit_id!==unitId||unique?.length!==1||unique[0].id!==invoiceLineId||
+     l.sku&&sourceReference&&!compatibleListingSku(l.sku,sourceReference))throw Error('invalid_credit_evidence');
+   }
+   if(match&&!validateListingMatch(match,{company:doc.company,sku:original?original.sku:l.sku,product:original?.product||l.product}))throw Error('invalid_credit_evidence');
+   if(original?.product_id!==undefined&&original.product_id!==productId&&!identity&&estimate!==null)throw Error('invalid_credit_evidence');
    if(estimate!==null){
     if(!Number.isSafeInteger(estimate)||estimate<0||l.reason!==null||doc.state!=='posted'||doc.currency!=='EUR'||doc.issues.length||
      !original||!['sale','done'].includes(original.state)||!productId||!unitId||unitId!==original.unit_id||

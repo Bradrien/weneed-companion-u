@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readMonthlyCredits,parseCreditMonth,explicitInvoiceReference} from '../supabase/functions/odoo-monthly-credits/core.mjs';
+import {normalizeMonthlyCredits} from '../validation-v12/assets/monthly-credit-model-d38.mjs';
 const rel=(id,name)=>[id,name],clone=x=>JSON.parse(JSON.stringify(x)),period=parseCreditMonth('https://source.invalid/?month=2026-10');
 function setup(){
  const f={companies:[{id:10,name:'Trim Rocket s.r.o.'}],
@@ -90,10 +91,34 @@ test('drafts, changed price, invalid or excessive quantities, mismatched units a
   ['unit_identity_unverified',s=>s.f.lines[0].product_uom_id=rel(99,'pack')],
   ['invalid_kino_cost_or_tier',s=>s.catalog.get('TR|TEST/SKU').cost_eur=0],
   ['credit_line_total_mismatch',s=>s.f.documents[0].amount_untaxed=100],
-  ['missing_odoo_sku',s=>s.f.products[0].default_code=false],
   ['not_eligible',s=>s.f.products[0].name='Shipping'],
  ];
  for(const [reason,fn] of scenarios){const s=setup();fn(s);const l=(await s.run()).documents[0].lines[0];assert.equal(l.reason,reason);assert.equal(l.deduction_estimate_cents,null)}
+});
+test('a missing official SKU may use one compatible catalogue name and retains explicit provenance',async()=>{
+ const s=setup();s.f.products[0].default_code=false;
+ const result=await s.run(),line=result.documents[0].lines[0];
+ assert.equal(line.sku,'');assert.equal(line.reason,null);assert.equal(line.listing_match.method,'normalized_name');
+ assert.equal(line.deduction_estimate_cents,1050);
+ normalizeMonthlyCredits({ok:true,data:result},period.month);
+});
+test('a unique original invoice product may tolerate a duplicated listing while preserving invoice identity and price controls',async()=>{
+ const s=setup();s.f.lines[0].sale_line_ids=[];s.f.lines[0].product_id=rel(31,'Test product');
+ s.f.products.push({id:31,name:'TEST  product',default_code:''});
+ const result=await s.run(),line=result.documents[0].lines[0];
+ assert.equal(line.reason,null);assert.equal(line.product_id,31);assert.equal(line.original.product_id,30);
+ assert.equal(line.listing_identity.method,'normalized_name');assert.equal(line.deduction_estimate_cents,1050);
+ normalizeMonthlyCredits({ok:true,data:result},period.month);
+ const tampered=clone(result);tampered.documents[0].lines[0].listing_identity.source_product_id=32;
+ assert.throws(()=>normalizeMonthlyCredits({ok:true,data:tampered},period.month),/invalid_credit_evidence/);
+ s.f.products[1].name='Test product +';
+ assert.equal((await s.run()).documents[0].lines[0].deduction_estimate_cents,null);
+});
+test('duplicate named original invoice lines never choose an arbitrary sales line',async()=>{
+ const s=setup();s.f.lines[0].sale_line_ids=[];s.f.lines[0].product_id=rel(31,'Test product');
+ s.f.products.push({id:31,name:'Test product',default_code:''});
+ s.f.originalLines.push({...s.f.originalLines[0],id:103});s.f.originals[0].invoice_line_ids.push(103);
+ assert.equal((await s.run()).documents[0].lines[0].reason,'ambiguous_original_invoice_lines');
 });
 test('several returns in the same month cannot exceed the original sold quantity',async()=>{
  const s=setup();s.f.lines[0].quantity=60;s.f.lines[0].price_subtotal=180;s.f.lines.push({...s.f.lines[0],id:103});
