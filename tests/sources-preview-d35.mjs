@@ -110,7 +110,7 @@ try{
  await page.getByText(/état actuel non confirmé/).waitFor({state:'visible'});assert.equal(await page.locator('#connector-status-root [data-source]').count(),3);
  sourceFail=false;sourceRows=sourceRows.slice(0,2);await page.getByRole('button',{name:'Actualiser les connexions ↻'}).click();
  await page.locator('[data-source="google_drive"][data-health="missing"]').waitFor({state:'visible'});await noOverflow();
- await page.locator('#view-settings [data-nav="stocks"]').click();
+ await page.locator('#view-settings .v1-tools-grid [data-nav="stocks"]').click();
  await page.locator('.stock-card').first().waitFor({state:'visible'});assert.equal(await page.locator('.stock-card').count(),50);
  assert.match(await page.locator('#stock-summary').innerText(),/catalogue complet/);
  await page.locator('#stock-next').click();await page.getByText(/51–57/).waitFor({state:'visible'});assert.equal(await page.locator('.stock-card').count(),7);
@@ -132,7 +132,7 @@ try{
  assert.ok(!(await page.locator('#stock-push-status').innerText()).includes('test acceptée'));
  await page.locator('#stock-push-stop').click();await page.getByText(/Notifications désactivées/).waitFor({state:'visible'});await noOverflow();
  assert.deepEqual(pushCalls,['subscribe','test','test','unsubscribe']);
- await page.locator('#bottom-nav [data-nav="settings"]').click();await page.locator('#view-settings [data-nav="archives"]').click();
+ await page.locator('#bottom-nav [data-nav="settings"]').click();await page.locator('#view-settings .v1-tools-grid [data-nav="archives"]').click();
  await page.getByText(/100 \/ 101 conversations chargées/).waitFor({state:'visible'});
  assert.match(await page.locator('#archive-root').innerText(),/51 vocaux disponibles sans transcription/);
  await page.getByText(/Lot de transcription autorisé/).click();assert.match(await page.locator('#archive-root').innerText(),/50 \/ 50 terminé/);
