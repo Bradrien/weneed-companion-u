@@ -4,7 +4,7 @@ import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=revie
 import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
 import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
 import {COMMISSION_RULE_STATUS,commissionAfterReturns} from './commission-rules-d37.mjs';
-import {disclosure,compactSourceInfo} from './v1-interface.mjs?v=2';
+import {disclosure,compactSourceInfo} from './v1-interface.mjs?v=3';
 import {createCommissionReturns} from './commission-returns-d37.mjs?v=credits-1';
 import {createMonthlyCredits} from './monthly-credits-d38.mjs?v=v1-1';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';

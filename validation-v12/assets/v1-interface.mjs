@@ -25,12 +25,13 @@ export function compactSourceInfo(panel,key,title){
  if(paragraphs.length)panel.append(disclosure(key,title,paragraphs));return panel;
 }
 export function compactClientSections(root){
+ const fold=(section,key,title)=>{const next=section.nextSibling,wrapper=disclosure(key,title,[section]);root.insertBefore(wrapper,next)};
  for(const section of [...root.children]){
-  if(section.classList.contains('client-memory-digest')){section.replaceWith(disclosure('client-memory','Mémoire et contexte',[section]));continue}
+  if(section.classList.contains('client-memory-digest')){fold(section,'client-memory','Mémoire et contexte');continue}
   if(!section.classList.contains('client-section'))continue;
   const title=section.querySelector('h3')?.textContent||'';
   if(title==='Actions en cours'||title==='Contacts')continue;
   const key='client-'+(section.classList.contains('client-odoo')?'sales':title);
-  section.replaceWith(disclosure(key,title,[section]));
+  fold(section,key,title);
  }
 }
