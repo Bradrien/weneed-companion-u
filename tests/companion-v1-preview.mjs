@@ -66,7 +66,7 @@ try{
  assert.equal(await page.locator('#legacy-commission-details').getAttribute('open'),null);await overflow();
  await page.screenshot({path:'artifacts-v1/commissions-mobile.png',fullPage:true});
  await page.locator('[data-disclosure="commission-orders"]>summary').click();await page.locator('.pipeline-order-head').first().click();
- await page.getByText('Libellé rapproché · PB/G/TR/250',{exact:true}).waitFor({state:'visible'});
+ await page.locator('.pipeline-order-details').first().getByText('Libellé rapproché · PB/G/TR/250',{exact:true}).waitFor({state:'visible'});
  assert.match(await page.locator('.pipeline-order-details').first().innerText(),/99,45/);
  await page.locator('#bottom-nav [data-nav="clients"]').click();await page.locator('#clients-list .client-row').first().click();
  await page.getByRole('button',{name:'Préparer une relance',exact:true}).waitFor({state:'visible'});

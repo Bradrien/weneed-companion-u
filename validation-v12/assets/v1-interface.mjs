@@ -10,7 +10,7 @@ export function contactActions(contacts){
  const row=el('div','v1-contact-actions'),seen=new Set();
  for(const c of contacts)for(const channel of c.channels||[]){
   const value=String(channel.value||'').trim(),kind=String(channel.type||'').toLowerCase();let href,label;
-  if(/mail/.test(kind)&&/^[^\s<>?&#]+@[^\s<>?&#]+\.[^\s<>?&#]+$/.test(value)){href='mailto:'+value;label='E-mail'}
+  if(/mail/.test(kind)&&/^[a-z0-9.!$'*+/=_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,63}$/i.test(value)){href='mailto:'+value;label='E-mail'}
   else if(/phone|tel|mobile|whatsapp/.test(kind)){
    const number=value.replace(/[\s().-]/g,'');if(!/^\+?\d{8,15}$/.test(number))continue;
    href='tel:'+number;label='Appeler';
@@ -18,6 +18,11 @@ export function contactActions(contacts){
   if(!href||seen.has(href))continue;seen.add(href);const link=el('a','v1-action-link',label);link.href=href;link.setAttribute('aria-label',label+' '+(c.name||value));row.append(link);
  }
  return row;
+}
+export function compactSourceInfo(panel,key,title){
+ const paragraphs=[...panel.children].filter(n=>n.tagName==='P'&&n.classList.contains('commission-month-detail')&&
+  /^(La commande confirmée|Aucune déduction de retour renseignée|Ces pièces sont déduites|Déductions enregistrées uniquement|Avoirs attribués|La lecture se lance)/.test(n.textContent));
+ if(paragraphs.length)panel.append(disclosure(key,title,paragraphs));return panel;
 }
 export function compactClientSections(root){
  for(const section of [...root.children]){

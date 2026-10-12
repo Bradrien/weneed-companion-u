@@ -4,7 +4,7 @@ import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=revie
 import {reviewAction,reviewPointsForOrders,createReviewCsv,odooRecordUrl} from './commission-review-d33.mjs';
 import {COMMISSION_ISSUES} from './commission-integrity-d24.mjs';
 import {COMMISSION_RULE_STATUS,commissionAfterReturns} from './commission-rules-d37.mjs';
-import {disclosure} from './v1-interface.mjs';
+import {disclosure,compactSourceInfo} from './v1-interface.mjs?v=2';
 import {createCommissionReturns} from './commission-returns-d37.mjs?v=credits-1';
 import {createMonthlyCredits} from './monthly-credits-d38.mjs?v=v1-1';
 import {currentCommissionMonth,shiftCommissionMonth,labelCommissionMonth,summarizeCommissionMonth} from './monthly-commission-d25.mjs';
@@ -376,20 +376,23 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    {month,company,query:data?'':search});
   const grid=el('div','commission-month-grid');
   grid.append(
-   monthlyMetric('Devis non confirmés · potentiels',summary.pending,
-    'Sous réserve de confirmation Odoo.'),
-   monthlyMetric('Commandes confirmées · prévisionnelles',summary.confirmed,
-    'Déclenchement à la confirmation ; comprend les commandes facturées, avant déduction des retours.')
+   monthlyMetric(compact?'Devis potentiels':'Devis non confirmés · potentiels',summary.pending,
+    compact?'En attente de confirmation.':'Sous réserve de confirmation Odoo.'),
+   monthlyMetric(compact?'Commandes confirmées':'Commandes confirmées · prévisionnelles',summary.confirmed,
+    compact?'Estimation avant retours.':'Déclenchement à la confirmation ; comprend les commandes facturées, avant déduction des retours.')
   );
   const validated=el('article','commission-month-metric');
   validated.append(el('span','','Commission finale · après tous les retours'),
    el('strong','','Non disponible'),
    el('small','','Règles de confirmation et de déduction des retours établies. Le montant final attend le rapprochement des coûts, du SPIFF et de toutes les pièces de retour.'));
-  grid.append(validated);
+  if(!compact)grid.append(validated);
   target.append(grid);
-  target.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh:!!data&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&data.sourceInputsRechecked&&!loading&&!error,pipelineReadAt:monthlyData.readAt}));
-  target.append(monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh:!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error,pipelineReadAt:monthlyData.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null}));
+  const returnsPanel=returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh:!!data&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&data.sourceInputsRechecked&&!loading&&!error,pipelineReadAt:monthlyData.readAt});
+  const creditsPanel=monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh:!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error,pipelineReadAt:monthlyData.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null});
+  if(compact){returnsPanel.querySelector('h3').textContent='Retours enregistrés';creditsPanel.querySelector('h3').textContent='Avoirs du mois';compactSourceInfo(returnsPanel,'return-source-info','Règles des retours');compactSourceInfo(creditsPanel,'credit-source-info','Sources des avoirs')}
+  target.append(returnsPanel,creditsPanel);
   const audit=compact?el('div'):target;
+  if(compact)audit.append(validated);
   if(data){drawCompanyBreakdown(audit,selected);drawAuditControls(audit,selected)}
   if(data)drawReconciliation(audit,[...summary.pending.orders,...summary.confirmed.orders]);
   if(compact&&data)target.append(disclosure('commission-audit','Exports et points à vérifier',[audit]));
@@ -420,8 +423,8 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
     '80 premiers documents affichés pour cette catégorie. Recherche plus précise nécessaire.'));
    section.append(list);documentList.append(section);
   }
-  if(compact)target.append(disclosure('commission-month-documents','Documents du mois · '+(summary.pending.count+summary.confirmed.count),[documentList],{open:!!search.trim()}));
-  target.append(el('p','commission-month-detail',
+  if(compact){const documents=disclosure('commission-month-documents','Documents du mois · '+(summary.pending.count+summary.confirmed.count),[documentList]);if(search.trim())documents.open=true;target.append(documents)}
+  (compact?audit:target).append(el('p','commission-month-detail',
    'Mois établi à partir de la date Odoo du devis ou de la commande. Catégories exclusives : un devis confirmé quitte la catégorie « devis en cours ». '+
    'Les montants sont des estimations partielles lorsque des lignes ne sont pas rapprochées. '+
    'La recherche en haut du bilan permet de retrouver directement un client ou une référence.'));
@@ -465,7 +468,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   const quick=el('div','commission-quick-controls');
   const filterLabel=el('label','commission-quick-label','Recherche rapide par client ou référence Odoo');
   const quickSearch=el('input');
-  quickSearch.type='search';quickSearch.value=search;quickSearch.placeholder='Ex. CBW, T02163, S03687';
+  quickSearch.type='search';quickSearch.value=search;quickSearch.placeholder='Client, commande, produit…';
   quickSearch.setAttribute('aria-label','Rechercher dans le bilan mensuel');
   quickSearch.oninput=()=>{
    search=quickSearch.value;
@@ -484,7 +487,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   companySelect.onchange=()=>{company=companySelect.value;render()};
   const hint=el('small','commission-quick-hint','Recherche dans les documents attribués à ton utilisateur Odoo.');
   quick.append(filterLabel,companySelect,hint);
-  panel.append(toolbar,label,quick,body);
+  panel.append(toolbar,label,compact?disclosure('commission-filters','Rechercher ou filtrer',[quick]):quick,body);
   root.append(panel);drawMonthly(body);
  }
 

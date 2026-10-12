@@ -40,6 +40,7 @@ try{
   if(u.pathname==='/auth/v1/logout')return route.fulfill(json({}));
   return route.fulfill(json({ok:true,data:{stats:{clients_total:0},attention_clients:[],unassigned_actionable_tasks:[]}}));
  });
+ const showFilters=async()=>{const d=page.locator('[data-disclosure="commission-filters"]');if(!await d.evaluate(x=>x.open))await d.locator('summary').click()};
  const login=async()=>{await page.locator('#login-password').fill('synthetic-only');await page.locator('#login-button').click();await page.locator('#app-panel').waitFor({state:'visible'})};
  const panel=()=>page.locator('.monthly-credit-panel'),button=()=>panel().getByRole('button',{name:'Lire les avoirs du mois',exact:true});
  const net=()=>page.locator('.commission-return-panel .commission-month-metric').nth(1).locator('strong');
@@ -54,10 +55,10 @@ try{
   assert.match(await a.getAttribute('href'),/^https:\/\/weneedweed\.odoo\.com\/web#/);assert.equal(await a.getAttribute('rel'),'noopener noreferrer');
  }
  await panel().getByText('Voir le calcul de la déduction',{exact:true}).click();assert.match(await panel().innerText(),/52,50/);
- await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('GTA');assert.equal(await panel().locator('.monthly-credit-document').count(),0);
- await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('TR');await page.getByLabel('Rechercher dans le bilan mensuel').fill('TEST-OLDER');
- assert.equal(await panel().locator('.monthly-credit-document').count(),1);await page.getByLabel('Rechercher dans le bilan mensuel').fill('absent');
- assert.equal(await panel().locator('.monthly-credit-document').count(),0);await page.getByLabel('Rechercher dans le bilan mensuel').fill('');
+ await showFilters();await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('GTA');assert.equal(await panel().locator('.monthly-credit-document').count(),0);
+ await showFilters();await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('TR');await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('TEST-OLDER');
+ assert.equal(await panel().locator('.monthly-credit-document').count(),1);await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('absent');
+ assert.equal(await panel().locator('.monthly-credit-document').count(),0);await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('');
  fail=true;await button().click();await panel().getByText('Une source Odoo a changé pendant la lecture. Relance le rapprochement.',{exact:true}).waitFor({state:'visible'});
  assert.equal(await panel().locator('.monthly-credit-document').count(),0);assert.equal(await net().innerText(),initialNet);fail=false;
  hold=true;await button().click();for(let i=0;i<100&&!release;i++)await new Promise(r=>setTimeout(r,20));assert.ok(release);const releaseMonth=release;release=null;

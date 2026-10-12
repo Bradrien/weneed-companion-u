@@ -1,10 +1,10 @@
 import {createConnectorStatus} from './connectors-d34.mjs';
 import {createTasks} from './tasks-d36.mjs?v=v1-1';
 import {createArchives} from './archives-d35.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=v1-1';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=v1-2';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs?v=v1-1';
-import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs';
+import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=2';
 import {createStocks} from './stocks-d34.mjs';
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
@@ -115,7 +115,7 @@ const publicHeaders={'apikey':KEY,'content-type':'application/json'};
 const text=(value)=>document.createTextNode(String(value??''));
 const node=(tag,cls,textValue)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(textValue!==undefined)x.textContent=String(textValue);return x};
 const clear=(el)=>el.replaceChildren();
-function setNotice(message,type='info'){$('notice-text').textContent=message;$('notice').className='notice'+(type==='info'?'':` ${type}`)+(['stocks','archives','strategy','tasks'].includes(state.view)?' hidden':'')}
+function setNotice(message,type='info'){$('notice-text').textContent=message;$('notice').className='notice'+(type==='info'?'':` ${type}`)+(['stocks','archives','strategy','tasks'].includes(state.view)||type==='info'&&state.view!=='orders'?' hidden':'')}
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
