@@ -57,7 +57,9 @@ try{
  await page.waitForFunction(()=>document.querySelectorAll('.commission-return-panel .commission-month-metric strong')[1]?.textContent.includes('60,00'));
  assert.match(await page.locator('.commission-return-panel').textContent(),/commande confirmée déclenche/);
  assert.match(await page.locator('.commission-return-panel').innerText(),/105,00/);assert.match(await page.locator('.commission-return-panel').innerText(),/45,00/);
+ await page.locator('[data-disclosure="return-source-info"]>summary').click();
  assert.match(await page.locator('.commission-return-panel').innerText(),/autre mois/);
+ await page.locator('[data-disclosure="return-source-info"]>summary').click();
  await showFilters();await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('TR');assert.match(await net().innerText(),/32,50/);
  await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('TEST-1');assert.equal(await net().innerText(),'Non calculé');
  assert.match(await page.locator('.commission-return-panel').innerText(),/Efface la recherche/);
