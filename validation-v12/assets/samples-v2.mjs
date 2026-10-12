@@ -49,7 +49,7 @@ export function createSamples({request,clientRequest,isAuthenticated,isActive,on
   const select=el('select');select.setAttribute('aria-label','Client des échantillons');select.required=true;
   select.append(new Option('Choisir un client',''));if(initialId)select.append(new Option(initialName||'Client sélectionné',initialId,true,true));
   if(row){select.disabled=true;form.append(el('p',initialName,'sample-client-name'))}
-  else{const query=field(form,'Chercher le client','search','',120),wrap=el('label','Client des échantillons','task-field');wrap.append(select);form.append(wrap);
+  else{const picker=initialId?el('details',undefined,'sample-client-change'):form;if(initialId){picker.append(el('summary','Chercher un autre client'));form.append(picker)}const query=field(picker,'Chercher le client','search','',120),wrap=el('label','Client des échantillons','task-field');wrap.append(select);form.append(wrap);
    const result=el('p','','help');form.append(result);query.oninput=()=>{const ticket=++clientEpoch;clearTimeout(clientTimer);clientTimer=setTimeout(async()=>{
     if(ticket!==clientEpoch||!form.isConnected||!isAuthenticated())return;
     try{const response=await clientRequest('/clients?q='+encodeURIComponent(query.value)+'&limit=20');
@@ -61,10 +61,12 @@ export function createSamples({request,clientRequest,isAuthenticated,isActive,on
    },300)};
   }
   const products=field(form,'Produits et quantités','textarea',row?.products||'',2000);products.required=true;
-  const goal=field(form,'Objectif','text',row?.goal||'',1000);
+  const options=el('details',undefined,'sample-editor-options');options.append(el('summary','Objectif, colis et notes'));
+  const goal=field(options,'Objectif','text',row?.goal||'',1000);
   const due=field(form,'Prochaine relance (heure locale)','datetime-local',localDateTime(row?.follow_up_at||(!row?new Date(Date.now()+7*86400000).toISOString():null)));
-  const tracking=field(form,'Référence de suivi du colis','text',row?.tracking||'',500);
-  const notes=field(form,'Notes et retour client','textarea',row?.notes||'',5000);
+  const tracking=field(options,'Référence de suivi du colis','text',row?.tracking||'',500);
+  const notes=field(options,'Notes et retour client','textarea',row?.notes||'',5000);
+  form.append(options);
   form.append(el('p','Vérifie les stocks avant l’envoi. Ce dossier ne réserve aucun produit.','help'));
   const save=el('button','Enregistrer les échantillons','primary-button');save.type='submit';form.append(save,button('Fermer le dossier',()=>{clientEpoch++;clearTimeout(clientTimer);editor.replaceChildren()}));
   form.onsubmit=e=>{e.preventDefault();if(!select.value)return;let follow_up_at;try{follow_up_at=dueInstant(due.value)}catch{s.error=message('invalid_follow_up');render();return}
