@@ -130,9 +130,9 @@ export function buildStrategy(data,months=12,now=new Date().toISOString()){
   else {
    if(!unlinked.has(o.partner_id))unlinked.set(o.partner_id,{partnerId:o.partner_id,
     partnerName:String(o.partner_name||'Partenaire Odoo').slice(0,140),orderCount:0,
-    amountHT:0,lastAt:null});
-   const u=unlinked.get(o.partner_id);if(o.amount_ht>0){u.orderCount++;u.amountHT+=o.amount_ht;}
-   if(!u.lastAt||d>u.lastAt)u.lastAt=d;
+    amountHT:0,lastAt:null,lastOrderId:null,orders:[]});
+   const u=unlinked.get(o.partner_id);if(o.amount_ht>0){u.orderCount++;u.amountHT+=o.amount_ht;u.orders.push(o);
+    if(!u.lastAt||d>u.lastAt){u.lastAt=d;u.lastOrderId=Number.isSafeInteger(o.odoo_id)&&o.odoo_id>0?o.odoo_id:null;}}
   }
  }
  const clients=v.clients.filter(c=>UUID.test(c.id)).map(c=>{
@@ -178,7 +178,9 @@ export function buildStrategy(data,months=12,now=new Date().toISOString()){
  const attributable=clients.filter(c=>c.verifiedOdooLink&&c.odooAvailable);
  const sum=col=>money(attributable.reduce((a,c)=>a+(c[col]??0),0));
  const unmatched=[...unlinked.values()].filter(o=>o.orderCount).sort((a,b)=>b.amountHT-a.amountHT)
-  .map(u=>({...u,amountHT:money(u.amountHT)}));
+  .map(({orders,...u})=>({...u,amountHT:money(u.amountHT),cadence:cadence(orders),
+   reactivation:reactivationProfile({odooAvailable,verifiedOdooLink:true,verifiedOrderCount:u.orderCount,lastOrderAt:u.lastAt,cadence:cadence(orders)},
+    {generatedAt:v.checked_at,now})}));
  return {clients,unmatched,meta:{windowFrom:lower,windowTo:date(now),generatedAt:v.checked_at,
   odooAvailable,odooError:v.odoo.error||null,crmClients:clients.length,
   attributedClients:attributable.length,withPositiveOrders:attributable.filter(x=>x.verifiedOrderCount).length,

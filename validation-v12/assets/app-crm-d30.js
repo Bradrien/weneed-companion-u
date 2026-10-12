@@ -107,6 +107,7 @@ const samples=createSamples({isAuthenticated:()=>!!state.access,isActive:()=>sta
   description:[row.products,row.goal,row.notes,row.tracking?'Suivi du colis : '+row.tracking:''].filter(Boolean).join('\n\n')})
 });
 const strategy=createStrategy({isAuthenticated:()=>!!state.access,isActive:()=>state.view==='strategy'&&developmentMode==='portfolio',onSamples:prepareSamples,
+ onNative:p=>{clients.selected=null;clients.detail=null;clients.full=null;clients.query=p.partnerName;$('client-search').value=p.partnerName;navigate('clients');loadClients()},
  request:async()=>{
   const jwt=await ensureToken();
   const response=await authFetch('/functions/v1/strategy-portfolio',{headers:{authorization:'Bearer '+jwt}});

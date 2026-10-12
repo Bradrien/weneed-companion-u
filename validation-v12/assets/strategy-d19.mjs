@@ -1,5 +1,6 @@
 import {sortReactivation} from './reactivation-v2.mjs';
-import {buildStrategy,marginScenario,validPeriods} from './strategy-model.mjs?v=development-2';
+import {buildStrategy,marginScenario,validPeriods} from './strategy-model.mjs?v=development-3';
+import {odooRecordUrl} from './odoo-links-d33.mjs';
 const el=(tag,cls='',value)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n};
 const cash=n=>typeof n==='number'&&Number.isFinite(n)?
  new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n):'Non vérifié';
@@ -8,7 +9,7 @@ const fullCash=n=>typeof n==='number'&&Number.isFinite(n)?
 const date=x=>x?new Date(x).toLocaleDateString('fr-FR'):'Date inconnue';
 const pct=n=>typeof n==='number'&&Number.isFinite(n)?new Intl.NumberFormat('fr-FR',{style:'percent',maximumFractionDigits:0}).format(n):'—';
 const int=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n??0);
-export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan,onSamples}){
+export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan,onSamples,onNative}){
  let raw=null,derived=null,loading=false,error='',selected=null,months=12,search='',filter='all',epoch=0;
  const root=()=>document.getElementById('strategy-root');
  function reset(){epoch++;raw=null;derived=null;loading=false;error='';selected=null;months=12;search='';filter='all';root()?.replaceChildren()}
@@ -251,6 +252,21 @@ export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan
   searchInput.oninput=()=>{search=searchInput.value;draw()};
   filterSelect.onchange=()=>{filter=filterSelect.value;draw()};
   divider.append(searchInput,filterSelect,counter,list);host.append(divider);draw();
+  const native=el('section','strategy-native-reactivation');native.id='native-reactivation-list';host.append(native);
+  const drawNative=()=>{
+   native.replaceChildren();if(filter!=='reactivate')return;
+   const needle=search.toLocaleLowerCase('fr-FR').trim();
+   const rows=derived.unmatched.filter(p=>p.reactivation?.eligible&&(!needle||p.partnerName.toLocaleLowerCase('fr-FR').includes(needle)))
+    .sort((a,b)=>b.reactivation.lateDays-a.reactivation.lateDays||b.amountHT-a.amountHT);
+   native.append(el('h3','','Clients Odoo à rattacher · '+rows.length),
+    el('p','strategy-note','Achats confirmés dans Odoo. Cherche leur fiche CRM pour préparer une relance ou des échantillons.'));
+   for(const p of rows){const card=el('article','sample-card native-client');card.append(el('h4','',p.partnerName),
+    el('strong','sample-overdue',p.reactivation.label),el('p','strategy-note',p.orderCount+' commande(s) · '+cash(p.amountHT)+' HT · '+p.reactivation.evidence));
+    const actions=el('div','sample-actions');if(p.lastOrderId){const link=el('a','inline-button','Dernière commande Odoo');link.href=odooRecordUrl('sale.order',p.lastOrderId);link.target='_blank';link.rel='noopener noreferrer';actions.append(link)}
+    if(onNative){const find=el('button','inline-button','Chercher la fiche CRM');find.type='button';find.onclick=()=>onNative(p);actions.append(find)}card.append(actions);native.append(card);
+   }
+  };
+  searchInput.oninput=()=>{search=searchInput.value;draw();drawNative()};filterSelect.onchange=()=>{filter=filterSelect.value;draw();drawNative()};drawNative();
   const found=derived.clients.find(p=>p.id===selected);
   if(found)host.append(detail(found));
   else host.append(el('p','strategy-note','Sélectionne une fiche pour lire son diagnostic détaillé et tester une remise.'));
