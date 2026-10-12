@@ -69,7 +69,7 @@ try{
  await page.getByRole('button',{name:'Nouvelle tâche',exact:true}).click();assert.equal(await page.getByLabel('Client',{exact:true}).inputValue(),id(300));
  await page.getByLabel('Action à réaliser').fill('Action créée depuis la fiche');await page.getByRole('button',{name:'Enregistrer',exact:true}).click();
  await page.getByText('Action créée depuis la fiche',{exact:true}).waitFor({state:'visible'});assert.equal(posts[0].payload.client_id,id(300));
- await page.locator('#bottom-nav [data-nav="clients"]').click();await page.locator('#client-detail').getByText('Action créée depuis la fiche',{exact:true}).first().waitFor({state:'visible'});
+ await page.locator('#bottom-nav [data-nav="clients"]').click();await page.locator('#client-detail>.client-section').filter({has:page.getByRole('heading',{name:'Actions en cours',exact:true})}).getByText('Action créée depuis la fiche',{exact:true}).waitFor({state:'visible'});
  assert.ok(clientReads.filter(x=>x===id(300)).length>=2,'client card was not refreshed');
  await page.getByRole('button',{name:'Gérer les tâches de ce client'}).click();await ready();
  await page.getByRole('button',{name:'Voir les tâches de tous les clients'}).click();await ready();assert.equal(listReads.at(-1).client,null);

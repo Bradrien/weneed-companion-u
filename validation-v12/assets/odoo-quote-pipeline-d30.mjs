@@ -570,7 +570,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    'Affichage limité aux 120 premiers documents triés par date : affine la recherche ou le filtre.'));
  }
  function snapshot(){
-  if(!isAuthenticated()||!data||loading||error||!data.sourceInputsRechecked)return {available:false,loading,error,month};
+  if(!isAuthenticated()||!data||loading||error||!data.sourceInputsRechecked||data.calculationVersion!=='kino_browser_arithmetic_v1_cent_per_line')return {available:false,loading,error,month};
   const fresh=Date.now()-Date.parse(data.readAt)<=900000&&Date.parse(data.readAt)<=Date.now()+300000;
   if(!fresh)return {available:false,stale:true,month};
   const totals=summarizeCommissionMonth(data,{month,company:'all',query:''});

@@ -1,10 +1,11 @@
 import {createConnectorStatus} from './connectors-d34.mjs';
 import {createTasks} from './tasks-d36.mjs?v=v1-1';
 import {createArchives} from './archives-d35.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=v1-3';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=v1-4';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs?v=v1-1';
 import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=3';
+import {presentPipelineOrder} from './order-view-v1.mjs';
 import {createStocks} from './stocks-d34.mjs';
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
@@ -39,7 +40,7 @@ const archives=createArchives({briefRequest:async(suffix)=>{
  return data;
 },isAuthenticated:()=>!!state.access,isActive:()=>state.view==='archives',request:async(suffix,init={})=>{const jwt=await ensureToken();const res=await authFetch('/functions/v1/whatsapp-archives'+suffix,{...init,headers:{authorization:'Bearer '+jwt}});const data=await res.json();if(!res.ok||!data.ok)throw Error(data.error||'archive_unavailable');return data;}});
 archives.setClientRenderer(()=>{if(state.view==='clients'&&clients.selected)renderClients()});
-const odooQuotes=createOdooQuotePipeline({isAuthenticated:()=>!!state.access,compact:true,onUpdated:()=>{if(state.access){renderStats();renderHome()}},
+const odooQuotes=createOdooQuotePipeline({isAuthenticated:()=>!!state.access,compact:true,onUpdated:()=>{if(state.access){renderStats();renderHome();if(state.view==='orders')renderOrders()}},
  isActive:()=>state.view==='commissions',
  returnDeductionsRequest:async(month)=>{
   const jwt=await ensureToken();
@@ -263,7 +264,8 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
  const cd=catalogLineDetail(l.catalog_match);
  if(cd)left.append(node('div','detail-match'+(l.catalog_match?.status==='matched'?' success':' warn'),cd));
  const right=node('div','detail-value');right.append(node('span','',formatMoney(l.line_ht,order.currency||'EUR')),node('span','detail-kind',lineText(l.kind)));
- const estimate=lineCommission(commissionIndex(),order.id,l.id);
+ const estimate=l.nativeEstimate||lineCommission(commissionIndex(),order.id,l.id);
+ if(l.nativeListingMatch)left.append(node('small','v1-compact-matching','Libellé rapproché · '+l.nativeListingMatch.catalog_sku));
  const sourceStatus=l.catalog_match?.status;
  const specific={missing_sku:'SKU absent dans Odoo',not_found:'SKU Odoo absent du catalogue Kino',
   ambiguous_sku:'Plusieurs correspondances Kino possibles',

@@ -61,6 +61,8 @@ try{
  for(const width of [320,360,390,768,1440]){await page.setViewportSize({width,height:844});await overflow()}
  await page.setViewportSize({width:390,height:844});await mkdir('artifacts-v1',{recursive:true});
  await page.screenshot({path:'artifacts-v1/home-mobile.png',fullPage:true});
+ await page.locator('#view-home [data-nav="orders"]').click();await page.locator('#orders-list .order-button').first().click();
+ assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Commission estimée : 99,45/);assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Libellé rapproché/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
  assert.equal(await page.locator('[data-disclosure="commission-orders"]').getAttribute('open'),null);
  assert.equal(await page.locator('#legacy-commission-details').getAttribute('open'),null);await overflow();
