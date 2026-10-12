@@ -86,10 +86,18 @@ jobs:
       - run: node --test supabase/tests/google-connectors-sql.test.mjs
       - run: node --test supabase/tests/whatsapp-archive-coverage-sql.test.mjs
       - run: node --test supabase/tests/commission-returns-sql.test.mjs
+      - run: node --test supabase/tests/client-samples-sql.test.mjs
         env:
           CONNECTOR_TEST_PGLITE_URL: '@electric-sql/pglite'
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/companion-v1-preview.mjs
+      - run: node tests/development-preview-v2.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: development-v2-visuals
+          path: artifacts-v2/*.png
+          retention-days: 2
       - uses: actions/upload-artifact@v4
         if: always()
         with:

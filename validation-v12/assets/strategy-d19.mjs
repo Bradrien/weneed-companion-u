@@ -1,4 +1,5 @@
-import {buildStrategy,marginScenario,validPeriods} from './strategy-model.mjs';
+import {sortReactivation} from './reactivation-v2.mjs';
+import {buildStrategy,marginScenario,validPeriods} from './strategy-model.mjs?v=development-2';
 const el=(tag,cls='',value)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(value!==undefined)n.textContent=String(value);return n};
 const cash=n=>typeof n==='number'&&Number.isFinite(n)?
  new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n):'Non vérifié';
@@ -7,13 +8,13 @@ const fullCash=n=>typeof n==='number'&&Number.isFinite(n)?
 const date=x=>x?new Date(x).toLocaleDateString('fr-FR'):'Date inconnue';
 const pct=n=>typeof n==='number'&&Number.isFinite(n)?new Intl.NumberFormat('fr-FR',{style:'percent',maximumFractionDigits:0}).format(n):'—';
 const int=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(n??0);
-export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan}){
+export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan,onSamples}){
  let raw=null,derived=null,loading=false,error='',selected=null,months=12,search='',filter='all',epoch=0;
  const root=()=>document.getElementById('strategy-root');
  function reset(){epoch++;raw=null;derived=null;loading=false;error='';selected=null;months=12;search='';filter='all';root()?.replaceChildren()}
  async function open(force=false){
   if(!isAuthenticated()||loading)return;
-  if(raw&&!force){render();return}
+  if(raw&&!force&&Date.now()-Date.parse(raw.checked_at)<=900000){render();return}
   const ticket=++epoch;loading=true;error='';render();
   try{
    const data=await request();
@@ -46,6 +47,7 @@ export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan
   button.append(meta);
   const recommendation=p.recommendations[0];
   button.append(el('small','',recommendation?.title||'À qualifier'));
+  if(p.reactivation?.eligible)button.append(el('span','sample-overdue',p.reactivation.label));
   button.onclick=()=>{selected=p.id;render();root()?.querySelector('.strategy-detail')?.scrollIntoView({behavior:'smooth',block:'start'})};
   return button;
  }
@@ -135,6 +137,8 @@ export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan
    card('Rythme d’achat',p.cadence.medianGapDays!==null?
     p.cadence.medianGapDays+' jours':'Inconnu','Médiane des jours d’achat distincts'));
   box.append(kpis);
+  if(p.reactivation?.eligible){const react=el('div','reactivation-cue');react.append(el('strong','',p.reactivation.label),el('p','',p.reactivation.evidence));box.append(react)}
+  if(onSamples){const sample=el('button','primary-button','Préparer des échantillons');sample.type='button';sample.onclick=()=>onSamples(p.id,p.name);box.append(sample)}
   box.append(el('h4','','Répartition TR / GTA'));
   if(p.shareGTA!==null){
    const bar=el('div','strategy-split');
@@ -226,21 +230,22 @@ export function createStrategy({request,isAuthenticated,isActive,onClient,onPlan
   divider.append(el('h3','','Tous les clients · priorités et recommandations'));
   const searchInput=el('input');searchInput.type='search';searchInput.placeholder='Rechercher un client…';
   searchInput.value=search;searchInput.setAttribute('aria-label','Rechercher un client dans la stratégie');
-  const filterSelect=el('select');
-  for(const [key,label]of [['all','Tous les clients'],['linked','Liaison Odoo vérifiée'],['unlinked','À rapprocher Odoo'],['risk','Rythme à diagnostiquer'],['growth','Développement et ventes croisées']]){
+  const filterSelect=el('select');filterSelect.setAttribute('aria-label','Filtrer le développement client');
+  for(const [key,label]of [['all','Tous les clients'],['reactivate','À réactiver'],['second','Seconde commande'],['linked','Liaison Odoo vérifiée'],['unlinked','À rapprocher Odoo'],['risk','Rythme à diagnostiquer'],['growth','Développement et ventes croisées']]){
    const o=el('option','',label);o.value=key;filterSelect.append(o);
   }filterSelect.value=filter;
   const list=el('div','strategy-client-list'),counter=el('p','strategy-note');
   const draw=()=>{
    list.replaceChildren();
    const needle=search.toLocaleLowerCase('fr-FR').trim();
-   const rows=derived.clients.filter(p=>
+   let rows=derived.clients.filter(p=>
     (!needle||p.name.toLocaleLowerCase('fr-FR').includes(needle))&&
-    (filter==='all'||filter==='linked'&&p.verifiedOdooLink||
+    (filter==='all'||filter==='reactivate'&&p.reactivation?.eligible||filter==='second'&&p.verifiedOdooLink&&p.odooAvailable&&p.verifiedOrderCount===1||filter==='linked'&&p.verifiedOdooLink||
      filter==='unlinked'&&!p.verifiedOdooLink||
      filter==='risk'&&p.recommendations.some(r=>r.type==='recover')||
      filter==='growth'&&p.recommendations.some(r=>['expand','cross_sell'].includes(r.type))));
-   counter.textContent=rows.length+' client(s) · tri par priorité puis CA vérifié';
+   if(filter==='reactivate')rows=sortReactivation(rows);
+   counter.textContent=rows.length+' client(s) · '+(filter==='reactivate'?'tri par retard puis CA vérifié':'tri par priorité puis CA vérifié');
    rows.forEach(p=>list.append(strategyRow(p)));
   };
   searchInput.oninput=()=>{search=searchInput.value;draw()};

@@ -18,7 +18,7 @@
  <link rel="stylesheet" href="assets/odoo-invoice-evidence-d32.css">
  <link rel="stylesheet" href="assets/commission-review-d33.css">
  <link rel="stylesheet" href="assets/monthly-credits-d38.css">
- <link rel="stylesheet" href="assets/companion-v1.css?v=2">
+ <link rel="stylesheet" href="assets/companion-v1.css?v=development-2">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — V1</title>
 </head>
@@ -95,7 +95,7 @@
  <section class="section"><h2>Dernières alertes</h2><div id="stock-alerts" class="stack"></div></section>
  </div>
     <div id="view-strategy" class="view hidden">
-      <div id="strategy-root"></div>
+      <div class="development-tabs" role="group" aria-label="Développement commercial"><button type="button" data-development="portfolio" class="active" aria-pressed="true">Portefeuille</button><button type="button" data-development="samples" aria-pressed="false">Échantillons</button></div><div id="strategy-root"></div><div id="sample-root" class="hidden"></div>
     </div>
     <div id="view-settings" class="view hidden"><div class="v1-tools-grid"><button type="button" data-nav="orders">Commandes<small>Ventes Odoo et détail des produits</small></button><button type="button" data-nav="stocks">Stocks<small>Disponibilités et alertes</small></button><button type="button" data-nav="archives">WhatsApp<small>Messages et vocaux archivés</small></button><button type="button" data-nav="strategy">Développement<small>Portefeuille et opportunités</small></button></div><details class="v1-disclosure" id="connection-options"><summary>Connexions et paramètres</summary><div class="v1-disclosure-body"><section id="connector-status-root" class="settings-card"></section><section class="settings-card"><h2>Connexions</h2><button type="button" class="inline-button" data-nav="tasks">Tâches et rappels →</button><button type="button" class="inline-button" data-nav="archives">Archives WhatsApp et vocaux →</button><button type="button" class="inline-button" data-nav="stocks">Stocks et notifications →</button><div class="setting-row"><span>Supabase Auth</span><strong class="green-text">Compte propriétaire</strong></div><div class="setting-row"><span>Odoo</span><strong id="odoo-state">Non interrogé</strong></div><div class="setting-row"><span>Kino • catalogue</span><strong id="kino-state">Non consulté</strong></div><div class="setting-row"><span>Import des historiques</span><strong>Archives privées connectées</strong></div><div class="setting-row"><span>Transcription des anciens audios</span><strong>Premier lot · plafond 1 $</strong></div></section><button id="odoo-probe" type="button" class="secondary-button">Vérifier l'accès Odoo en lecture seule</button><p id="odoo-probe-status" class="help" role="status" aria-live="polite">Test limité à l'authentification et aux droits de lecture. Aucune commande n'est modifiée.</p><button id="logout-bottom" type="button" class="secondary-button">Se déconnecter</button><p class="help">WeNeed Companion · V1</p></div></details></div>
    </section>
@@ -112,5 +112,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Plus</span></button>
   </nav>
  </div>
- <script src="assets/app-crm-d30.js?v=v1-5" type="module"></script>
+ <script src="assets/app-crm-d30.js?v=development-2" type="module"></script>
 </body></html>

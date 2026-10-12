@@ -1,3 +1,4 @@
+import {reactivationProfile} from './reactivation-v2.mjs';
 // Commercial strategy V1: financial metrics only from verified Odoo partner identities.
 // Relationship signals are explicitly activity indicators, not customer sentiment.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -169,9 +170,10 @@ export function buildStrategy(data,months=12,now=new Date().toISOString()){
    volumeStatus:'Volume non disponible : unités et lignes produit non consolidées',
    windowFrom:lower,windowTo:date(now)};
   p.recommendations=interpret(p,now);
+  p.reactivation=reactivationProfile(p,{generatedAt:v.checked_at,now});
   return p;
  });
- clients.sort((a,b)=>(b.recommendations[0]?.priority??9)-(a.recommendations[0]?.priority??9)||
+ clients.sort((a,b)=>(a.recommendations[0]?.priority??9)-(b.recommendations[0]?.priority??9)||
    (b.revenueHT??-1)-(a.revenueHT??-1)||a.name.localeCompare(b.name,'fr'));
  const attributable=clients.filter(c=>c.verifiedOdooLink&&c.odooAvailable);
  const sum=col=>money(attributable.reduce((a,c)=>a+(c[col]??0),0));

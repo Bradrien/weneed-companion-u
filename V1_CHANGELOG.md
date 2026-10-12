@@ -13,3 +13,12 @@ Les lectures de produits incluent les fiches archivées reliées aux ventes rete
 La déconnexion efface aussi les données commerciales rendues. Les brouillons de relance vérifient la session et le client après leur lecture et ne survivent pas à une déconnexion. Aucune écriture Odoo, émission de message, notification réelle ni nouvelle transcription audio n’est déclenchée par cette version.
 
 Validation : calculs et contrôles de provenance, scénarios de noms voisins et de variantes, lectures réelles authentifiées, parcours mobiles, mises en page de 320 à 1440 px, création d’action depuis le développement client, déconnexion et captures visuelles sur données synthétiques. Les pièces et réponses réelles restent privées.
+
+
+## Développement client — V2
+
+Le filtre À réactiver utilise les commandes positives attribuées à une identité Odoo vérifiée : plus de 1,65 fois l’intervalle médian entre achats, avec un minimum de 30 jours, ou 60 jours lorsque la cadence est insuffisante. Une source datant de plus de quinze minutes, un client non relié ou un historique absent ne produisent pas de recommandation de réactivation. Le tri général présente maintenant les actions prioritaires avant les secondaires. Le filtre Seconde commande isole les clients avec un seul achat positif observé.
+
+Le suivi des échantillons est privé et persistant. Il conserve le client exact, les produits et quantités saisis, l’objectif, les notes, le suivi colis et la prochaine relance. Les statuts et dates d’envoi/réception sont explicitement déclarés par l’utilisateur. Les dossiers restent consultables une fois terminés. Les dossiers dus peuvent être filtrés et chacun ouvre un brouillon de relance lié au même client, sans l’enregistrer automatiquement. Aucune réservation de stock, attribution de vente, commission ou expédition réelle n’est déclenchée. Une commande signalée dans le suivi reste distincte d’une commande confirmée dans Odoo.
+
+Les écritures vérifient le propriétaire côté serveur, le périmètre client et la version du dossier. Les reprises utilisent la même demande pour éviter les doublons après une réponse perdue. Les tables ne sont pas accessibles directement aux sessions anonymes ou authentifiées ; les RPC sont réservées au service autorisé. La déconnexion efface également les formulaires et données affichées, et invalide les réponses tardives.
