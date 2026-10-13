@@ -330,7 +330,7 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
    'Commission non disponible : '+estimate.reason;
  const comm=node('div','order-line-commission'+(estimate.status==='simulated'?' estimated':' pending'),commText);
  left.append(comm);
- if(l.sku||l.product_name){const stockButton=node('button','inline-button','Vérifier le stock');stockButton.type='button';stockButton.setAttribute('aria-label','Vérifier le stock de '+(l.product_name||l.sku));stockButton.onclick=()=>{stocks.search(l.sku||l.product_name,order.company);navigate('stocks')};left.append(stockButton)}
+ if(l.sku||l.product_name){const stockButton=node('button','inline-button','Vérifier le stock');stockButton.type='button';stockButton.setAttribute('aria-label','Vérifier le stock de '+(l.product_name||l.sku));stockButton.onclick=()=>{stocks.search(l.sku||l.nativeListingMatch?.catalog_sku||l.product_name,order.company);navigate('stocks')};left.append(stockButton)}
  if(estimate.status==='simulated')left.append(node('small','order-commission-flag',
    'Estimation Kino avant retours · coût catalogue actuel'));
  row.append(left,right);detail.append(row)}

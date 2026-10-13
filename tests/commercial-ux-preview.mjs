@@ -45,7 +45,7 @@ try{
    memory:{summary:'Contexte client de démonstration'},attention:{tasks:[{title:'Faire le point',description:'Préparer la prochaine commande',due_at:time}],open_task_count:1},activity:{recent:[]}}};
   else if(p.startsWith('/functions/v1/companion-api/clients/'))return route.fulfill(json({ok:false,error:'detail_unavailable'},503));
   else if(p==='/functions/v1/strategy-portfolio')response={ok:true,data:portfolio};
-  else if(p==='/functions/v1/stock-monitor')response={ok:true,data:{checked_at:time,stale:false,last_error:null,scan_interval_minutes:5,total:1,summary:[{company:'TR',products:1,out_of_stock:0}],items:[{company:'TR',product_id:7,sku:'PB/G/TR/250',product_name:'Peanut Butter 250-TR',unit:'Units',quantity_basis:'free_qty',available_quantity:3,on_hand_quantity:3,forecast_quantity:3,checked_at:time,watching:false}],alerts:[]}};
+  else if(p==='/functions/v1/stock-monitor')response={ok:true,data:{checked_at:time,stale:false,last_error:null,scan_interval_minutes:5,total:1,summary:[{company:'TR',products:1,out_of_stock:0},{company:'GTA',products:0,out_of_stock:0}],items:[{company:'TR',product_id:7,sku:'PB/G/TR/250',product_name:'Peanut Butter 250-TR',unit:'Units',quantity_basis:'free_qty',available_quantity:3,on_hand_quantity:3,forecast_quantity:3,checked_at:time,watching:false}],alerts:[]}};
   else if(p==='/functions/v1/companion-tasks'){
    if(req.method()==='GET')taskReads.push(u);
    if(req.method()==='POST'){const body=req.postDataJSON();posts.push(body);tasks=[{id:taskId,...body.payload,client_name:client.canonical_name,status:'OPEN',is_suggested:false,
