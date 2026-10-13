@@ -54,7 +54,7 @@ export function filteredOrders(report,{company='ALL',state='all',query='',onlyRe
   if(company!=='ALL'&&o.company!==company)return false;
   if(state==='confirmed'&&!['sale','done'].includes(o.state))return false;
   if(state==='excluded'&&['sale','done'].includes(o.state))return false;
-  if(onlyReview&&!(o.issues||[]).length)return false;
+  if(onlyReview&&!o.needsReview&&!(o.issues||[]).length)return false;
   if(!term)return true;
   return [o.reference,o.client,o.company,o.salesperson,...o.lines.map(l=>l.sku+' '+l.product_name)]
    .join(' ').toLocaleLowerCase('fr').includes(term);

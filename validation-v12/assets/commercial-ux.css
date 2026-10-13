@@ -1,0 +1,61 @@
+/* Commercial mobile usability: retain the Companion brand and native controls. */
+:root{--commercial-secondary:#4f6758;--commercial-focus:#3569a8}
+.metric-action{text-align:left;color:inherit;font:inherit;position:relative}
+.metric-action::after{content:'↗';position:absolute;right:12px;top:12px;font-size:13px;color:var(--commercial-secondary)}
+.metric-action.dark::after{color:#d0e5d7}
+.review-action{width:100%;text-align:left;color:inherit;font:inherit}
+#page-title:focus{outline:none}
+html{scroll-padding-top:calc(92px + env(safe-area-inset-top,0px))}
+.topbar{
+ height:auto;min-height:calc(76px + env(safe-area-inset-top,0px));
+ padding:calc(12px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) 12px max(20px,env(safe-area-inset-left,0px));
+}
+main{
+ padding-left:max(18px,env(safe-area-inset-left,0px));
+ padding-right:max(18px,env(safe-area-inset-right,0px));
+ padding-bottom:calc(116px + env(safe-area-inset-bottom,0px));
+}
+.bottom-nav{
+ height:auto;min-height:calc(69px + env(safe-area-inset-bottom,0px));
+ padding-left:max(8px,env(safe-area-inset-left,0px));
+ padding-right:max(8px,env(safe-area-inset-right,0px));
+}
+button{min-height:44px;min-width:44px}
+.inline-button{min-height:44px;padding:10px 8px;white-space:normal;line-height:1.35;text-align:center}
+.task-actions button,.sample-actions button,.segmented button{min-height:44px}
+summary{min-height:44px;line-height:1.4}
+.sample-detail>summary,.sample-more>summary{padding:12px 0}
+.section-heading{flex-wrap:wrap;align-items:center}
+.section-heading>div,.stock-card>summary .section-heading>h3{min-width:0}
+.section-heading h2,.section-heading h3{overflow-wrap:anywhere}
+.help,.order-meta,.order-value small,.detail-sub,.detail-kind,.result-count,.client-mini,
+.metric .metric-label,.metric small,.setting-row strong,.commission-month-metric small{
+ color:var(--commercial-secondary);font-size:12px;line-height:1.5;
+}
+.metric.dark .metric-label,.metric.dark small{color:#d0e5d7}
+.commission-hero .help,.client-profile .help{color:#d0e5d7}
+.nav-button{color:#4f6758;line-height:1.25}
+.order-customer,.pipeline-order-client,.client-name{white-space:normal;overflow-wrap:anywhere}
+.client-sub{-webkit-line-clamp:unset;display:block;overflow:visible;overflow-wrap:anywhere}
+.metric strong,.commission-month-metric>strong{white-space:normal;overflow-wrap:anywhere;line-height:1.15}
+.order-value strong,.detail-value{white-space:normal;overflow-wrap:anywhere}
+.stock-card>summary .section-heading>strong{flex-shrink:0;font-size:14px}
+.stock-card>summary .help{margin-bottom:0}
+.stock-card>summary:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible,
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+ outline:3px solid var(--commercial-focus);outline-offset:3px;
+}
+.task-editor,.sample-editor,.strategy-detail{scroll-margin-top:calc(92px + env(safe-area-inset-top,0px))}
+@media(min-width:760px){
+ .topbar{padding-left:max(40px,env(safe-area-inset-left,0px));padding-right:max(40px,env(safe-area-inset-right,0px))}
+ main{padding-left:max(40px,env(safe-area-inset-left,0px));padding-right:max(40px,env(safe-area-inset-right,0px))}
+}
+@media(max-width:359px){
+ main{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+ .nav-button{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+ .spinner{border-color:#b3d8c1;border-top-color:#0c7546}
+}

@@ -1,13 +1,14 @@
+import {createNavigation} from './navigation-ux.mjs?v=1';
 import {createSamples} from './samples-v2.mjs?v=development-4';
 import {createConnectorStatus} from './connectors-d34.mjs';
-import {createTasks} from './tasks-d36.mjs?v=v1-1';
+import {createTasks} from './tasks-d36.mjs?v=commercial-ux-1';
 import {createArchives} from './archives-d35.mjs';
 import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=v1-4';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs?v=v1-1';
-import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=3';
-import {presentPipelineOrder} from './order-view-v1.mjs?v=2';
-import {createStocks} from './stocks-d34.mjs?v=stock-watches-1';
+import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=commercial-ux-1';
+import {presentPipelineOrder} from './order-view-v1.mjs?v=commercial-ux-1';
+import {createStocks} from './stocks-d34.mjs?v=commercial-ux-1';
 import {createRequestGuard} from './request-guard.mjs';
 import {createRefreshGate} from './auth-guard.mjs';
 import {normalizeClientList,normalizeClientCard,normalizeCrmDashboard,validClientId} from './clients-model-d14.mjs';
@@ -18,7 +19,7 @@ import {normalizeOdooCandidates} from './client-candidates-d15.mjs';
 import {API_BASE,SUPABASE_PUBLISHABLE_KEY as KEY} from './config.js';
 import {catalogLineDetail,renderCatalogCommissions,renderReconciliationAudit} from './reconciliation-d7.mjs';
 import {renderCommissionScenario} from './commission-scenario-ui-d30.mjs?v=rules-1';
-import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs';
+import {formatMoney,statusText,lineText,shortDate,monthOf,prevCompleteMonth,assertReport,filteredOrders,deriveStats,isDateRangeValid} from './model.mjs?v=commercial-ux-1';
 const $=x=>document.getElementById(x);
 const state={access:null,refresh:null,exp:0,report:null,view:(()=>{const v=new URL(location.href).searchParams.get('view');return ['home','orders','clients','commissions','stocks','archives','strategy','tasks','settings'].includes(v)?v:'home'})(),period:monthOf(new Date()),company:'ALL',orderState:'all',query:'',page:1,expanded:new Set(),loading:false,refreshTimer:null};
 const STORE='weneed_v1_ephemeral_session';
@@ -29,6 +30,29 @@ const odooProbeRequests=createRequestGuard();
 const dashboard={data:null,loading:false,error:''};
 const clients={rows:null,query:'',selected:null,detail:null,full:null,fullError:'',history:null,historyError:'',historyLoading:false,historyPartner:null,linkCandidate:null,linkSubmitting:false,linkError:'',candidates:null,candidateLoading:false,candidateError:'',candidatePartner:null,loading:false,error:'',timer:null};
 const refreshGate=createRefreshGate();
+const navigation=createNavigation({onRestore:async (route,isCurrent)=>{
+ if(!state.access)return;
+ if(route.view==='clients'){
+  if(route.client){await openClient(route.client,{history:false});}
+  else clearClientSelection();
+ }
+ if(!isCurrent())return;
+ navigate(route.view,{history:false});
+ window.scrollTo({top:route.scroll,behavior:'instant'});
+}});
+function focusPage(){const title=$('page-title');title.focus({preventScroll:true})}
+function clearClientSelection(){
+ archives.close();clientRequests.invalidate();
+ Object.assign(clients,{selected:null,detail:null,full:null,fullError:'',history:null,historyPartner:null,historyLoading:false,historyError:'',linkCandidate:null,linkSubmitting:false,linkError:'',candidates:null,candidateLoading:false,candidateError:'',candidatePartner:null,loading:false,error:''});
+}
+function openOrders({status='all',query='',company='ALL',orderId=null}={}){
+ state.company=company;state.orderState=status;state.query=query;state.page=1;state.expanded=new Set(orderId===null?[]:[String(orderId)]);
+ $('order-search').value=query;$('status-select').value=status;
+ document.querySelectorAll('[data-company]').forEach(b=>{b.classList.toggle('active',b.dataset.company===company);b.setAttribute('aria-pressed',String(b.dataset.company===company))});
+ navigate('orders');
+}
+function openAllTasks(query=''){if(tasks.focusList(query))navigate('tasks')}
+
 const lineCommissionCache={report:null,index:null};
 function commissionIndex(){if(lineCommissionCache.report!==state.report){lineCommissionCache.report=state.report;lineCommissionCache.index=buildOrderLineCommissions(state.report)}return lineCommissionCache.index}
 const stocks=createStocks({isActive:()=>state.view==='stocks',isAuthenticated:()=>!!state.access,request:async(suffix,init={})=>{const jwt=await ensureToken();const response=await authFetch('/functions/v1/stock-monitor'+suffix,{...init,headers:{authorization:'Bearer '+jwt}});const body=await response.json();if(!response.ok||!body.ok)throw Error(body.error||'stock_unavailable');return body;}});
@@ -137,7 +161,7 @@ function setNotice(message,type='info'){$('notice-text').textContent=message;$('
 function loading(on){state.loading=on;$('loading').classList.toggle('hidden',!on);$('reload').disabled=on}
 function getStored(){try{const s=JSON.parse(sessionStorage.getItem(STORE)||'null');return s&&typeof s.access==='string'&&typeof s.refresh==='string'&&Number.isFinite(s.exp)?s:null}catch{return null}}
 function saveSession(data){state.access=data.access_token;state.refresh=data.refresh_token;state.exp=Math.floor(Date.now()/1000)+(data.expires_in||3600);try{sessionStorage.setItem(STORE,JSON.stringify({access:state.access,refresh:state.refresh,exp:state.exp}))}catch{}scheduleRefresh()}
-function forget(){samples.reset();developmentMode='portfolio';$('strategy-root').classList.remove('hidden');$('sample-root').classList.add('hidden');document.querySelectorAll('[data-development]').forEach(b=>{b.classList.toggle('active',b.dataset.development==='portfolio');b.setAttribute('aria-pressed',String(b.dataset.development==='portfolio'))});resetInterface();connectorStatus.reset();tasks.reset();odooQuotes.reset();strategy.reset();archives.reset();stocks.reset();refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();for(const id of ['client-detail','clients-list','metrics','recent-orders','review-cues','crm-stats','crm-attention','commission-facts','commission-scenario','commission-review','commission-audit','orders-list'])$(id)?.replaceChildren();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
+function forget(){navigation.reset();samples.reset();developmentMode='portfolio';$('strategy-root').classList.remove('hidden');$('sample-root').classList.add('hidden');document.querySelectorAll('[data-development]').forEach(b=>{b.classList.toggle('active',b.dataset.development==='portfolio');b.setAttribute('aria-pressed',String(b.dataset.development==='portfolio'))});resetInterface();connectorStatus.reset();tasks.reset();odooQuotes.reset();strategy.reset();archives.reset();stocks.reset();refreshGate.invalidate();reportRequests.invalidate();clientRequests.invalidate();dashboardRequests.invalidate();odooProbeRequests.invalidate();$('odoo-probe-status').textContent='Test non lancé.';$('odoo-probe').disabled=false;dashboard.data=null;dashboard.loading=false;dashboard.error='';if(clients.timer)clearTimeout(clients.timer);clients.query='';$('client-search').value='';clients.rows=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.selected=null;clients.error='';clients.loading=false;loading(false);state.access=null;state.refresh=null;state.exp=0;state.report=null;state.expanded.clear();for(const id of ['client-detail','clients-list','metrics','recent-orders','review-cues','crm-stats','crm-attention','commission-facts','commission-scenario','commission-review','commission-audit','orders-list','home-opportunities'])$(id)?.replaceChildren();if(state.refreshTimer)clearTimeout(state.refreshTimer);try{sessionStorage.removeItem(STORE)}catch{}}
 function scheduleRefresh(){if(state.refreshTimer)clearTimeout(state.refreshTimer);if(!state.access||!state.refresh)return;const ms=Math.max(25000,Math.min((state.exp*1000-Date.now()-85000),2147483647));state.refreshTimer=setTimeout(()=>refreshTokens().catch(()=>{}),ms)}
 async function authFetch(path,init={}){return fetch(API_BASE+path,{...init,headers:{...publicHeaders,...(init.headers||{})},cache:'no-store',redirect:'error'})}
 async function refreshTokens(){
@@ -257,26 +281,39 @@ async function loadReport(){
 }
 function changeMonth(delta){reportRequests.invalidate();loading(false);const y=Number(state.period.from.slice(0,4)),m=Number(state.period.from.slice(5,7))-1;state.period=monthOf(new Date(y,m+delta,1));state.report=null;state.page=1;state.expanded.clear();updatePeriod();renderViews();odooQuotes.selectMonth(state.period.from.slice(0,7));if(['home','orders'].includes(state.view))loadReport();}
 function updatePeriod(){$('period-label').textContent=state.period.label}
-function navigate(view){if(!['home','orders','clients','commissions','stocks','archives','strategy','tasks','settings'].includes(view))return;if(view!==state.view)archives.close();state.view=view;document.querySelector('.month-toolbar').classList.toggle('hidden',!['home','orders'].includes(view));$('notice').classList.toggle('hidden',['stocks','archives','strategy','tasks'].includes(view)||view!=='orders'&&!$('notice').classList.contains('error')&&!$('notice').classList.contains('warn'));const names={tasks:['ACTIONS','Tâches et rappels','Créer, reporter et terminer tes actions commerciales.'],strategy:['DÉVELOPPEMENT','Développer tes clients','Relances, rythme d’achat et opportunités GTA / TR.'],archives:['WHATSAPP','Archives clients','Vos conversations archivées, avec les vocaux originaux.'],stocks:['DISPONIBILITÉ','Stocks','Stocks TR / GTA et alertes sur ton téléphone.'],home:['TON ACTIVITÉ','Aujourd’hui','Les chiffres utiles et les clients à suivre.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['TON PORTEFEUILLE','Clients','Contacts, achats et prochaine action.'],commissions:['TON BILAN','Commissions','Estimations du mois, retours et détails de calcul.'],settings:['OUTILS','Plus','Stocks, archives et paramètres.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));document.querySelectorAll('#bottom-nav [data-nav]').forEach(el=>{if(el.dataset.nav===view)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')});window.scrollTo({top:0,behavior:'instant'});renderViews();if(view==='settings')connectorStatus.open();if(view==='tasks')tasks.open();if(view==='stocks')stocks.open();if(view==='archives')archives.open();if(view==='strategy')switchDevelopment(developmentMode);if(view==='commissions')odooQuotes.load();if(view==='clients'&&!clients.loading){if(clients.selected&&!clients.detail)openClient(clients.selected);else if(!clients.selected&&clients.rows===null)loadClients();}if(view==='home'){if(dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard();if(odooQuotes.snapshot().month!==state.period.from.slice(0,7))odooQuotes.selectMonth(state.period.from.slice(0,7));else odooQuotes.load()}if(view==='orders'){if(odooQuotes.snapshot().month!==state.period.from.slice(0,7))odooQuotes.selectMonth(state.period.from.slice(0,7));else odooQuotes.load(!odooQuotes.snapshot().available);if(!odooQuotes.snapshot().available&&!state.report&&!state.loading)loadReport()}}
-function metric(label,value,sub,{dark=false,small=false}={}){const el=node('article','metric'+(dark?' dark':''));el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));return el}
+function navigate(view,{history=true}={}){if(!['home','orders','clients','commissions','stocks','archives','strategy','tasks','settings'].includes(view))return;const changed=view!==state.view;if(history)navigation.write(view,clients.selected);if(changed)archives.close();state.view=view;document.querySelector('.month-toolbar').classList.toggle('hidden',!['home','orders'].includes(view));$('notice').classList.toggle('hidden',['stocks','archives','strategy','tasks'].includes(view)||view!=='orders'&&!$('notice').classList.contains('error')&&!$('notice').classList.contains('warn'));const names={tasks:['ACTIONS','Tâches et rappels','Créer, reporter et terminer tes actions commerciales.'],strategy:['DÉVELOPPEMENT','Développer tes clients','Relances, rythme d’achat et opportunités GTA / TR.'],archives:['WHATSAPP','Archives clients','Vos conversations archivées, avec les vocaux originaux.'],stocks:['DISPONIBILITÉ','Stocks','Stocks TR / GTA et alertes sur ton téléphone.'],home:['TON ACTIVITÉ','Aujourd’hui','Les chiffres utiles et les clients à suivre.'],orders:['COMMERCIAL','Commandes Odoo','Les ventes et leurs lignes, directement depuis Odoo.'],clients:['TON PORTEFEUILLE','Clients','Contacts, achats et prochaine action.'],commissions:['TON BILAN','Commissions','Estimations du mois, retours et détails de calcul.'],settings:['OUTILS','Plus','Stocks, archives et paramètres.']};$('page-eyebrow').textContent=names[view][0];$('page-title').textContent=names[view][1];$('page-subtitle').textContent=names[view][2];document.querySelectorAll('.view').forEach(el=>el.classList.toggle('hidden',el.id!==`view-${view}`));document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===view));document.querySelectorAll('#bottom-nav [data-nav]').forEach(el=>{if(el.dataset.nav===view)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')});window.scrollTo({top:0,behavior:'instant'});renderViews();if(changed)focusPage();if(view==='settings')connectorStatus.open();if(view==='tasks')tasks.open();if(view==='stocks')stocks.open();if(view==='archives')archives.open();if(view==='strategy')switchDevelopment(developmentMode);if(view==='commissions')odooQuotes.load();if(view==='clients'&&!clients.loading){if(clients.selected&&!clients.detail)openClient(clients.selected);else if(!clients.selected&&clients.rows===null)loadClients();}if(view==='home'){if(dashboard.data===null&&!dashboard.loading&&!dashboard.error)loadDashboard();if(odooQuotes.snapshot().month!==state.period.from.slice(0,7))odooQuotes.selectMonth(state.period.from.slice(0,7));else odooQuotes.load()}if(view==='orders'){if(odooQuotes.snapshot().month!==state.period.from.slice(0,7))odooQuotes.selectMonth(state.period.from.slice(0,7));else odooQuotes.load(!odooQuotes.snapshot().available);if(!odooQuotes.snapshot().available&&!state.report&&!state.loading)loadReport()}}
+function metric(label,value,sub,{dark=false,small=false,onOpen=null}={}){
+ const el=node(onOpen?'button':'article','metric'+(dark?' dark':'')+(onOpen?' metric-action':''));
+ el.append(node('span','metric-label',label),node('strong',small?'small':'',value),node('small','',sub));
+ if(onOpen){el.type='button';el.setAttribute('aria-label',label+' : '+value+'. '+sub);el.addEventListener('click',onOpen)}return el;
+}
 function renderStats(){
  const snapshot=odooQuotes.snapshot(),sameMonth=snapshot.month===state.period.from.slice(0,7);
  const group=snapshot.available&&sameMonth?snapshot.confirmed:null;
  const stats=deriveStats(state.report?.orders||[]),grid=$('metrics');clear(grid);
  const balance=snapshot.recorded,net=group&&balance?.available?balance.netCents/100:group?.forecast;
- grid.append(metric('Commandes confirmées',group?String(group.count):state.report?String(stats.confirmed):'—','Sur le mois choisi'),
-  metric('CA HT confirmé',group&&snapshot.revenue?.amountKnown?formatMoney(snapshot.revenue.amountHT,snapshot.revenue.amountCurrency):group?.count===0?formatMoney(0,'EUR'):state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Ventes, hors commission',{small:true}),
+ grid.append(metric('Commandes confirmées',group?String(group.count):state.report?String(stats.confirmed):'—','Voir les ventes du mois',{onOpen:()=>openOrders({status:'confirmed'})}),
+  metric('CA HT confirmé',group&&snapshot.revenue?.amountKnown?formatMoney(snapshot.revenue.amountHT,snapshot.revenue.amountCurrency):group?.count===0?formatMoney(0,'EUR'):state.report&&stats.sourceAmount!==null?formatMoney(stats.sourceAmount,stats.sourceCurrency):'—','Voir les ventes, hors commission',{small:true,onOpen:()=>openOrders({status:'confirmed'})}),
   metric('Commissions estimées',typeof net==='number'?formatMoney(net,'EUR'):'—',
    group?(balance?.available?'Après retours enregistrés · avoirs à consulter':'Avant retours · estimation partielle'):
-    snapshot.stale?'Lecture à actualiser':snapshot.loading?'Lecture en cours':'Ouvrir le bilan pour vérifier',{dark:true,small:true}),
-  metric('Actions en retard',dashboard.data?String(dashboard.data.overdue):'—','À retrouver dans Actions'));
+    snapshot.stale?'Lecture à actualiser':snapshot.loading?'Lecture en cours':'Ouvrir le bilan pour vérifier',{dark:true,small:true,onOpen:()=>{odooQuotes.selectMonth(state.period.from.slice(0,7));navigate('commissions')}}),
+  metric('Actions en retard',dashboard.data?String(dashboard.data.overdue):'—','Ouvrir les actions à faire',{onOpen:()=>openAllTasks()}));
+ const opportunities=$('home-opportunities');opportunities.replaceChildren();
+ if(group){
+  const review=group.orders.filter(o=>o.partial||o.issues.length||o.forecast===null).length;
+  opportunities.append(metric('Devis en cours',String(snapshot.pending.count),'Ouvrir les devis non confirmés',{onOpen:()=>openOrders({status:'excluded'})}),
+   metric('Potentiel des devis',snapshot.pending.forecast===null?'—':formatMoney(snapshot.pending.forecast,'EUR'),'Estimation partielle · non confirmée',{onOpen:()=>{odooQuotes.selectMonth(state.period.from.slice(0,7));navigate('commissions')}}),
+   metric('Commandes à vérifier',String(review),'Couverture ou montant incomplet',{onOpen:()=>openOrders({status:'review'})}));
+ }
  const homeStatus=$('home-source-status');if(homeStatus)homeStatus.textContent=snapshot.stale?'Chiffres à actualiser.':snapshot.error?'Chiffres Odoo indisponibles. Ouvre Commissions pour réessayer.':group?'Mis à jour à '+new Date(snapshot.readAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · estimations partielles':'';
  const list=state.report?.orders||[],c=$('commission-facts');clear(c);c.append(metric('GTA • confirmées',state.report?String(list.filter(o=>o.company==='GTA'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('TR • confirmées',state.report?String(list.filter(o=>o.company==='TR'&&['sale','done'].includes(o.state)).length):'—','Calcul en attente'),metric('À exclure',state.report?String(stats.excluded):'—','Annulées, brouillons et autres'),metric('Commissions validées','—','Rapprochement Kino requis',{dark:true,small:true}));
 }
-function orderCard(order){const outer=node('article','order-card');const btn=node('button','order-button');btn.type='button';btn.setAttribute('aria-expanded',state.expanded.has(String(order.id))?'true':'false');btn.setAttribute('aria-label',`Voir les lignes de ${order.reference||'commande'}`);
+function orderCard(order){const outer=node('article','order-card');const btn=node('button','order-button');btn.type='button';btn.dataset.order=String(order.id);btn.setAttribute('aria-expanded',state.expanded.has(String(order.id))?'true':'false');btn.setAttribute('aria-label',`Voir les lignes de ${order.reference||'commande'}`);
  const left=node('div');const top=node('div','order-topline');top.append(node('span','reference',order.reference||'Sans référence'),node('span','company-chip'+(order.company==='TR'?' tr':''),order.company));left.append(top,node('span','order-customer',order.client||'Client non renseigné'),node('span','order-meta',shortDate(order.date)+' · '+(order.salesperson||'Commercial indisponible')));
  const right=node('div','order-value');right.append(node('strong','',formatMoney(order.amount_ht,order.currency||'EUR')));let suffix=statusText(order.state);const b=node('small','',suffix+(order.issues?.length?' · À contrôler':''));right.append(b);btn.append(left,right);outer.append(btn);
- if(state.expanded.has(String(order.id))){const detail=node('div','order-details');const flagrow=node('div');for(const flag of (order.issues||[]))flagrow.append(node('span','flag',flagLabel(flag)));detail.append(flagrow);if(!order.lines.length)detail.append(node('div','empty','Aucune ligne retournée pour cette commande.'));
+ if(state.expanded.has(String(order.id))){const detail=node('div','order-details');const flagrow=node('div');for(const flag of (order.issues||[]))flagrow.append(node('span','flag',flagLabel(flag)));detail.append(flagrow);const clientButton=node('button','inline-button','Rechercher ce client');clientButton.type='button';clientButton.onclick=()=>{
+ clearClientSelection();clients.query=(order.client||'').slice(0,120);$('client-search').value=clients.query;clients.rows=null;navigate('clients');
+ };detail.append(clientButton);if(!order.lines.length)detail.append(node('div','empty','Aucune ligne retournée pour cette commande.'));
  for(const l of order.lines){const row=node('div','detail-row');const left=node('div');left.append(node('div','detail-product',l.product_name||'Produit non renseigné'),node('div','detail-sub',(l.sku||'Sans SKU')+' · Quantité : '+fmtNumber(l.quantity)+' · PU : '+formatMoney(l.unit_price,order.currency||'EUR')+' · Remise : '+fmtNumber(l.discount_pct)+' %'));
  const cd=catalogLineDetail(l.catalog_match);
  if(cd)left.append(node('div','detail-match'+(l.catalog_match?.status==='matched'?' success':' warn'),cd));
@@ -293,6 +330,7 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
    'Commission non disponible : '+estimate.reason;
  const comm=node('div','order-line-commission'+(estimate.status==='simulated'?' estimated':' pending'),commText);
  left.append(comm);
+ if(l.sku||l.product_name){const stockButton=node('button','inline-button','Vérifier le stock');stockButton.type='button';stockButton.setAttribute('aria-label','Vérifier le stock de '+(l.product_name||l.sku));stockButton.onclick=()=>{stocks.search(l.sku||l.product_name,order.company);navigate('stocks')};left.append(stockButton)}
  if(estimate.status==='simulated')left.append(node('small','order-commission-flag',
    'Estimation Kino avant retours · coût catalogue actuel'));
  row.append(left,right);detail.append(row)}
@@ -303,7 +341,7 @@ function orderCard(order){const outer=node('article','order-card');const btn=nod
   (matched&&matched.simulatedLines>0?`Commission simulée partielle : ${formatMoney(matched.amount,'EUR')} · ${matched.simulatedLines} ligne(s), ${matched.excludedLines} exclue(s)`:
   'Commission non calculable sur ces lignes')));
  detail.append(foot);outer.append(detail)}
- btn.addEventListener('click',()=>{const key=String(order.id);if(state.expanded.has(key))state.expanded.delete(key);else state.expanded.add(key);renderViews()});return outer}
+ btn.addEventListener('click',()=>{const key=String(order.id);if(state.expanded.has(key))state.expanded.delete(key);else state.expanded.add(key);if(state.view==='home')renderHome();else renderOrders();const target=[...$(state.view==='home'?'recent-orders':'orders-list').querySelectorAll('.order-button')].find(b=>b.dataset.order===key);target?.focus({preventScroll:true})});return outer}
 function flagLabel(k){return({unconfirmed_or_cancelled:'Commande non confirmée',confirmed_zero_ht_review:'HT confirmé à zéro',incomplete_source_amount:'Montant incomplet',lines_total_mismatch:'Écart de total HT',manual_line_review:'Ligne à vérifier',sample_policy_to_confirm:'Échantillon à vérifier',missing_client:'Client manquant',catalog_match_review:'SKU absent ou ambigu dans Kino',catalog_zero_price_review:'Coût/prix Kino à 0 €'})[k]||'Contrôle nécessaire'}
 function fmtNumber(v){return typeof v==='number'&&Number.isFinite(v)?new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(v):'—'}
 function renderHome(){
@@ -315,26 +353,27 @@ function renderHome(){
   for(const o of rows){const button=node('button','client-row');button.type='button';button.append(node('span','client-name',o.client),
    node('span','client-sub',o.reference+' · '+o.company+' · '+shortDate(o.date)),
    node('span','client-mini',formatMoney(o.amountHT,o.currency)+' HT · '+(o.forecast===null?'Commission à vérifier':formatMoney(o.forecast,'EUR')+' estimés')));
-   button.onclick=()=>{navigate('commissions');odooQuotes.openOrder(o.id)};rec.append(button)}
+   button.onclick=()=>openOrders({query:o.reference,orderId:o.id});rec.append(button)}
   const points=snapshot.confirmed.orders.filter(o=>o.issues.length||o.partial);
-  for(const o of points.slice(0,4))review.append(cue(o.reference,o.company+' · '+o.unmatchedLines+' ligne(s) à rapprocher'));
+  for(const o of points.slice(0,4))review.append(cue(o.reference,o.company+' · '+o.unmatchedLines+' ligne(s) à rapprocher',()=>openOrders({query:o.reference,orderId:o.id})));
   if(!points.length)review.append(empty('Aucun point bloquant signalé sur cette lecture.'));return;
  }
  if(!state.report){rec.append(empty(snapshot.loading?'Lecture des commandes…':'Les commandes apparaîtront après la lecture Odoo.'));review.append(empty('Lecture Odoo nécessaire.'));return}
  for(const o of state.report.orders.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,3))rec.append(orderCard(o));
- for(const o of state.report.orders.filter(o=>(o.issues||[]).length).slice(0,4))review.append(cue(o.reference,o.issues.map(flagLabel).join(', ')));
+ for(const o of state.report.orders.filter(o=>(o.issues||[]).length).slice(0,4))review.append(cue(o.reference,o.issues.map(flagLabel).join(', '),()=>openOrders({query:o.reference,orderId:o.id})));
 }
 
-function cue(title,subtitle){const e=node('div','review-item');const left=node('div');left.append(node('h3','',title),node('span','',subtitle));e.append(left,node('span','','›'));return e}
+function cue(title,subtitle,onOpen){const e=node(onOpen?'button':'div','review-item'+(onOpen?' review-action':''));if(onOpen){e.type='button';e.onclick=onOpen;}const left=node('div');left.append(node('h3','',title),node('span','',subtitle));e.append(left,node('span','','›'));return e}
 function empty(msg){return node('div','empty',msg)}
 function renderOrders(){
  const list=$('orders-list');clear(list);
  const snapshot=odooQuotes.snapshot(),fresh=snapshot.available&&snapshot.month===state.period.from.slice(0,7);
  const source=fresh?{orders:[...snapshot.confirmed.orders,...snapshot.pending.orders].map(presentPipelineOrder)}:state.report;
- const subset=filteredOrders(source,{company:state.company,state:state.orderState,query:state.query});
+ const subset=filteredOrders(source,{company:state.company,state:state.orderState==='review'?'confirmed':state.orderState,query:state.query,onlyReview:state.orderState==='review'});
  $('orders-count').textContent=source?`${subset.length} commande(s) trouvée(s)`:'Lecture des commandes';
  if(!source){list.append(empty(snapshot.loading?'Lecture Odoo…':'Actualise la période avec le bouton ↻ pour consulter les commandes.'));$('load-more').classList.add('hidden');return}
- if(!subset.length)list.append(empty('Aucune commande correspondant à ces filtres.'));
+ if(!subset.length){list.append(empty('Aucune commande correspondant à ces filtres.'));const reset=node('button','secondary-button','Effacer les filtres');reset.type='button';reset.onclick=()=>openOrders();list.append(reset)}
+ if(fresh)$('orders-count').textContent+=' · Commandes confirmées et devis · annulations hors de cette lecture';
  for(const o of subset.slice(0,15*state.page))list.append(orderCard(o));$('load-more').classList.toggle('hidden',subset.length<=15*state.page)}
 function warningInFrench(v){return ({
  'Kino rules have not been verified: NO commission calculation':'Rapport de contrôle sans calcul final ; consulter le bilan Kino et les déductions de retour',
@@ -346,15 +385,8 @@ function warningInFrench(v){return ({
  'Some confirmed products lack an Odoo SKU':'Certaines lignes Odoo n’ont pas de SKU',
  'Matched Kino products include zero catalogue prices or costs':'Des coûts ou prix du catalogue Kino sont à zéro'
  })[v]||'Contrôle supplémentaire nécessaire';}
-function openAuditOrder(order){
- if(!order?.reference||!state.report)return;
- state.company='ALL';state.orderState='all';state.query=order.reference;state.page=1;
- state.expanded=new Set([String(order.id)]);
- $('order-search').value=order.reference;
- $('status-select').value='all';
- document.querySelectorAll('[data-company]').forEach(button=>button.classList.toggle('active',button.dataset.company==='ALL'));
- navigate('orders');
-}
+function openAuditOrder(order){if(order?.reference)openOrders({query:order.reference,orderId:order.id})}
+
 function renderCommissions(){renderCommissionScenario(state.report,$('commission-scenario'),{onOpenOrder:openAuditOrder});renderCatalogCommissions(state.report,$('commission-review'),{empty,warningInFrench,fmtNumber});renderReconciliationAudit(state.report,$('commission-audit'),{empty,fmtNumber,onOpenOrder:openAuditOrder})}
 
 
@@ -378,10 +410,10 @@ function renderDashboard(){
  if(dashboard.error){attention.append(empty(dashboard.error));return}
  const d=dashboard.data;
  if(!d){attention.append(empty('Résumé CRM non chargé.'));return}
- stats.append(metric('Clients CRM',String(d.clients),'Fiches existantes'),
-  metric('À suivre',String(d.attentionCount),'Clients nécessitant une action'),
-  metric('Tâches actives',String(d.tasks),'Actions en cours'),
-  metric('En retard',String(d.overdue),'Actions à examiner',{dark:true}));
+ stats.append(metric('Clients CRM',String(d.clients),'Ouvrir le portefeuille',{onOpen:()=>{clearClientSelection();navigate('clients')}}),
+  metric('À suivre',String(d.attentionCount),'Développer le portefeuille',{onOpen:()=>navigate('strategy')}),
+  metric('Tâches actives',String(d.tasks),'Ouvrir les actions à faire',{onOpen:()=>openAllTasks()}),
+  metric('En retard',String(d.overdue),'Ouvrir les actions à faire',{dark:true,onOpen:()=>openAllTasks()}));
  if(!d.attention.length&&!d.unassigned.length){attention.append(empty('Aucun élément prioritaire dans le CRM.'));return}
  for(const client of d.attention.slice(0,5)){
   const btn=node('button','client-row');btn.type='button';
@@ -390,7 +422,7 @@ function renderDashboard(){
   attention.append(btn);
  }
  for(const task of d.unassigned.slice(0,3)){
-  const item=node('div','review-item');
+  const item=node('button','review-item review-action');item.type='button';item.onclick=()=>openAllTasks(task.title);
   item.append(node('span','',task.title||'Tâche à examiner'),node('strong','',task.dueAt?shortDate(task.dueAt):'Sans échéance'));
   attention.append(item);
  }
@@ -416,9 +448,11 @@ async function loadClients(){
   clients.rows=null;clients.error='Impossible de charger la liste des clients. Réessaie.';
  }finally{if(clientRequests.isCurrent(ticket)){clients.loading=false;renderClients()}}
 }
-async function openClient(clientId){
+async function openClient(clientId,{history=true}={}){
  if(!validClientId(clientId)||!state.access)return;
  archives.close();
+ if(history&&state.view==='clients')navigation.write('clients',clientId);
+ focusPage();
  const ticket=clientRequests.begin();
  clients.selected=clientId;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.error='';clients.loading=true;renderClients();
  try{
@@ -809,7 +843,7 @@ function clientPeriodOrders(name){
  const report=state.report;
  if(!report){
   section.append(node('p','client-source-warning',
-   'Aucune période Odoo chargée. Appuie sur ↻ pour consulter les commandes du mois sélectionné.'));
+   'Commandes du mois non chargées pour ce dossier.'));const load=node('button','secondary-button',state.loading?'Chargement…':'Charger les commandes · '+state.period.label);load.type='button';load.disabled=state.loading;load.onclick=()=>loadReport();section.append(load);
   return section;
  }
  section.append(node('p','client-provenance',
@@ -858,7 +892,7 @@ function renderClients(){
  if(inDetail){
   count.textContent='';
   const back=node('button','secondary-button','← Retour aux clients');
-  back.type='button';back.addEventListener('click',()=>{archives.close();clientRequests.invalidate();clients.selected=null;clients.detail=null;clients.full=null;clients.fullError='';clients.history=null;clients.historyPartner=null;clients.historyLoading=false;clients.historyError='';clients.linkCandidate=null;clients.linkSubmitting=false;clients.linkError='';clients.candidates=null;clients.candidateLoading=false;clients.candidateError='';clients.candidatePartner=null;clients.loading=false;clients.error='';renderClients()});
+  back.type='button';back.addEventListener('click',()=>{const id=clients.selected;clearClientSelection();navigation.write('clients',null);renderClients();[...listing.querySelectorAll('[data-client]')].find(b=>b.dataset.client===id)?.focus({preventScroll:true});});
   details.append(back);
   if(clients.loading){details.append(empty('Chargement de la fiche client…'));return}
   if(clients.error){details.append(empty(clients.error));return}
@@ -906,7 +940,7 @@ function renderClients(){
   button.append(node('span','client-name',c.name));
   if(c.summary)button.append(node('span','client-sub',c.summary));
   button.append(node('span','client-mini',`${c.openTasks} tâche(s) · ${c.overdueTasks} en retard`));
-  button.addEventListener('click',()=>openClient(c.id));
+  button.dataset.client=c.id;button.addEventListener('click',()=>openClient(c.id));
   listing.append(button);
  }
 }
@@ -930,7 +964,7 @@ $('home-growth').addEventListener('click',()=>navigate('strategy'));
 function prepareClientAction(id,name,template){if(!tasks.focusClient(id,name))return;navigate('tasks');void tasks.draft(template)}
 $('reload').addEventListener('click',()=>{loadReport();if(['home','orders'].includes(state.view))odooQuotes.selectMonth(state.period.from.slice(0,7))});$('reload-crm').addEventListener('click',loadDashboard);$('prev-month').addEventListener('click',()=>changeMonth(-1));$('next-month').addEventListener('click',()=>changeMonth(1));
 document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.nav)));
-document.querySelectorAll('[data-company]').forEach(b=>b.addEventListener('click',()=>{state.company=b.dataset.company;state.page=1;document.querySelectorAll('[data-company]').forEach(x=>x.classList.toggle('active',x===b));renderOrders()}));
+document.querySelectorAll('[data-company]').forEach(b=>b.addEventListener('click',()=>{state.company=b.dataset.company;state.page=1;document.querySelectorAll('[data-company]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b))});renderOrders()}));
 $('client-search').addEventListener('input',e=>{
  clients.query=e.target.value.slice(0,120);
  clientRequests.invalidate();clients.rows=null;clients.error='';clients.loading=false;

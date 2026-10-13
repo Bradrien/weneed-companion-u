@@ -132,7 +132,7 @@ export function createTasks({request,clientRequest,isAuthenticated,isActive,onCh
   if(session!==s.session||client!==s.clientId||!isAuthenticated()||!isActive()||s.error||s.busy||s.retry||s.loading)return false;
   edit(null,template);return true;
  }
- return {open:()=>load(),render,focusClient,draft,isBusy:()=>s.busy||!!s.retry,reset(){
+ return {open:()=>load(),render,focusClient,focusList(query=''){if(!focusClient(null))return false;s.query=String(query).slice(0,120);if(searchControl)searchControl.value=s.query;return true},draft,isBusy:()=>s.busy||!!s.retry,reset(){
   s.session++;s.operation++;s.epoch++;clientEpoch++;clearTimeout(searchTimer);clearTimeout(clientTimer);s.rows=[];s.total=0;s.offset=0;s.query='';s.status='OPEN';s.clientId=null;s.clientName='';
   s.error='';s.notice='';s.checked=null;s.retry=null;s.busy=false;s.loading=false;editor?.replaceChildren();if(searchControl)searchControl.value='';if(statusControl)statusControl.value='OPEN';render();
  },forClient(id,name=''){if(focusClient(id,name))return load()}};

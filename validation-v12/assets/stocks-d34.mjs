@@ -40,7 +40,18 @@ export function createStocks({request,isActive,isAuthenticated}){
   $('stock-next').disabled=busy||!data||offset+data.items.length>=data.total||offset+50>10000;
  }
  function clearRows(){for(const id of ['stock-list','stock-alerts','stock-summary'])$(id).replaceChildren();$('stock-count').textContent='';pageButtons()}
- function draw(){
+ function stockFocus(){
+  const active=document.activeElement,card=active?.closest?.('.stock-card');
+  return card&&$('stock-list').contains(card)?{key:card.dataset.product,button:active.classList.contains('stock-watch-button')}:null;
+ }
+ function restoreStockFocus(focus){
+  if(!focus||!isActive())return;
+  const card=[...$('stock-list').children].find(n=>n.dataset.product===focus.key);
+  const button=card?.querySelector('.stock-watch-button');
+  const target=focus.button&&button&&!button.disabled?button:card?.querySelector('summary');
+  target?.focus({preventScroll:true});
+ }
+ function draw(focus=stockFocus()){
   const cards=$('stock-summary');cards.replaceChildren();
   for(const row of data.summary){const card=el('article','metric');card.append(el('span','metric-label',row.company+' · catalogue complet'),el('strong','',row.products),el('small','',row.outOfStock+' indisponibles'));cards.append(card)}
   const stale=data.stale||!data.checkedAt||Date.now()-Date.parse(data.checkedAt)>720000;
@@ -55,7 +66,8 @@ export function createStocks({request,isActive,isAuthenticated}){
    const actions=el('div','stock-watch-actions'),button=el('button','secondary-button stock-watch-button',row.watching?'Désactiver cette alerte':'M’avertir du retour en stock');
    button.type='button';button.disabled=watchBusy.size>0||pushBusy;button.setAttribute('aria-pressed',String(row.watching));
    button.addEventListener('click',()=>toggleWatch(row));
-   const note=el('p','help',watchBusy.has(key)?'Enregistrement…':watchNotes.get(key)||(row.watching?'Suivi enregistré. La prochaine transition de zéro (ou moins) à une quantité disponible positive déclenchera une alerte.':row.available>0?'Déjà disponible : l’alerte concernera le prochain retour après une rupture.':'Choisis cette référence pour recevoir son prochain retour en stock.'));
+   const allScope=$('stock-push-scope').value==='all';
+   const note=el('p','help',watchBusy.has(key)?'Enregistrement…':watchNotes.get(key)||(row.watching?'Suivi enregistré. La prochaine transition de zéro (ou moins) à une quantité disponible positive déclenchera une alerte.':row.available>0?'Déjà disponible : l’alerte concernera le prochain retour après une rupture.':'Choisis cette référence pour recevoir son prochain retour en stock.')+(allScope?' Cet appareil reçoit toutes les références, même celles que tu ne suis pas.':''));
    note.setAttribute('role','status');note.setAttribute('aria-live','polite');actions.append(button,note);card.append(summary,actions);
    card.addEventListener('toggle',()=>{if(card.isConnected){if(card.open)expanded.add(key);else expanded.delete(key)}});list.append(card)}
   if(!data.items.length)list.append(el('p','help','Aucune référence pour cette recherche.'));
@@ -64,6 +76,7 @@ export function createStocks({request,isActive,isAuthenticated}){
   for(const row of data.alerts){const card=el('article','settings-card');const kind={out_of_stock:'Rupture',back_in_stock:'Retour en stock',quantity_changed:'Variation'}[row.kind];
    card.append(el('strong','',row.company+' · '+kind+' · '+row.name),el('p','help',qty(row.previous)+' → '+qty(row.current)+' '+row.unit+' · '+date(row.at)));alerts.append(card)}
   if(!data.alerts.length)alerts.append(el('p','help','Aucune rupture ou retour détecté depuis le premier contrôle.'));
+  restoreStockFocus(focus);
  }
  async function load(){
   if(!isAuthenticated()||busy)return;
@@ -82,7 +95,7 @@ export function createStocks({request,isActive,isAuthenticated}){
   let sub=null;try{sub=await (await ready()).pushManager.getSubscription()}catch{}
   if(current(ticket))pushButtons(sub);
  }
- async function activate(notifyAll=$('stock-push-scope').value==='all'){
+ async function activate(notifyAll=$('stock-push-scope').value==='all',{preserveScope=false}={}){
   if(!supported()||!installed()||pushBusy||!isAuthenticated())return false;
   // Keep the permission request in the explicit button gesture.
   const ticket=session,permission=Notification.requestPermission();pushRevision++;pushBusy=true;pushButtons();
@@ -91,6 +104,11 @@ export function createStocks({request,isActive,isAuthenticated}){
    const [reg,key]=await Promise.all([ready(),request('?action=push-key')]);if(!current(ticket))return;
    const raw=atob(key.publicKey.replace(/-/g,'+').replace(/_/g,'/')),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
    let sub=await reg.pushManager.getSubscription();if(!current(ticket))return;
+   if(sub&&preserveScope){
+    const status=await request('?action=push-status',{method:'POST',body:JSON.stringify(sub.toJSON())});if(!current(ticket))return;
+    if(typeof status.data?.active!=='boolean'||typeof status.data?.notify_all!=='boolean')throw Error('invalid_push_status');
+    notifyAll=status.data.notify_all;
+   }
    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});if(!current(ticket))return;
    await request('?action=subscribe',{method:'POST',body:JSON.stringify({...sub.toJSON(),notify_all:notifyAll})});if(!current(ticket))return false;
    $('stock-push-scope').value=notifyAll?'all':'selected';
@@ -102,9 +120,9 @@ export function createStocks({request,isActive,isAuthenticated}){
  }
  async function toggleWatch(row){
   if(!isAuthenticated()||watchBusy.size||pushBusy)return;
-  const ticket=session,key=productKey(row),watching=!row.watching;let refresh=false;watchBusy.add(key);expanded.add(key);watchNotes.delete(key);
+  const ticket=session,key=productKey(row),watching=!row.watching,focus=stockFocus();let refresh=false;watchBusy.add(key);expanded.add(key);watchNotes.delete(key);
   // activate() requests permission synchronously from this explicit user gesture.
-  const device=watching&&supported()&&installed()?activate(false):Promise.resolve(false);
+  const device=watching&&supported()&&installed()?activate(undefined,{preserveScope:true}):Promise.resolve(false);
   draw();
   try{
    const activated=await device;if(!current(ticket))return;
@@ -114,10 +132,10 @@ export function createStocks({request,isActive,isAuthenticated}){
    guard.invalidate();busy=false;$('stock-reload').disabled=false;
    refresh=true;
    for(const item of data?.items||[])if(productKey(item)===key)item.watching=watching;
-   watchNotes.set(key,watching?(activated?'Alerte activée pour cette référence. Sur cet appareil : références suivies uniquement.':'Suivi enregistré. Active les notifications sur cet appareil pour recevoir l’alerte.'):('Alerte désactivée pour cette référence.'+($('stock-push-scope').value==='all'?' Le mode « Toutes les références » reste actif sur cet appareil.':'')));
+   watchNotes.set(key,watching?(activated?'Alerte activée pour cette référence. Sur cet appareil : '+($('stock-push-scope').value==='all'?'toutes les références ; ton réglage est conservé.':'références suivies uniquement.'):'Suivi enregistré. Active les notifications sur cet appareil pour recevoir l’alerte.'):('Alerte désactivée pour cette référence.'+($('stock-push-scope').value==='all'?' Le mode « Toutes les références » reste actif : cet appareil recevra encore ses changements de stock. Choisis « Références suivies uniquement » pour limiter les notifications.':'')));
    if(watching&&!activated){$('stock-notification-options').open=true;pushState()}
   }catch(e){if(current(ticket))watchNotes.set(key,e.message==='push_activation_failed'?'Notifications non activées : vérifie les autorisations de cet appareil.':'Enregistrement non confirmé. Réessaie ; aucune activation annoncée.');}
-  finally{if(current(ticket)){watchBusy.delete(key);if(data)draw();if(refresh&&isActive())load()}}
+  finally{if(current(ticket)){watchBusy.delete(key);if(data){const activeFocus=stockFocus();draw(activeFocus?.key===key?focus:activeFocus)}if(refresh&&isActive())load()}}
  }
  async function pushAction(action){
   if(pushBusy||!isAuthenticated()||!supported()||!installed())return;const ticket=session;pushRevision++;pushBusy=true;pushButtons();
@@ -138,7 +156,11 @@ export function createStocks({request,isActive,isAuthenticated}){
  $('stock-search').addEventListener('input',e=>{query=e.target.value.slice(0,120);clearTimeout(searchTimer);changeFilter();searchTimer=setTimeout(load,300)});
  $('stock-prev').addEventListener('click',()=>{if(busy||!data||offset===0)return;offset=Math.max(0,offset-50);data=null;clearRows();load()});
  $('stock-next').addEventListener('click',()=>{if(busy||!data||offset+data.items.length>=data.total||offset+50>10000)return;offset+=50;data=null;clearRows();load()});
- return {open(){load();pushState();if(!timer)timer=setInterval(()=>{if(isActive()&&!busy)load()},60000)},reset(){
+ return {open(){load();pushState();if(!timer)timer=setInterval(()=>{if(isActive()&&!busy&&!watchBusy.size&&!pushBusy)load()},60000)},search(value,selectedCompany='ALL'){
+  if(!isAuthenticated())return;
+  query=String(value??'').trim().slice(0,120);company=['GTA','TR'].includes(selectedCompany)?selectedCompany:'ALL';
+  $('stock-search').value=query;$('stock-company').value=company;clearTimeout(searchTimer);changeFilter();return load();
+ },reset(){
   session++;guard.invalidate();clearInterval(timer);clearTimeout(searchTimer);timer=null;busy=false;pushBusy=false;data=null;offset=0;query='';company='ALL';
   expanded.clear();watchBusy.clear();watchNotes.clear();$('stock-push-scope').value='selected';$('stock-push-scope').disabled=true;
   $('stock-search').value='';$('stock-company').value='ALL';clearRows();$('stock-status').textContent='Connecte-toi pour consulter les stocks.';$('stock-reload').disabled=false;

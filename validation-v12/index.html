@@ -20,6 +20,7 @@
  <link rel="stylesheet" href="assets/monthly-credits-d38.css">
  <link rel="stylesheet" href="assets/companion-v1.css?v=development-4">
  <link rel="stylesheet" href="assets/stock-watches.css">
+ <link rel="stylesheet" href="assets/commercial-ux.css?v=1">
  <meta name="robots" content="noindex,nofollow">
  <title>WeNeed Companion — V1</title>
 </head>
@@ -42,12 +43,13 @@
     </form>
    </section>
    <section id="app-panel" class="hidden">
-    <div class="page-intro"><p id="page-eyebrow" class="eyebrow">ACCUEIL</p><h1 id="page-title">Vue d'ensemble</h1><p id="page-subtitle">Suivi commercial en lecture seule.</p></div>
+    <div class="page-intro"><p id="page-eyebrow" class="eyebrow">ACCUEIL</p><h1 id="page-title" tabindex="-1">Vue d'ensemble</h1><p id="page-subtitle">Suivi commercial en lecture seule.</p></div>
     <div class="month-toolbar"><div><span class="tiny-label">PÉRIODE ANALYSÉE</span><strong id="period-label"></strong></div><div class="period-buttons"><button id="prev-month" type="button" aria-label="Mois précédent">‹</button><button id="next-month" type="button" aria-label="Mois suivant">›</button><button id="reload" type="button" aria-label="Rafraîchir">↻</button></div></div>
     <div id="notice" role="status" aria-live="polite" class="notice"><span id="notice-text">Connecté. Appuie sur « Charger les données » pour consulter Odoo.</span></div>
     <div id="loading" class="loading hidden"><span class="spinner"></span><span>Lecture des commandes Odoo en cours…</span></div>
     <div id="view-home" class="view">
       <div id="metrics" class="metrics-grid"></div>
+      <details class="v1-disclosure"><summary>Devis et couverture du calcul</summary><div class="v1-disclosure-body"><div id="home-opportunities" class="metrics-grid"></div><p class="help">Estimations du mois choisi. Les devis restent séparés des ventes confirmées.</p></div></details>
       <p id="home-source-status" class="help" role="status"></p>
       <div class="v1-shortcuts"><button type="button" class="v1-shortcut" data-nav="orders"><strong>Commandes</strong><span>Ventes et produits</span></button><button type="button" class="v1-shortcut" data-nav="stocks"><strong>Stocks</strong><span>Disponibilités GTA / TR</span></button><button type="button" class="v1-shortcut" data-nav="archives"><strong>WhatsApp</strong><span>Conversations et vocaux</span></button><button type="button" class="v1-shortcut" id="home-growth"><strong>Développer</strong><span>Opportunités clients</span></button></div>
       <section class="section">
@@ -59,7 +61,7 @@
       <details class="v1-disclosure"><summary>Points à vérifier</summary><div class="v1-disclosure-body"><div id="review-cues" class="stack"></div></div></details>
     </div>
     <div id="view-orders" class="view hidden">
-      <div class="filter-panel"><label class="tiny-label" for="order-search">RECHERCHER</label><input type="search" id="order-search" placeholder="Client, référence, SKU…" autocapitalize="off"><div id="company-tabs" class="segmented" role="group" aria-label="Filtrer par entreprise"><button data-company="ALL" class="active" type="button">Toutes</button><button data-company="GTA" type="button">GTA</button><button data-company="TR" type="button">TR</button></div><div class="select-line"><label for="status-select">Statut</label><select id="status-select"><option value="all">Tous</option><option value="confirmed">Confirmées</option><option value="excluded">Annulées et autres</option></select></div></div>
+      <div class="filter-panel"><label class="tiny-label" for="order-search">RECHERCHER</label><input type="search" id="order-search" placeholder="Client, référence, SKU…" autocapitalize="off"><div id="company-tabs" class="segmented" role="group" aria-label="Filtrer par entreprise"><button data-company="ALL" class="active" aria-pressed="true" type="button">Toutes</button><button data-company="GTA" aria-pressed="false" type="button">GTA</button><button data-company="TR" aria-pressed="false" type="button">TR</button></div><div class="select-line"><label for="status-select">Statut</label><select id="status-select"><option value="all">Tous</option><option value="confirmed">Confirmées</option><option value="excluded">Non confirmées</option><option value="review">À vérifier</option></select></div></div>
       <div id="orders-count" class="result-count"></div><div id="orders-list" class="stack"></div><button id="load-more" class="secondary-button hidden" type="button">Afficher 15 commandes supplémentaires</button>
     </div>
     <div id="view-commissions" class="view hidden">
@@ -114,5 +116,5 @@
    <button type="button" data-nav="settings" class="nav-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span>Plus</span></button>
   </nav>
  </div>
- <script src="assets/app-crm-d30.js?v=stock-watches-1" type="module"></script>
+ <script src="assets/app-crm-d30.js?v=commercial-ux-1" type="module"></script>
 </body></html>

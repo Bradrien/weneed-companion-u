@@ -8,14 +8,25 @@ export function disclosure(key,title,children,{open=false}={}){
 }
 export function contactActions(contacts){
  const row=el('div','v1-contact-actions'),seen=new Set();
+ const add=(href,label,contact,value,external=false)=>{
+  if(seen.has(href))return;seen.add(href);
+  const link=el('a','v1-action-link',label);link.href=href;
+  link.setAttribute('aria-label',label+' · '+(contact.name?contact.name+' · ':'')+value);
+  if(external){link.target='_blank';link.rel='noopener noreferrer'}row.append(link);
+ };
  for(const c of contacts)for(const channel of c.channels||[]){
-  const value=String(channel.value||'').trim(),kind=String(channel.type||'').toLowerCase();let href,label;
-  if(/mail/.test(kind)&&/^[a-z0-9.!$'*+/=_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,63}$/i.test(value)){href='mailto:'+value;label='E-mail'}
+  const value=String(channel.value||'').trim(),kind=String(channel.type||'').toLowerCase();
+  if(/mail/.test(kind)&&/^[a-z0-9.!$'*+/=_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,63}$/i.test(value))add('mailto:'+value,'E-mail',c,value);
   else if(/phone|tel|mobile|whatsapp/.test(kind)){
-   const number=value.replace(/[\s().-]/g,'');if(!/^\+?\d{8,15}$/.test(number))continue;
-   href='tel:'+number;label='Appeler';
+   const number=value.replace(/[\s().-]/g,'');
+   const international=number.startsWith('+')?number.slice(1):number.startsWith('00')?number.slice(2):null;
+   const validInternational=international&&/^[1-9]\d{7,14}$/.test(international);
+   if(international!==null?!validInternational:!/^\d{8,15}$/.test(number))continue;
+   const dial=validInternational?'+'+international:number;
+   // WhatsApp requires an explicit country code; never guess one for a local number.
+   if(validInternational&&/whatsapp|mobile/.test(kind))add('https://wa.me/'+international,'WhatsApp',c,value,true);
+   add('tel:'+dial,'Appeler',c,value);
   }
-  if(!href||seen.has(href))continue;seen.add(href);const link=el('a','v1-action-link',label);link.href=href;link.setAttribute('aria-label',label+' '+(c.name||value));row.append(link);
  }
  return row;
 }

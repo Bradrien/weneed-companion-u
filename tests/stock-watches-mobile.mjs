@@ -48,6 +48,7 @@ try{
  const tr=()=>page.locator('.stock-card[data-product="TR:7"]');await tr().waitFor();await tr().locator('summary').click();
  await tr().getByRole('button',{name:'M’avertir du retour en stock'}).click();await tr().getByText(/Alerte activée pour cette référence/).waitFor();
  assert.deepEqual(writes[0],{company:'TR',product_id:7,watching:true});assert.equal(subscriptions[0].notify_all,false);
+ await page.waitForFunction(()=>document.activeElement?.classList.contains('stock-watch-button')&&!document.activeElement.disabled);
  await page.locator('#stock-reload').click();await tr().getByRole('button',{name:'Désactiver cette alerte'}).waitFor();
  await page.locator('#stock-company').selectOption('GTA');const gta=page.locator('.stock-card[data-product="GTA:7"]');await gta.waitFor();await gta.locator('summary').click();
  await gta.getByRole('button',{name:'M’avertir du retour en stock'}).waitFor();assert.equal(watches.get('GTA:7'),undefined);
@@ -62,7 +63,14 @@ try{
  assert.ok(!(await page.locator('#stock-list').innerText()).includes('Alerte activée pour cette référence'));
  await tr().locator('summary').click();await page.locator('#stock-notification-options').evaluate(el=>el.open=true);
  await page.locator('#stock-push-scope').selectOption('all');await page.locator('#stock-push-enable').click();await page.getByText(/Notifications activées · toutes/).waitFor();assert.equal(subscriptions.at(-1).notify_all,true);
+ await tr().getByRole('button',{name:'Désactiver cette alerte'}).click();await tr().getByText(/recevra encore ses changements de stock/).waitFor();
+ await tr().getByRole('button',{name:'M’avertir du retour en stock'}).click();await tr().getByText(/ton réglage est conservé/).waitFor();
+ assert.equal(subscriptions.at(-1).notify_all,true);assert.equal(await page.locator('#stock-push-scope').inputValue(),'all');
+ await tr().locator('summary').focus();await page.evaluate(()=>{window.__previousStockFocus=document.activeElement;document.getElementById('stock-reload').click()});
+ await page.waitForFunction(()=>!window.__previousStockFocus.isConnected);
+ assert.equal(await page.evaluate(()=>document.activeElement?.closest('.stock-card')?.dataset.product),'TR:7');
+ assert.equal(await page.evaluate(()=>document.activeElement?.tagName),'SUMMARY');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
  await mkdir('artifacts-v1',{recursive:true});await page.screenshot({path:'artifacts-v1/stock-watches-mobile.png',fullPage:true});
- console.log('Stock mobile passed: clickable searched product, exact company/ID, persistent enable/disable, server and permission failures, logout race, selected/all device scope, no horizontal overflow.');
+ console.log('Stock mobile passed: clickable searched product, exact company/ID, persistent enable/disable, server and permission failures, logout race, preserved selected/all device scope, focus retained after mutation and refresh, no horizontal overflow.');
 }finally{await browser?.close();server.close()}

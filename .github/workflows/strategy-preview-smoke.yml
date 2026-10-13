@@ -1,7 +1,7 @@
 name: Companion V1 responsive commercial workspace
 on:
   push:
-    branches: [main, codex/stock-watches]
+    branches: [main, codex/stock-watches, codex/commercial-ux-audit]
     paths:
       - 'validation-v12/**'
       - 'tests/**'
@@ -92,6 +92,13 @@ jobs:
       - run: node --test supabase/tests/stock-watches-sql.test.mjs
       - run: node tests/strategy-preview-smoke.mjs
       - run: node tests/companion-v1-preview.mjs
+      - run: node tests/commercial-ux-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: companion-commercial-ux-visuals
+          path: artifacts-ux/*.png
+          retention-days: 2
       - run: node tests/stock-watches-mobile.mjs
       - run: node tests/development-preview-v2.mjs
       - uses: actions/upload-artifact@v4
