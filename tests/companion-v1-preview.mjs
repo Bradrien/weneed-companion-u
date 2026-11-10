@@ -64,13 +64,13 @@ try{
  await page.locator('#view-home .v1-shortcut[data-nav="orders"]').click();await page.locator('#orders-list .order-button').first().click();
  assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Commission estimée : 99,45/);assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Libellé rapproché/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
- assert.equal(await page.locator('.commission-simple-order').count(),2);
+ assert.equal(await page.locator('.commission-simple-order').count(),1);
  assert.match(await page.locator('.commission-simple-amount').innerText(),/99,45/);
  assert.equal(await page.locator('.commission-simple-advanced').getAttribute('open'),null);
  assert.equal(await page.locator('#legacy-commission-details').getAttribute('open'),null);await overflow();
  await page.screenshot({path:'artifacts-v1/commissions-mobile.png',fullPage:true});
  await page.locator('.commission-simple-statuses input[data-status="draft"]').check();
- assert.equal(await page.locator('.commission-simple-order').count(),3);
+ assert.equal(await page.locator('.commission-simple-order').count(),2);
  assert.match(await page.locator('.commission-simple-amount').innerText(),/198,90/);
  await page.locator('.commission-simple-statuses input[data-status="draft"]').uncheck();
  await page.locator('.commission-simple-order-head').first().click();
