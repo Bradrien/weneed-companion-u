@@ -96,10 +96,18 @@ try{
  await page.locator('#view-home .v1-shortcut[data-nav="orders"]').click();await page.locator('#orders-list .order-button').first().click();
  assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Commission estimée : 99,45/);assert.match(await page.locator('#orders-list .order-details').first().innerText(),/Libellé rapproché/);
  await page.locator('#bottom-nav [data-nav="commissions"]').click();
- assert.equal(await page.locator('[data-disclosure="commission-orders"]').getAttribute('open'),null);
+ assert.equal(await page.locator('.commission-simple-order').count(),2);
+ assert.match(await page.locator('.commission-simple-amount').innerText(),/99,45/);
+ assert.equal(await page.locator('.commission-simple-advanced').getAttribute('open'),null);
  assert.equal(await page.locator('#legacy-commission-details').getAttribute('open'),null);await overflow();
  await page.screenshot({path:'artifacts-ux/commissions-mobile.png',fullPage:true});
- await page.locator('[data-disclosure="commission-orders"]>summary').click();await page.locator('.pipeline-order-head').first().click();
+ await page.locator('.commission-simple-statuses input[data-status="draft"]').check();
+ assert.equal(await page.locator('.commission-simple-order').count(),3);
+ assert.match(await page.locator('.commission-simple-amount').innerText(),/198,90/);
+ await page.locator('.commission-simple-statuses input[data-status="draft"]').uncheck();
+ await page.locator('.commission-simple-order-head').first().click();
+ assert.match(await page.locator('.commission-simple-lines').first().innerText(),/99,45/);
+ await page.locator('.commission-simple-calculation>summary').first().click();
  await page.locator('.pipeline-order-details').first().getByText('Libellé rapproché · PB/G/TR/250',{exact:true}).waitFor({state:'visible'});
  assert.match(await page.locator('.pipeline-order-details').first().innerText(),/99,45/);
  await page.locator('#bottom-nav [data-nav="clients"]').click();await page.locator('#clients-list .client-row').first().click();
@@ -123,3 +131,4 @@ try{
  assert.equal(await page.locator('#client-detail').innerText(),'');assert.equal(errors.length,0,errors.join('\n'));
  console.log('Commercial UX passed: actionable KPI/review cues, quote coverage, stock/client shortcuts, client Back/Forward, scoped tasks reset, plus V1: automatic current-month dashboard, 320–1440px layouts, collapsed diagnostics, listing provenance, client contact shortcuts, unsaved follow-up draft, client-bound development action and logout isolation.');
 }catch(error){await mkdir('artifacts-ux',{recursive:true});if(page){await page.screenshot({path:'artifacts-ux/failure.png',fullPage:true});console.log('V1 failure diagnostics',JSON.stringify({errors,visible:(await page.locator('#app-panel').innerText()).slice(0,2200),posts:posts.length}))}throw error;}finally{await browser?.close();await new Promise(ok=>server.close(ok))}
+

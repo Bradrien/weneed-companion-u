@@ -1,3 +1,5 @@
+import {renderSimpleCommissions} from './commission-simple-view.mjs';
+import {defaultCommissionStatuses} from './commission-selection.mjs';
 import {normalizeOdooPipeline,filterOdooPipeline,odooPipelineTotals,statusLabels,pipelineReconciliationGroups} from './odoo-commission-model-d30.mjs?v=v1-1';
 import {catalogueProvenance,selectedCommissionOrders,createCommissionCsv} from './commission-audit-d31.mjs?v=v1-1';
 import {createInvoiceEvidenceView} from './odoo-invoice-evidence-d32.mjs?v=review-1';
@@ -32,12 +34,13 @@ const lineReasons={catalog_unavailable:'Catalogue Kino indisponible',missing_kin
  missing_kino_price:'Prix de référence Kino manquant'};
 export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvidenceRequest,returnDeductionsRequest,monthlyCreditsRequest,isActive,isAuthenticated,compact=false,onUpdated}){
  let data=null,fallbackData=null,fallbackMonth=null,fallbackLoading=false,fallbackError='',loading=false,error='',stages=new Set(filters),company='all',search='',month=currentCommissionMonth(),epoch=0,expanded=new Set(),failedCode='';
+ let simpleStatuses=defaultCommissionStatuses();
  const host=()=>document.getElementById('odoo-quote-pipeline-root');
  const monthlyCredits=createMonthlyCredits({request:monthlyCreditsRequest,isAuthenticated,onUpdated:()=>{render();onUpdated?.()}});
  const returnDeductions=createCommissionReturns({request:returnDeductionsRequest,isAuthenticated,onUpdated:()=>{render();onUpdated?.()}});
  const invoiceEvidence=typeof invoiceEvidenceRequest==='function'?
   createInvoiceEvidenceView({request:invoiceEvidenceRequest,isAuthenticated}):null;
- function reset(){epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
+ function reset(){simpleStatuses=defaultCommissionStatuses();epoch++;invoiceEvidence?.reset();returnDeductions.reset();monthlyCredits.reset();data=null;fallbackData=null;fallbackMonth=null;fallbackError='';fallbackLoading=false;loading=false;error='';failedCode='';stages=new Set(filters);company='all';search='';month=currentCommissionMonth();expanded.clear();host()?.replaceChildren()}
  async function load(force=false){
   if(!isAuthenticated()||loading)return;
   if((data||fallbackData)&&!force){render();return}
@@ -119,12 +122,12 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
  }
  function openOrder(orderId){
   const order=data?.orders.find(o=>o.id===orderId);if(!order)return;
-  expanded.add(orderId);stages.add(order.stage);render();
+  expanded.add(orderId);stages.add(order.stage);if(compact){company=order.company;search=order.reference;simpleStatuses=new Set([order.state==='draft'?'draft':order.state==='sent'?'sent':order.stage==='facture'?'invoiced':'confirmed'])}render();
   const details=host()?.querySelector('[data-disclosure="commission-orders"]');if(details)details.open=true;
   let card=host()?.querySelector('[data-order-id="'+orderId+'"]');
   if(!card){search=order.reference;render();card=host()?.querySelector('[data-order-id="'+orderId+'"]')}
   card?.scrollIntoView({behavior:'smooth',block:'start'});
-  card?.querySelector('.pipeline-order-head')?.focus({preventScroll:true});
+  card?.querySelector('.pipeline-order-head,.commission-simple-order-head')?.focus({preventScroll:true});
  }
  function drawReconciliation(target,orders){
   const groups=pipelineReconciliationGroups(orders);
@@ -144,7 +147,7 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   exportButton.onclick=()=>{
    if(loading||error||!isAuthenticated())return;
    try{
-    const output=createReviewCsv(data,{month,company,query:search});
+    const output=createReviewCsv({...data,orders},{month,company,query:search});
     const url=URL.createObjectURL(new Blob([output.content],{type:'text/csv;charset=utf-8'}));
     const link=el('a');link.href=url;link.download=output.filename;document.body.append(link);
     link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
@@ -243,13 +246,13 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   const exportPanel=el('div','commission-export-controls'),button=el('button','','Exporter le bilan CSV');
   button.type='button';button.disabled=loading||!!error||!data.sourceInputsRechecked||!orders.length;
   const status=el('small','commission-month-detail',
-   'Export du mois sélectionné avec les filtres société et recherche : '+orders.length+
+   'Export du mois sélectionné avec les filtres affichés : '+orders.length+
    ' document(s), devis et commandes séparés. Estimations des ventes avant déduction des retours ; les montants manquants ou suspendus restent vides.');
   status.setAttribute('role','status');
   button.onclick=()=>{
    if(loading||error||!isAuthenticated())return;
    try{
-    const output=createCommissionCsv(data,{month,company,query:search});
+    const output=createCommissionCsv({...data,orders},{month,company,query:search});
     const url=URL.createObjectURL(new Blob([output.content],{type:'text/csv;charset=utf-8'}));
     const link=el('a');link.href=url;link.download=output.filename;document.body.append(link);
     link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
@@ -491,9 +494,29 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
   root.append(panel);drawMonthly(body);
  }
 
+ function renderSimple(root){
+  const source=data||(fallbackMonth===month?fallbackData:null);
+  renderSimpleCommissions(root,{source,state:{month,company,query:search,statuses:simpleStatuses},loading:loading||fallbackLoading,
+   error:error?(data?'Actualisation échouée : les derniers montants affichés peuvent être périmés. '+error:error):fallbackError,
+   onMonth:selectMonth,onRefresh:()=>load(true),onCompany:value=>{company=value},onQuery:value=>{search=value},
+   onStatus:value=>{simpleStatuses=value},expanded,
+   technicalOrder:order=>{const card=orderCard(order);card.querySelector('.pipeline-order-head').remove();card.querySelector('.pipeline-order-details').hidden=false;card.removeAttribute('data-order-id');return card},
+   advanced:selected=>{
+    const details=el('details','commission-simple-advanced');details.append(el('summary','','Retours, avoirs et contrôles'));
+    const body=el('div','commission-simple-advanced-body');
+    body.append(el('p','commission-month-detail','Le montant principal additionne les commissions des documents sélectionnés, avant retours. Les retours et avoirs ci-dessous concernent toutes les commandes confirmées du mois pour la société choisie.'));
+    const summary=summarizeCommissionMonth(source,{month,company,query:search});
+    const sourceFresh=!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error;
+    body.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt}),
+     monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null}));
+    if(data){drawAuditControls(body,selected.orders);drawReconciliation(body,selected.orders)}
+    body.append(el('p','commission-month-detail',COMMISSION_RULE_STATUS.explanation));details.append(body);return details;
+   }});
+ }
  function render(){
   if(!isActive())return;
   const root=host();if(!root)return;root.replaceChildren();
+  if(compact){renderSimple(root);return}
   renderMonthly(root);
   const fullRoot=root,detailRoot=compact?el('div'):root;
   const top=el('section','pipeline-head');
@@ -586,3 +609,4 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
  }
  return {load,reset,render,snapshot,selectMonth,openOrder};
 }
+
