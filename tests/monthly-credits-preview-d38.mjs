@@ -40,12 +40,12 @@ try{
   if(u.pathname==='/auth/v1/logout')return route.fulfill(json({}));
   return route.fulfill(json({ok:true,data:{stats:{clients_total:0},attention_clients:[],unassigned_actionable_tasks:[]}}));
  });
- const showFilters=async()=>{const d=page.locator('[data-disclosure="commission-filters"]');if(!await d.evaluate(x=>x.open))await d.locator('summary').click()};
+ const showDetails=async()=>{const d=page.locator('.commission-simple-advanced');await d.waitFor({state:'attached'});if(!await d.evaluate(x=>x.open))await d.locator('summary').first().click()};
  const login=async()=>{await page.locator('#login-password').fill('synthetic-only');await page.locator('#login-button').click();await page.locator('#app-panel').waitFor({state:'visible'})};
  const panel=()=>page.locator('.monthly-credit-panel'),button=()=>panel().getByRole('button',{name:'Lire les avoirs du mois',exact:true});
  const net=()=>page.locator('.commission-return-panel .commission-month-metric').nth(1).locator('strong');
  const loaded=async()=>{await panel().getByText('Commission à retirer estimée : −10,50 €',{exact:true}).waitFor({state:'visible'})};
- await page.goto(origin+'/?view=commissions&build=D38');await login();await button().waitFor({state:'visible'});
+ await page.goto(origin+'/?view=commissions&build=D38');await login();await showDetails();await button().waitFor({state:'visible'});
  await page.waitForFunction(()=>document.querySelectorAll('.commission-return-panel .commission-month-metric strong')[1]?.textContent.includes('10,50'));
  assert.equal(creditReads,0,'accounting read must be on demand');const initialNet=await net().innerText();
  await button().click();await loaded();assert.equal(await net().innerText(),initialNet,'candidate estimate was deducted twice');assert.equal(await panel().locator('.monthly-credit-net strong').innerText(),initialNet);
@@ -55,18 +55,19 @@ try{
   assert.match(await a.getAttribute('href'),/^https:\/\/weneedweed\.odoo\.com\/web#/);assert.equal(await a.getAttribute('rel'),'noopener noreferrer');
  }
  await panel().getByText('Voir le calcul de la déduction',{exact:true}).click();assert.match(await panel().innerText(),/52,50/);
- await showFilters();await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('GTA');assert.equal(await panel().locator('.monthly-credit-document').count(),0);
- await showFilters();await page.getByLabel('Filtrer le bilan mensuel par société').selectOption('TR');await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('TEST-OLDER');
- assert.equal(await panel().locator('.monthly-credit-document').count(),1);await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('absent');
- assert.equal(await panel().locator('.monthly-credit-document').count(),0);await showFilters();await page.getByLabel('Rechercher dans le bilan mensuel').fill('');
+ await page.getByRole('button',{name:'GTA',exact:true}).click();assert.equal(await panel().locator('.monthly-credit-document').count(),0);
+ await page.getByRole('button',{name:'TR',exact:true}).click();await page.getByLabel('Rechercher dans les commissions').fill('TEST-OLDER');
+ assert.equal(await panel().locator('.monthly-credit-document').count(),1);await page.getByLabel('Rechercher dans les commissions').fill('absent');
+ assert.equal(await panel().locator('.monthly-credit-document').count(),0);await page.getByLabel('Rechercher dans les commissions').fill('');
  fail=true;await button().click();await panel().getByText('Une source Odoo a changé pendant la lecture. Relance le rapprochement.',{exact:true}).waitFor({state:'visible'});
  assert.equal(await panel().locator('.monthly-credit-document').count(),0);assert.equal(await net().innerText(),initialNet);fail=false;
  hold=true;await button().click();for(let i=0;i<100&&!release;i++)await new Promise(r=>setTimeout(r,20));assert.ok(release);const releaseMonth=release;release=null;
- await page.getByLabel('Mois du bilan commissions').fill('2026-09');await page.getByLabel('Mois du bilan commissions').dispatchEvent('change');await releaseMonth();
+ await page.getByLabel('Mois des commissions').fill('2026-09');await page.getByLabel('Mois des commissions').dispatchEvent('change');await releaseMonth();
  await button().waitFor({state:'visible'});assert.equal(await panel().locator('.monthly-credit-document').count(),0);await button().click();await loaded();
  hold=true;await button().click();for(let i=0;i<100&&!release;i++)await new Promise(r=>setTimeout(r,20));assert.ok(release);
- await page.locator('#logout-top').click();await page.locator('#login-panel').waitFor({state:'visible'});await login();await release();
+ await page.locator('#logout-top').click();await page.locator('#login-panel').waitFor({state:'visible'});await login();await showDetails();await release();
  await button().waitFor({state:'visible'});assert.equal(await panel().locator('.monthly-credit-document').count(),0);
  await button().click();await loaded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');assert.deepEqual(errors,[]);
  console.log('D38 mobile passed: on-demand monthly credits, exact invoice-note provenance, source sale links, replayed prorata estimates, recorded-deduction duplicate warning, company/search scopes, literal notes and stale month/session guards.');
 }finally{await browser?.close();await new Promise(r=>server.close(r))}
+

@@ -3,7 +3,7 @@ import {createSamples} from './samples-v2.mjs?v=development-4';
 import {createConnectorStatus} from './connectors-d34.mjs';
 import {createTasks} from './tasks-d36.mjs?v=commercial-ux-1';
 import {createArchives} from './archives-d35.mjs';
-import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=commission-simple-1';
+import {createOdooQuotePipeline} from './odoo-quote-pipeline-d30.mjs?v=commission-simple-2';
 import {buildOrderLineCommissions,lineCommission} from './order-line-commission-d30.mjs?v=rules-1';
 import {createStrategy} from './strategy-d19.mjs?v=v1-1';
 import {disclosure,resetInterface,compactClientSections,contactActions} from './v1-interface.mjs?v=commercial-ux-1';

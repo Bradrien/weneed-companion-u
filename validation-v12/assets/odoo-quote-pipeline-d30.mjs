@@ -502,13 +502,15 @@ export function createOdooQuotePipeline({request,monthlyReportRequest,invoiceEvi
    onStatus:value=>{simpleStatuses=value},expanded,
    technicalOrder:order=>{const card=orderCard(order);card.querySelector('.pipeline-order-head').remove();card.querySelector('.pipeline-order-details').hidden=false;card.removeAttribute('data-order-id');return card},
    advanced:selected=>{
-    const details=el('details','commission-simple-advanced');details.append(el('summary','','Retours, avoirs et contrôles'));
-    const body=el('div','commission-simple-advanced-body');
+    const details=disclosure('commission-simple-advanced','Retours, avoirs et contrôles',[]);details.className='commission-simple-advanced';
+    const body=details.lastElementChild;body.className='commission-simple-advanced-body';
     body.append(el('p','commission-month-detail','Le montant principal additionne les commissions des documents sélectionnés, avant retours. Les retours et avoirs ci-dessous concernent toutes les commandes confirmées du mois pour la société choisie.'));
     const summary=summarizeCommissionMonth(source,{month,company,query:search});
     const sourceFresh=!!data&&data.sourceInputsRechecked&&data.calculationVersion==='kino_browser_arithmetic_v1_cent_per_line'&&!loading&&!error;
-    body.append(returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt}),
-     monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null}));
+    const returnsPanel=returnDeductions.render({month,company,query:search,confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt});
+    const creditsPanel=monthlyCredits.render({month,company,query:search,recorded:returnDeductions.snapshot(month),confirmed:summary.confirmed,sourceFresh,pipelineReadAt:source.readAt,catalogSnapshotAt:data?.catalogSnapshotAt||null});
+    compactSourceInfo(returnsPanel,'return-source-info','Règles des retours');compactSourceInfo(creditsPanel,'credit-source-info','Sources des avoirs');
+    body.append(returnsPanel,creditsPanel);
     if(data){drawAuditControls(body,selected.orders);drawReconciliation(body,selected.orders)}
     body.append(el('p','commission-month-detail',COMMISSION_RULE_STATUS.explanation));details.append(body);return details;
    }});
