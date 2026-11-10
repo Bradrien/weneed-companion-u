@@ -47,9 +47,28 @@ async function gateway(path, body) {
   if(!response.ok || !data?.ok) throw new Error(data?.error || `bridge_http_${response.status}`);
   return data;
 }
-async function openKinoTab() {
+function kinoPageMessage(code) {
+  if(code==='kino_tab_missing') return 'Ouvre Kino dans ce profil Chrome.';
+  if(code==='kino_tab_loading') return 'La page Kino est encore en chargement. Réessaie une fois chargée.';
+  if(code==='kino_inspection_failed') return 'Le script Kino répond, mais la lecture de la page a échoué.';
+  return 'Le script du Bridge est inaccessible dans les onglets Kino. Vérifie dans les détails de l’extension que son accès à kinocommission.base44.app est autorisé, puis recharge Kino.';
+}
+async function resolveKinoTab() {
   const tabs=await chrome.tabs.query({url:KINO_URL});
-  return tabs.find(t=>t.id&&t.status==='complete') || null;
+  if(!tabs.length) return {tab:null,error:'kino_tab_missing'};
+  const candidates=tabs.filter(t=>t.id&&t.status==='complete')
+    .sort((a,b)=>Number(Boolean(b.active))-Number(Boolean(a.active)) ||
+      (b.lastAccessed||0)-(a.lastAccessed||0)).slice(0,8);
+  if(!candidates.length) return {tab:null,error:'kino_tab_loading'};
+  let error='kino_receiver_unavailable';
+  for(const tab of candidates){
+    try {
+      const inspection=await inspectTab(tab);
+      if(inspection?.ok) return {tab,inspection,error:null};
+      if(inspection?.error==='dom_inspection_failed') error='kino_inspection_failed';
+    } catch {}
+  }
+  return {tab:null,error};
 }
 async function inspectTab(tab) {
   return chrome.tabs.sendMessage(tab.id,{type:'KINO_INSPECT'});
@@ -69,10 +88,9 @@ async function poll() {
   try {
     const session=await getSession();
     if(!session) return;
-    const tab=await openKinoTab();
-    if(!tab) {await setStatus('Ouvre Kino dans Chrome et actualise la page.');return;}
-    const isReady=await inspectTab(tab).catch(()=>null);
-    if(!isReady?.ok) {await setStatus('Recharge l’onglet Kino pour activer l’extension.');return;}
+    const ready=await resolveKinoTab();
+    if(!ready.tab) {await setStatus(kinoPageMessage(ready.error),ready.error);return;}
+    const tab=ready.tab;
     const {job}=await gateway('?op=poll',{});
     if(!job) {await setStatus('Connecté. En attente d’une demande de lecture.');return;}
     if(!['inspect','catalog_snapshot','simulator_probe','simulator_search_probe'].includes(job.action)) {
@@ -142,7 +160,9 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     }
     if(message.type==='CHECK'){await poll();return {ok:true};}
     if(message.type==='CATALOG_LOCAL'){
-      const t=await openKinoTab();if(!t)return {ok:false,error:'Onglet Kino introuvable.'};
+      const ready=await resolveKinoTab();
+      if(!ready.tab)return {ok:false,error:kinoPageMessage(ready.error)};
+      const t=ready.tab;
       const report=await catalogTab(t).catch(()=>null);
       if(!report?.ok)return {ok:false,error:report?.error||'Lecture catalogue impossible.'};
       const c=report.result.catalog;
@@ -151,7 +171,9 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
         diagnostics:c.diagnostics}};
     }
     if(message.type==='SEARCH_LOCAL'){
-      const t=await openKinoTab();if(!t)return {ok:false,error:'Onglet Kino introuvable.'};
+      const ready=await resolveKinoTab();
+      if(!ready.tab)return {ok:false,error:kinoPageMessage(ready.error)};
+      const t=ready.tab;
       const sku=message.sku===undefined?'AB/I':message.sku;
       if(!KinoSearch.validSku(sku))return {ok:false,error:'SKU invalide (64 caractères maximum).'};
       const r=await searchProbeTab(t,sku).catch(()=>null);
@@ -165,8 +187,9 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
         dropdown_detected:d.diagnostics?.suggestion_container_detected===true}};
     }
     if(message.type==='SIMULATOR_LOCAL'){
-      const t=await openKinoTab();
-      if(!t)return {ok:false,error:'Onglet Kino introuvable.'};
+      const ready=await resolveKinoTab();
+      if(!ready.tab)return {ok:false,error:kinoPageMessage(ready.error)};
+      const t=ready.tab;
       const report=await simulatorTab(t).catch(()=>null);
       if(!report?.ok)return {ok:false,error:report?.error||'Inspection impossible.'};
       const d=report.result.simulator;
@@ -175,8 +198,9 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
         headings:d.headings.slice(0,5)}};
     }
     if(message.type==='INSPECT_LOCAL'){
-      const t=await openKinoTab();if(!t) return {ok:false,error:'Onglet Kino introuvable.'};
-      const snap=await inspectTab(t).catch(()=>null);
+      const ready=await resolveKinoTab();
+      if(!ready.tab)return {ok:false,error:kinoPageMessage(ready.error)};
+      const snap=ready.inspection;
       return snap?.ok?{ok:true,summary:{title:snap.result.page_title,
          headings:snap.result.section_headings,buttons:snap.result.buttons.slice(0,10)}}:{ok:false,error:'Recharge l’onglet Kino.'};
     }
@@ -189,3 +213,4 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
 chrome.alarms.onAlarm.addListener(alarm=>{if(alarm.name==='pollKino')void poll();});
 chrome.runtime.onInstalled.addListener(()=>{chrome.alarms.create('pollKino',{periodInMinutes:0.5});});
 chrome.runtime.onStartup.addListener(()=>{chrome.alarms.create('pollKino',{periodInMinutes:0.5});});
+

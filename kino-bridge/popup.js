@@ -6,7 +6,7 @@ async function refresh(){
   const status=await send({type:'STATUS'});
   $('login').hidden=Boolean(status.authenticated);
   $('signed').hidden=!status.authenticated;
-  info(status.status || status.error || 'Non connecté.');
+  info((status.status || 'Non connecté.') + (status.error ? '\nDiagnostic : ' + status.error : ''));
 }
 $('login').addEventListener('submit',async ev=>{
   ev.preventDefault();
@@ -68,3 +68,4 @@ $('search').addEventListener('click',async()=>{
 });
 $('logout').addEventListener('click',async()=>{await send({type:'LOGOUT'});await refresh();});
 refresh().catch(()=>info('Erreur de chargement de l’extension.'));
+
